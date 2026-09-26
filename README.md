@@ -1,5 +1,11 @@
 # Blood Bank Management System — Tambulig
 
+![Django](https://img.shields.io/badge/Django-5.2-092E20?logo=django&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
+![HTMX](https://img.shields.io/badge/HTMX-2.0-1e66f5)
+![Tailwind](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-106%20passing-brightgreen)
+
 A production-oriented web system for managing the full blood-bank workflow:
 donor registration → screening → donation → collection → testing/safety
 screening → blood bag inventory → requests → compatibility → release →
@@ -14,6 +20,15 @@ Built with **Django 5.2 + Django Templates + HTMX + Alpine.js + Tailwind CSS 4**
 > reward values are all database-configured, and demo values are clearly
 > labelled as placeholders requiring institutional approval. See
 > [SECURITY.md](SECURITY.md) and [DECISIONS.md](DECISIONS.md).
+
+## Table of contents
+
+- [Quick start (development)](#quick-start-development)
+- [Feature highlights](#feature-highlights)
+- [What is where](#what-is-where)
+- [Documentation](#documentation)
+- [Verification status](#verification-status)
+- [Deliberately NOT claimed](#deliberately-not-claimed)
 
 ## Quick start (development)
 
@@ -51,6 +66,26 @@ compatibility rules, leaving the system in its fail-safe state
 approves real values.
 
 Open <http://127.0.0.1:8000/> and log in. Each role lands on its own dashboard.
+
+## Feature highlights
+
+- **Role-based dashboards** for ADMIN / STAFF / DONOR / REQUESTER, each scoped
+  to only the data that role may see.
+- **Full donation lifecycle** as an enforced state machine: registration →
+  screening → collection → testing → release.
+- **Blood-bag inventory** with a safety-testing ledger, expiry jobs and a
+  release guard that blocks unapproved units.
+- **Database-driven compatibility engine** — no hard-coded clinical rules; the
+  app fails safe (nothing compatible / `REQUIRES STAFF REVIEW`) when
+  unconfigured.
+- **Blood requests** from hospitals/organizations with allocation and
+  fulfillment feedback.
+- **Emergency donor notification** with token-based responses over in-app,
+  email and a clearly-labelled **MOCK** SMS provider.
+- **Rewards program**: immutable point ledger, configurable rules, tiers and
+  redemption.
+- **Config-driven reports** with CSV export.
+- **Append-only audit trail** across all protected state changes.
 
 ## What is where
 
