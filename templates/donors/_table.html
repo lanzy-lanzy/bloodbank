@@ -1,0 +1,55 @@
+{# HTMX swap fragment — does NOT extend base.html #}
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm divide-y divide-ink-100">
+      <thead>
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Donor</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Contact</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Blood</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Municipality</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Last donation</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Eligibility</th>
+          <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Points</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in donors %}
+        <tr class="hover:bg-ink-50/60">
+          <td class="px-4 py-3 border-t border-ink-100">
+            <a href="{% url 'donors:detail' d.pk %}" hx-get="{% url 'donors:detail' d.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'donors:detail' d.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="font-medium text-ink-900 hover:text-brand-600">{{ d.full_name }}</a>
+            <div class="text-xs text-ink-500">{{ d.donor_code }}</div>
+          </td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-600">
+            <div>{{ d.contact_number|default:"—" }}</div>
+            <div class="text-xs text-ink-400">{{ d.email|default:"" }}</div>
+          </td>
+          <td class="px-4 py-3 border-t border-ink-100">
+            {% if d.blood_type %}
+              <span class="inline-flex rounded-md bg-brand-50 border border-brand-200 px-2 py-0.5 text-xs font-bold text-brand-700">{{ d.blood_type.code }}</span>
+            {% else %}<span class="text-ink-400">—</span>{% endif %}
+          </td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-600">{{ d.municipality|default:"—" }}</td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-600 whitespace-nowrap">
+            {% if d.last_donation %}{{ d.last_donation.donation_date|date:"M j, Y" }}{% else %}<span class="text-ink-400">—</span>{% endif %}
+          </td>
+          <td class="px-4 py-3 border-t border-ink-100">{% include "components/status_badge.html" with status=d.status %}</td>
+          <td class="px-4 py-3 border-t border-ink-100">
+            {% for pk, result in eligibilities.items %}{% if pk == d.pk %}
+              {% include "components/status_badge.html" with status=result.status %}
+              {% if result.next_eligible_date %}<div class="text-xs text-ink-400 mt-0.5">Next: {{ result.next_eligible_date|date:"M j, Y" }}</div>{% endif %}
+            {% endif %}{% endfor %}
+          </td>
+          <td class="px-4 py-3 border-t border-ink-100 text-right tabular-nums text-ink-700">{{ d.points_balance }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="px-4 py-3 border-t border-ink-100">
+          {% include "components/empty_state.html" with empty_title="No donors found" empty_text="Adjust the filters or register a new donor." %}
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/pagination.html" with page_obj=page_obj %}
+</div>

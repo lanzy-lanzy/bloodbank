@@ -1,0 +1,15 @@
+{# HTMX-filterable table wrapper. Content passed as table_body include by caller. #}
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+  {% if table_title %}
+  <div class="px-5 py-4 border-b border-ink-100 flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h3 class="font-semibold text-ink-900">{{ table_title }}</h3>
+      {% if table_subtitle %}<p class="text-xs text-ink-500 mt-0.5">{{ table_subtitle }}</p>{% endif %}
+    </div>
+    <div class="flex items-center gap-2">{% block table_actions %}{% endblock %}</div>
+  </div>
+  {% endif %}
+  <div id="table-content" class="overflow-x-auto">
+    {% block table_content %}{% endblock %}
+  </div>
+</div>

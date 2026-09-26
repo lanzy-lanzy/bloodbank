@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}My Dashboard — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">Welcome, {{ request.user.full_name|default:request.user.username }}</h1>
+    <p class="text-sm text-ink-500">Your donor dashboard is not available yet.</p>
+  </div>
+</div>
+
+<div class="max-w-2xl mx-auto bg-white rounded-2xl border border-ink-200 shadow-sm">
+  <div class="p-8 text-center">
+    <div class="w-16 h-16 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto mb-4">
+      <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/>
+      </svg>
+    </div>
+    <h2 class="text-lg font-semibold text-ink-900">No donor record linked to your account</h2>
+    <p class="mt-2 text-sm text-ink-500">
+      Your account has the <span class="font-semibold text-ink-700">Donor</span> role, but it is not yet linked
+      to a donor record in our system. Your donations, points, rewards and eligibility will appear here as soon
+      as the link is created.
+    </p>
+    <div class="mt-4 rounded-xl bg-ink-50 border border-ink-200 px-4 py-3 text-sm text-ink-600 text-left">
+      <p class="font-semibold text-ink-800 mb-1">What to do next</p>
+      <p>
+        Please contact the blood bank staff — visit the donation center or reach out through the contact details
+        provided at registration. Staff will register your donor record (or link your existing record) to this
+        account during your next visit or screening.
+      </p>
+    </div>
+    <div class="mt-6 flex flex-wrap items-center justify-center gap-2">
+      <a href="{% url 'accounts:profile' %}" hx-get="{% url 'accounts:profile' %}" hx-target="#modal-root" hx-swap="innerHTML" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm">View My Account</a>
+      <a href="{% url 'notifications:inbox' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-ink-200 bg-white text-sm font-semibold text-ink-700 hover:bg-ink-50 shadow-sm">Notifications</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

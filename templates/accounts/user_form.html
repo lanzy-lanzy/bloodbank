@@ -1,0 +1,25 @@
+{% extends layout|default:"base.html" %}
+{% block title %}{% if creating %}New User{% else %}Edit User{% endif %} — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <h1 class="text-xl font-bold text-ink-900 mb-1">{% if creating %}Create User{% else %}Edit {{ edit_user.username }}{% endif %}</h1>
+  <p class="text-sm text-ink-500 mb-6">{% if creating %}Set an initial temporary password; the user should change it after first login.{% else %}Role changes are audited.{% endif %}</p>
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-6">
+    <form method="post" action="{% if creating %}{% url 'accounts:user_create' %}{% else %}{% url 'accounts:user_update' edit_user.pk %}{% endif %}"
+          {% if layout %}hx-post="{% if creating %}{% url 'accounts:user_create' %}{% else %}{% url 'accounts:user_update' edit_user.pk %}{% endif %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %}
+          class="grid gap-4 sm:grid-cols-2">
+      {% csrf_token %}
+      <div class="sm:col-span-2">{% include "components/form_errors.html" %}</div>
+      {% for field in form %}{% include "components/field.html" with field=field %}{% endfor %}
+      <div class="sm:col-span-2 flex justify-end gap-2 mt-2">
+        {% if layout %}
+        <button type="button" @click="bbCloseModal()" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium">Cancel</button>
+        {% else %}
+        <a href="{% url 'accounts:user_list' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium">Cancel</a>
+        {% endif %}
+        <button type="submit" class="rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-5 py-2 shadow-sm">{% if creating %}Create user{% else %}Save changes{% endif %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

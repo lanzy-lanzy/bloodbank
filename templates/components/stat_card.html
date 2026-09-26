@@ -1,0 +1,18 @@
+{# Stat card for dashboards. Pass: stat_label, stat_value, stat_sub, stat_color (rose|emerald|amber|sky|violet|slate), stat_href #}
+<a href="{{ stat_href|default:'#' }}" {% if not stat_href %}onclick="return false;"{% endif %}
+   class="block bg-white rounded-2xl border border-ink-200/80 shadow-card p-5 hover:shadow-lg hover:-translate-y-0.5 transition">
+  <div class="flex items-start justify-between">
+    <p class="text-xs font-semibold uppercase tracking-wide text-ink-500">{{ stat_label }}</p>
+    <span class="w-9 h-9 rounded-xl flex items-center justify-center
+      {% if stat_color == 'emerald' %}bg-emerald-50 text-emerald-600
+      {% elif stat_color == 'amber' %}bg-amber-50 text-amber-600
+      {% elif stat_color == 'sky' %}bg-sky-50 text-sky-600
+      {% elif stat_color == 'violet' %}bg-violet-50 text-violet-600
+      {% elif stat_color == 'slate' %}bg-ink-100 text-ink-600
+      {% else %}bg-brand-50 text-brand-600{% endif %}">
+      {{ stat_icon|default:"" }}
+    </span>
+  </div>
+  <p class="mt-2 text-3xl font-bold text-ink-900 tabular-nums">{{ stat_value }}</p>
+  {% if stat_sub %}<p class="mt-1 text-xs text-ink-500">{{ stat_sub }}</p>{% endif %}
+</a>

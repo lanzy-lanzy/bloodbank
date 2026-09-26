@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Organizations — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">Requesting Organizations</h1>
+    <p class="text-sm text-ink-500 mt-0.5">Hospitals, clinics, RHUs and other entities authorized to request blood.</p>
+  </div>
+  <div class="flex gap-2">
+    <a href="{% url 'requests:list' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-ink-200 bg-white text-sm font-medium text-ink-700 hover:bg-ink-50">Requests</a>
+    {% url 'requests:organization_create' as org_add_url %}
+    {% include "components/modal_action.html" with ma_url=org_add_url ma_label="+ Add Organization" ma_icon="M12 5v14M5 12h14" %}
+  </div>
+</div>
+
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4">
+  <form method="get" class="flex gap-2">
+    <input type="search" name="q" value="{{ q }}" placeholder="Search by name…"
+           class="flex-1 rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+    <button type="submit" class="rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2">Search</button>
+  </form>
+</div>
+
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead><tr>
+        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Organization</th>
+        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Type</th>
+        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Contact</th>
+        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">License</th>
+        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Members</th>
+        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Edit</th>
+      </tr></thead>
+      <tbody>
+        {% for org in organizations %}
+        <tr class="hover:bg-ink-50/60">
+          <td class="px-4 py-3 font-semibold text-ink-900">{{ org.name }}</td>
+          <td class="px-4 py-3 text-ink-600">{{ org.get_org_type_display }}</td>
+          <td class="px-4 py-3 text-ink-600 text-xs">{{ org.contact_number|default:"—" }}<span class="block text-ink-400">{{ org.email }}</span></td>
+          <td class="px-4 py-3 text-ink-600 text-xs">{{ org.license_number|default:"—" }}</td>
+          <td class="px-4 py-3 text-ink-600 tabular-nums">{{ org.members.count }}</td>
+          <td class="px-4 py-3">
+            {% if org.is_active %}<span class="text-xs font-semibold text-emerald-600">active</span>{% else %}<span class="text-xs font-semibold text-ink-400">inactive</span>{% endif %}
+          </td>
+          <td class="px-4 py-3 text-right"><a class="text-sm font-medium text-brand-600 hover:text-brand-700" href="{% url 'requests:organization_edit' org.pk %}" hx-get="{% url 'requests:organization_edit' org.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'requests:organization_edit' org.pk %}" hx-target="#modal-root" hx-swap="innerHTML">Edit</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="px-4 py-10">
+          {% include "components/empty_state.html" with empty_title="No organizations" empty_text="Add hospitals, clinics and RHUs that may submit blood requests." %}
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/pagination.html" with page_obj=page_obj %}
+</div>
+{% endblock %}

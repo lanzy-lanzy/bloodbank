@@ -1,0 +1,244 @@
+{% extends layout|default:"base.html" %}
+{% load core_extras %}
+{% block title %}{{ donation.donation_code }} — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div class="flex flex-wrap items-center gap-3">
+    <h1 class="text-xl font-bold text-ink-900">{{ donation.donation_code }}</h1>
+    {% include "components/status_badge.html" with status=donation.status %}
+  </div>
+  {% if layout %}
+  <button type="button" @click="bbCloseModal()" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-ink-200 bg-white text-sm font-medium text-ink-700 hover:bg-ink-50 shadow-sm">Close</button>
+  {% else %}
+  <a href="{% url 'donations:list' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-ink-200 bg-white text-sm font-medium text-ink-700 hover:bg-ink-50 shadow-sm">
+    &larr; Back to donations
+  </a>
+  {% endif %}
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+  <!-- Info panel -->
+  <div class="lg:col-span-2 bg-white rounded-2xl border border-ink-200 shadow-sm p-6">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-ink-500 mb-4">Donation details</h2>
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+      <div>
+        <dt class="text-xs text-ink-500">Donor</dt>
+        <dd class="mt-0.5 font-medium text-ink-900">
+          <a href="{% url 'donors:detail' donation.donor_id %}" hx-get="{% url 'donors:detail' donation.donor_id %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'donors:detail' donation.donor_id %}" hx-target="#modal-root" hx-swap="innerHTML"
+             class="text-brand-600 hover:text-brand-700">{{ donation.donor.full_name }}</a>
+          <span class="text-xs text-ink-400 block">{{ donation.donor.donor_code }}</span>
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs text-ink-500">Blood type</dt>
+        <dd class="mt-0.5 font-semibold text-ink-900">{{ donation.blood_type|default:"—" }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs text-ink-500">Date &amp; time</dt>
+        <dd class="mt-0.5 text-ink-800">{{ donation.donation_date|date:"M j, Y" }}{% if donation.donation_time %} · {{ donation.donation_time|date:"H:i" }}{% endif %}</dd>
+      </div>
+      <div>
+        <dt class="text-xs text-ink-500">Donation type</dt>
+        <dd class="mt-0.5 text-ink-800">{{ donation.get_donation_type_display }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs text-ink-500">Location</dt>
+        <dd class="mt-0.5 text-ink-800">{{ donation.location|default:"—" }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs text-ink-500">Volume collected</dt>
+        <dd class="mt-0.5 text-ink-800">{% if donation.volume_ml %}{{ donation.volume_ml }} mL{% else %}—{% endif %}</dd>
+      </div>
+      <div>
+        <dt class="text-xs text-ink-500">Recorded by</dt>
+        <dd class="mt-0.5 text-ink-800">{{ donation.staff.full_name|default:"—" }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs text-ink-500">Appointment</dt>
+        <dd class="mt-0.5 text-ink-800">
+          {% if donation.appointment %}
+            {{ donation.appointment.date|date:"M j, Y" }} {% if donation.appointment.time %}· {{ donation.appointment.time|date:"H:i" }}{% endif %}
+            <span class="ml-1">{% include "components/status_badge.html" with status=donation.appointment.status %}</span>
+          {% else %}—{% endif %}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs text-ink-500">Screening</dt>
+        <dd class="mt-0.5 text-ink-800">
+          {% if donation.screening %}
+            <a href="{% url 'donors:screening_detail' donation.screening.pk %}" hx-get="{% url 'donors:screening_detail' donation.screening.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'donors:screening_detail' donation.screening.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700 font-medium">View screening</a>
+            <span class="ml-1">{% include "components/status_badge.html" with status=donation.screening.result %}</span>
+          {% else %}
+            <a href="{% url 'donors:screening_create' donation.donor_id %}" hx-get="{% url 'donors:screening_create' donation.donor_id %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'donors:screening_create' donation.donor_id %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700 font-medium">Start screening</a>
+          {% endif %}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs text-ink-500">Donor points balance</dt>
+        <dd class="mt-0.5 text-ink-800">{{ donation.donor.points_balance }} pts</dd>
+      </div>
+    </dl>
+    {% if donation.notes %}
+    <div class="mt-4 pt-4 border-t border-ink-100">
+      <dt class="text-xs text-ink-500 mb-1">Notes</dt>
+      <p class="text-sm text-ink-700 whitespace-pre-line">{{ donation.notes }}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Transitions -->
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-6 self-start">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-ink-500 mb-4">Move to status</h2>
+    {% if transitions %}
+      <div class="space-y-3">
+        {% for t in transitions %}
+          {% if t == "DEFERRED" or t == "REJECTED" or t == "CANCELLED" %}
+          <form method="post" action="{% url 'donations:transition' donation.pk %}"
+                {% if layout %}hx-post="{% url 'donations:transition' donation.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-trigger="bb:form-submit"{% endif %}
+                x-data="{ confirmOpen: false }" @submit.prevent="confirmOpen = true"
+                class="rounded-xl border border-ink-200 p-3">
+            {% csrf_token %}
+            <input type="hidden" name="status" value="{{ t }}">
+            <label for="reason-{{ t }}" class="block text-xs font-medium text-ink-700 mb-1">
+              Reason (required for {{ t|display_status|lower }})
+            </label>
+            <input id="reason-{{ t }}" type="text" name="reason" required maxlength="255"
+                   placeholder="Clinical / operational reason…"
+                   class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm mb-2">
+            <button type="submit" class="w-full px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm">
+              {{ t|display_status }}
+            </button>
+            {% include "components/confirmation.html" with confirm_title=t|display_status confirm_text="The reason you entered will be recorded in the donation notes and the audit log. This cannot be undone without staff action." confirm_button="Confirm" %}
+          </form>
+          {% else %}
+          <form method="post" action="{% url 'donations:transition' donation.pk %}"
+                {% if layout %}hx-post="{% url 'donations:transition' donation.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-trigger="bb:form-submit"{% endif %}
+                x-data="{ confirmOpen: false }" @submit.prevent="confirmOpen = true"
+                class="rounded-xl border border-ink-200 p-3">
+            {% csrf_token %}
+            <input type="hidden" name="status" value="{{ t }}">
+            <button type="submit" class="w-full px-4 py-2 rounded-xl bg-ink-900 text-white text-sm font-semibold hover:bg-ink-800 shadow-sm">
+              {{ t|display_status }}
+            </button>
+            {% include "components/confirmation.html" with confirm_title=t|display_status confirm_text="Move this donation to the selected status? The change is recorded in the audit log." confirm_button="Confirm" %}
+          </form>
+          {% endif %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-sm text-ink-500">No further transitions are available from the current status.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Collection (APPROVED only) -->
+{% if collection_form %}
+<div class="mt-4 bg-white rounded-2xl border border-emerald-200 shadow-sm p-6">
+  <h2 class="text-sm font-semibold uppercase tracking-wide text-ink-500 mb-1">Record blood collection</h2>
+  <p class="text-sm text-ink-500 mb-4">
+    The donor is approved for donation. Recording the collection moves the donation to Collected and creates a
+    blood bag in <span class="font-semibold text-amber-600">QUARANTINED</span> state — bags are never auto-available.
+  </p>
+  <form method="post" action="{% url 'donations:collect' donation.pk %}"
+        {% if layout %}hx-post="{% url 'donations:collect' donation.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-trigger="bb:form-submit"{% endif %}
+        x-data="{ confirmOpen: false }" @submit.prevent="confirmOpen = true"
+        class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% csrf_token %}
+    <div class="md:col-span-2">{% include "components/form_errors.html" with form=collection_form %}</div>
+    {% include "components/field.html" with field=collection_form.component %}
+    {% include "components/field.html" with field=collection_form.volume_ml %}
+    {% include "components/field.html" with field=collection_form.collected_at %}
+    {% include "components/field.html" with field=collection_form.storage_position %}
+    <div class="md:col-span-2">{% include "components/field.html" with field=collection_form.location %}</div>
+    <div class="md:col-span-2 flex justify-end">
+      <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm">
+        Record collection
+      </button>
+    </div>
+    {% include "components/confirmation.html" with confirm_title="Record Blood Collection" confirm_text="This will mark the donation as COLLECTED and create a quarantined blood bag. Verify the component, volume and collection time." confirm_button="Confirm collection" %}
+  </form>
+</div>
+{% endif %}
+
+<!-- Bags created -->
+<div class="mt-4 bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+  <div class="px-6 pt-5 pb-3">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-ink-500">Blood bags</h2>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead>
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Bag</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Blood type</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Component</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Volume</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Expires</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for bag in bags %}
+        <tr class="hover:bg-ink-50/60">
+          <td class="px-4 py-3 border-t border-ink-100 font-medium">
+            <a href="{% url 'inventory:bag_detail' bag.pk %}" hx-get="{% url 'inventory:bag_detail' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'inventory:bag_detail' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700">{{ bag.bag_code }}</a>
+          </td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-700">{{ bag.blood_type }}</td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-700">{{ bag.component }}</td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-700">{{ bag.volume_ml }} mL</td>
+          <td class="px-4 py-3 border-t border-ink-100 whitespace-nowrap {% if bag.is_expired_by_date %}text-red-600 font-medium{% elif bag.days_until_expiry <= 7 %}text-amber-600 font-medium{% else %}text-ink-600{% endif %}">
+            {{ bag.expires_at|date:"M j, Y H:i" }}
+          </td>
+          <td class="px-4 py-3 border-t border-ink-100">{% include "components/status_badge.html" with status=bag.status %}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="px-4 py-3 border-t border-ink-100">
+            {% include "components/empty_state.html" with empty_title="No bags yet" empty_text="Bags are created when the collection is recorded for an approved donation." %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Recent bag movements (ledger excerpt) -->
+{% if transactions %}
+<div class="mt-4 bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+  <div class="px-6 pt-5 pb-3">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-ink-500">Recent bag movements</h2>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead>
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">When</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Bag</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Movement</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">By</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in transactions %}
+        <tr class="hover:bg-ink-50/60">
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-500 whitespace-nowrap">{{ t.created_at|date:"M j, Y H:i" }}</td>
+          <td class="px-4 py-3 border-t border-ink-100 font-medium">
+            <a href="{% url 'inventory:bag_detail' t.bag_id %}" hx-get="{% url 'inventory:bag_detail' t.bag_id %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'inventory:bag_detail' t.bag_id %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700">{{ t.bag.bag_code }}</a>
+          </td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-700 whitespace-nowrap">
+            {{ t.get_transaction_type_display }}
+            <span class="text-ink-400">·</span>
+            {{ t.previous_status|default:"—" }} &rarr; {{ t.new_status }}
+          </td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-600">{{ t.actor.full_name|default:"system" }}</td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-500">{{ t.reason|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

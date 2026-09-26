@@ -1,0 +1,43 @@
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead>
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Request</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Organization</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Items</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Urgency</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Required by</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Fulfilled</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in requests_list %}
+        <tr class="hover:bg-ink-50/60 {% if r.is_emergency %}bg-brand-50/40{% endif %}">
+          <td class="px-4 py-3"><a class="font-semibold text-ink-900 hover:text-brand-600" href="{% url 'requests:detail' r.pk %}" hx-get="{% url 'requests:detail' r.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'requests:detail' r.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ r.request_code }}</a></td>
+          <td class="px-4 py-3 text-ink-600">{{ r.organization.name }}</td>
+          <td class="px-4 py-3 text-xs text-ink-600">
+            {% for item in r.items.all %}<span class="font-bold text-brand-700">{{ item.blood_type.code }}</span> {{ item.component.code|upper }} ×{{ item.quantity }}{% if not forloop.last %} · {% endif %}{% endfor %}
+          </td>
+          <td class="px-4 py-3">
+            <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold
+              {% if r.urgency == 'CRITICAL' %}bg-brand-600 text-white
+              {% elif r.urgency == 'EMERGENCY' %}bg-brand-50 text-brand-700 ring-1 ring-brand-300
+              {% elif r.urgency == 'URGENT' %}bg-amber-50 text-amber-700 ring-1 ring-amber-200
+              {% else %}bg-ink-100 text-ink-600{% endif %}">{{ r.get_urgency_display }}</span>
+          </td>
+          <td class="px-4 py-3 text-ink-600 whitespace-nowrap">{{ r.required_by|date:"Y-m-d H:i" }}</td>
+          <td class="px-4 py-3 text-ink-600 tabular-nums">{{ r.total_fulfilled }} / {{ r.total_quantity }}</td>
+          <td class="px-4 py-3">{% include "components/status_badge.html" with status=r.status %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="px-4 py-10">
+          {% include "components/empty_state.html" with empty_title="No blood requests found" empty_text="Requests created by your organization appear here." %}
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/pagination.html" with page_obj=page_obj %}
+</div>

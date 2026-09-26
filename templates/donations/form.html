@@ -1,0 +1,35 @@
+{% extends layout|default:"base.html" %}
+{% block title %}Register Donation — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto">
+  <div class="mb-6">
+    <h1 class="text-xl font-bold text-ink-900">Register Donation</h1>
+    <p class="text-sm text-ink-500 mt-0.5">
+      The blood type is copied from the donor record. New donations start in the Registered state and must pass screening before collection.
+    </p>
+  </div>
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-6">
+    <form method="post" action="{% url 'donations:create' %}"
+          {% if layout %}hx-post="{% url 'donations:create' %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %}
+          class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {% csrf_token %}
+      {% if appointment_id %}<input type="hidden" name="appointment" value="{{ appointment_id }}">{% endif %}
+      <div class="md:col-span-2">{% include "components/form_errors.html" %}</div>
+      {% include "components/field.html" with field=form.donor %}
+      {% include "components/field.html" with field=form.donation_type %}
+      {% include "components/field.html" with field=form.donation_date %}
+      {% include "components/field.html" with field=form.donation_time %}
+      <div class="md:col-span-2">{% include "components/field.html" with field=form.location %}</div>
+      <div class="md:col-span-2">{% include "components/field.html" with field=form.notes %}</div>
+      <div class="md:col-span-2 flex justify-end gap-2 mt-2">
+        {% if layout %}
+        <button type="button" @click="bbCloseModal()" class="px-4 py-2 rounded-xl border border-ink-200 hover:bg-ink-50 text-sm font-medium text-ink-700">Cancel</button>
+        {% else %}
+        <a href="{% url 'donations:list' %}" class="px-4 py-2 rounded-xl border border-ink-200 hover:bg-ink-50 text-sm font-medium text-ink-700">Cancel</a>
+        {% endif %}
+        <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm">Register donation</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

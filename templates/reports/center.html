@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Reports — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-xl font-bold text-ink-900">Reporting Center</h1>
+  <p class="text-sm text-ink-500 mt-0.5">Operational reports with filters and CSV export. Each report is role-gated on the server.</p>
+</div>
+
+<div class="space-y-8">
+  {% for group, reports in groups.items %}
+    <section>
+      <h2 class="text-sm font-bold uppercase tracking-wide text-ink-400 mb-3">{{ group }}</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {% for key, report in reports %}
+          <a href="{% url 'reports:run' key=key %}"
+             class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 hover:border-brand-300 hover:shadow transition group">
+            <p class="font-semibold text-ink-900 group-hover:text-brand-700">{{ report.title }}</p>
+            {% if report.description %}<p class="text-xs text-ink-500 mt-1">{{ report.description }}</p>{% endif %}
+            <p class="text-[11px] text-ink-400 mt-2">{{ report.columns|length }} columns · {{ report.filters|length }} filter{{ report.filters|length|pluralize }}</p>
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+  {% empty %}
+    <div class="bg-white rounded-2xl border border-ink-200 p-10 text-center text-sm text-ink-500">
+      No reports are available for your role.
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

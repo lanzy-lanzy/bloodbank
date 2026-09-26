@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}My Appointments — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-xl font-bold text-ink-900">My appointments</h1>
+  <p class="text-sm text-ink-500 mt-0.5">Requests you send are confirmed by blood bank staff before they count as booked.</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+  <div class="lg:col-span-2 bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-ink-100">
+      <h2 class="font-bold text-ink-900 text-sm">Your appointments</h2>
+    </div>
+    <ul class="divide-y divide-ink-100">
+      {% for a in appointments %}
+        <li class="px-5 py-4 flex items-center justify-between gap-3">
+          <div>
+            <p class="text-sm font-semibold text-ink-800">{{ a.date|date:"l, F j, Y" }} · {{ a.time|time:"g:i A" }}</p>
+            <p class="text-xs text-ink-400 mt-0.5">{{ a.location|default:"Location to be confirmed" }}
+              {% if a.notes %} · {{ a.notes|truncatechars:70 }}{% endif %}</p>
+          </div>
+          <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0
+            {% if a.status == "CONFIRMED" %}bg-emerald-50 text-emerald-700
+            {% elif a.status == "REQUESTED" %}bg-amber-50 text-amber-700
+            {% elif a.status == "CHECKED_IN" %}bg-blue-50 text-blue-700
+            {% elif a.status == "COMPLETED" %}bg-ink-100 text-ink-600
+            {% else %}bg-red-50 text-red-600{% endif %}">{{ a.get_status_display }}</span>
+        </li>
+      {% empty %}
+        <li class="px-5 py-8 text-sm text-ink-400 text-center">No appointments yet — request one on the right.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div>
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-5">
+      <h2 class="font-bold text-ink-900 text-sm mb-3">Request an appointment</h2>
+      <form method="post" class="space-y-3">
+        {% csrf_token %}
+        {% include "components/form_errors.html" with form=form %}
+        {% include "components/field.html" with field=form.date %}
+        {% include "components/field.html" with field=form.time %}
+        {% include "components/field.html" with field=form.location %}
+        {% include "components/field.html" with field=form.notes %}
+        <button type="submit" class="w-full rounded-xl bg-brand-600 text-white text-sm font-semibold px-4 py-2.5 hover:bg-brand-700 shadow-sm">Send request</button>
+      </form>
+      <p class="text-[11px] text-ink-400 mt-3 leading-relaxed">
+        Before your visit, follow any preparation guidance from the blood bank (rest, hydration,
+        eating, no alcohol as instructed). Bring a valid ID. Final eligibility is always determined
+        by staff screening on the day.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

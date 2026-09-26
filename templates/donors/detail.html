@@ -1,0 +1,221 @@
+{% extends layout|default:"base.html" %}
+{% block title %}{{ donor.full_name }} — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div class="flex flex-wrap items-center gap-3">
+    <div>
+      <div class="flex flex-wrap items-center gap-2">
+        <h1 class="text-xl font-bold text-ink-900">{{ donor.full_name }}</h1>
+        {% include "components/status_badge.html" with status=donor.status %}
+      </div>
+      <p class="text-sm text-ink-500 mt-0.5">
+        {{ donor.donor_code }} · {% include "components/status_badge.html" with status=eligibility.status %}
+        {% if eligibility.next_eligible_date %} · Next eligible {{ eligibility.next_eligible_date|date:"M j, Y" }}{% endif %}
+      </p>
+    </div>
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    {% url 'donors:screening_create' donor.pk as scr_create_url %}
+    {% url 'donors:edit' donor.pk as donor_edit_url %}
+    {% include "components/modal_action.html" with ma_url=scr_create_url ma_label="+ New Screening" ma_icon="M12 5v14M5 12h14" %}
+    {% include "components/modal_action.html" with ma_url=donor_edit_url ma_label="Edit" ma_style="secondary" %}
+    {% if layout %}
+    <button type="button" @click="bbCloseModal()" class="rounded-xl border border-ink-200 bg-white hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-700">Close</button>
+    {% else %}
+    <a href="{% url 'donors:list' %}" class="rounded-xl border border-ink-200 bg-white hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-700">← Back to list</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if eligibility.reasons %}
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4">
+  <p class="text-xs font-semibold uppercase tracking-wide text-ink-500 mb-2">Eligibility summary (staff decision required)</p>
+  <ul class="list-disc list-inside space-y-1 text-sm text-ink-700">
+    {% for reason in eligibility.reasons %}<li>{{ reason }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+  <!-- Left column: information panels -->
+  <div class="lg:col-span-2 space-y-4">
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-5">
+      <h3 class="font-semibold text-ink-900 mb-3">Personal information</h3>
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+        <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Full name</dt><dd class="text-ink-800">{{ donor.full_name }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Date of birth</dt><dd class="text-ink-800">{{ donor.date_of_birth|date:"M j, Y" }} <span class="text-ink-400">({{ donor.age }} y/o)</span></dd></div>
+        <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Sex</dt><dd class="text-ink-800">{{ donor.get_sex_display }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Contact number</dt><dd class="text-ink-800">{{ donor.contact_number|default:"—" }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Email</dt><dd class="text-ink-800">{{ donor.email|default:"—" }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Address</dt><dd class="text-ink-800">{{ donor.address|default:"—" }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Municipality / Province</dt><dd class="text-ink-800">{{ donor.municipality|default:"—" }}{% if donor.province %}, {{ donor.province }}{% endif %}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Emergency contact</dt><dd class="text-ink-800">{% if donor.emergency_contact_name %}{{ donor.emergency_contact_name }} · {{ donor.emergency_contact_phone|default:"" }}{% else %}—{% endif %}</dd></div>
+      </dl>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-5">
+      <h3 class="font-semibold text-ink-900 mb-3">Blood &amp; record information</h3>
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+        <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Blood type</dt><dd>{% if donor.blood_type %}<span class="inline-flex rounded-md bg-brand-50 border border-brand-200 px-2 py-0.5 text-xs font-bold text-brand-700">{{ donor.blood_type.code }}</span>{% else %}<span class="text-ink-400">Not recorded</span>{% endif %}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Linked account</dt><dd class="text-ink-800">{% if donor.user %}{{ donor.user.username }}{% else %}<span class="text-ink-400">None</span>{% endif %}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Points balance</dt><dd class="text-ink-800 tabular-nums">{{ donor.points_balance }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Last donation</dt><dd class="text-ink-800">{% if donor.last_donation %}{{ donor.last_donation.donation_date|date:"M j, Y" }} ({{ donor.last_donation.donation_code }}){% else %}<span class="text-ink-400">—</span>{% endif %}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Registered</dt><dd class="text-ink-800">{{ donor.created_at|date:"M j, Y H:i" }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Deferral</dt><dd class="text-ink-800">{% if donor.deferral_reason %}{{ donor.deferral_reason }}{% if donor.deferred_until %} · until {{ donor.deferred_until|date:"M j, Y" }}{% endif %}{% else %}<span class="text-ink-400">—</span>{% endif %}</dd></div>
+      </dl>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between gap-2">
+        <h3 class="font-semibold text-ink-900">Screenings</h3>
+        <a href="{% url 'donors:screening_create' donor.pk %}" hx-get="{% url 'donors:screening_create' donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-sm font-medium text-brand-600 hover:text-brand-700">New screening →</a>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm divide-y divide-ink-100">
+          <thead>
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Date</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Result</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Deferral (days)</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Performed by</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in screenings %}
+            <tr class="hover:bg-ink-50/60">
+              <td class="px-4 py-3 border-t border-ink-100 whitespace-nowrap">
+                <a href="{% url 'donors:screening_detail' s.pk %}" hx-get="{% url 'donors:screening_detail' s.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="font-medium text-brand-600 hover:text-brand-700">{{ s.performed_at|date:"M j, Y H:i" }}</a>
+              </td>
+              <td class="px-4 py-3 border-t border-ink-100">{% include "components/status_badge.html" with status=s.result %}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-600 tabular-nums">{{ s.deferral_days|default:"—" }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-600">{{ s.performed_by|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="px-4 py-3 border-t border-ink-100 text-ink-400">No screenings recorded yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-ink-100"><h3 class="font-semibold text-ink-900">Donations</h3></div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm divide-y divide-ink-100">
+          <thead>
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Code</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Date</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Type</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for don in donations %}
+            <tr class="hover:bg-ink-50/60">
+              <td class="px-4 py-3 border-t border-ink-100 font-medium text-ink-900">{{ don.donation_code }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-600 whitespace-nowrap">{{ don.donation_date|date:"M j, Y" }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-600">{{ don.get_donation_type_display }}</td>
+              <td class="px-4 py-3 border-t border-ink-100">{% include "components/status_badge.html" with status=don.status %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="px-4 py-3 border-t border-ink-100 text-ink-400">No donations recorded yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-ink-100"><h3 class="font-semibold text-ink-900">Appointments</h3></div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm divide-y divide-ink-100">
+          <thead>
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Date</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Time</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Location</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for appt in appointments %}
+            <tr class="hover:bg-ink-50/60">
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-700 whitespace-nowrap">{{ appt.date|date:"M j, Y" }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-600 whitespace-nowrap">{{ appt.time|date:"H:i" }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-600">{{ appt.location|default:"—" }}</td>
+              <td class="px-4 py-3 border-t border-ink-100">{% include "components/status_badge.html" with status=appt.status %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="px-4 py-3 border-t border-ink-100 text-ink-400">No appointments recorded yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-ink-100"><h3 class="font-semibold text-ink-900">Point transactions</h3></div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm divide-y divide-ink-100">
+          <thead>
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Date</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Description</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Type</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Points</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for txn in point_transactions %}
+            <tr class="hover:bg-ink-50/60">
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-600 whitespace-nowrap">{{ txn.created_at|date:"M j, Y H:i" }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-700">{{ txn.description|default:txn.get_type_display }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-600">{{ txn.get_type_display }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-right tabular-nums {% if txn.amount >= 0 %}text-emerald-600{% else %}text-brand-600{% endif %}">{{ txn.amount|stringformat:"+d" }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-right tabular-nums text-ink-600">{{ txn.running_balance }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="px-4 py-3 border-t border-ink-100 text-ink-400">No point transactions yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right column: status management -->
+  <div class="space-y-4">
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-5">
+      <h3 class="font-semibold text-ink-900 mb-1">Change status</h3>
+      <p class="text-xs text-ink-500 mb-4">Deferring or restricting a donor requires a reason; status changes are audited.</p>
+      <form method="post" action="{% url 'donors:status' donor.pk %}" x-data="{ confirmOpen: false }" @submit.prevent="confirmOpen = true"
+            {% if layout %}hx-post="{% url 'donors:status' donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-trigger="bb:form-submit"{% endif %}>
+        {% csrf_token %}
+        {% include "components/form_errors.html" with form=status_form %}
+        <div class="space-y-4">
+          {% include "components/field.html" with field=status_form.status %}
+          {% include "components/field.html" with field=status_form.deferral_reason %}
+          {% include "components/field.html" with field=status_form.deferred_until %}
+        </div>
+        <button type="submit" class="mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm">Update status</button>
+        {% include "components/confirmation.html" with confirm_title="Change Donor Status" confirm_text="This updates the donor's eligibility for donation. Deferrals and restrictions are recorded in the audit log." confirm_button="Update Status" %}
+      </form>
+    </div>
+
+    {% if request.user.role == "ADMIN" %}
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-5">
+      <h3 class="font-semibold text-ink-900 mb-1">Danger zone</h3>
+      <p class="text-xs text-ink-500 mb-4">Deactivation soft-deletes the record — donation history is preserved.</p>
+      <form method="post" action="{% url 'donors:delete' donor.pk %}" x-data="{ confirmOpen: false }" @submit.prevent="confirmOpen = true"
+            {% if layout %}hx-post="{% url 'donors:delete' donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-trigger="bb:form-submit"{% endif %}>
+        {% csrf_token %}
+        <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-brand-200 bg-brand-50 text-brand-700 text-sm font-semibold hover:bg-brand-100">Deactivate donor</button>
+        {% include "components/confirmation.html" with confirm_title="Deactivate Donor" confirm_text="The donor record will be soft-deleted. All donation, screening and reward history is preserved and remains auditable." confirm_button="Deactivate Donor" %}
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

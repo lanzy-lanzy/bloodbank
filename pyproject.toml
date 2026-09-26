@@ -1,0 +1,22 @@
+[project]
+name = "bloodbank"
+version = "1.0.0"
+description = "Tambulig-style Blood Bank Management System (Django 5.2 + HTMX)"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "Django>=5.2,<6",
+    "whitenoise>=6.7",
+    "python-dotenv>=1.0",
+    "dj-database-url>=2.2",
+    "django-shortcuts>=1.6",
+]
+
+[project.optional-dependencies]
+# Production database driver: uv sync --extra postgres
+postgres = ["psycopg[binary]>=3.2"]
+# Full production stack (WSGI server + PostgreSQL driver): uv sync --extra deploy
+deploy = ["gunicorn>=23.0", "psycopg[binary]>=3.2"]
+
+[tool.uv]
+# This is a Django project, not an installable package — never try to build it.
+package = false

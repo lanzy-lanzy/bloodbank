@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+{% load static core_extras %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ error_code }} — {{ error_title }}</title>
+  <link rel="stylesheet" href="{% static_v 'css/tailwind.css' %}">
+</head>
+<body class="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-slate-200">
+  <div class="text-center max-w-md">
+    <p class="text-7xl font-black text-rose-500">{{ error_code }}</p>
+    <h1 class="mt-4 text-2xl font-bold text-white">{{ error_title }}</h1>
+    <p class="mt-2 text-slate-400 text-sm">{{ error_message }}</p>
+    <a href="/" class="mt-8 inline-block px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-sm font-semibold transition">Back to Dashboard</a>
+  </div>
+</body>
+</html>

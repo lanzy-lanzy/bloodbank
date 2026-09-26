@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block title %}Rewards Admin — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">Rewards Program</h1>
+    <p class="text-sm text-ink-500 mt-0.5">Redemptions, top donors, point activity and program configuration.</p>
+  </div>
+</div>
+
+<div x-data="{ tab: 'redemptions' }">
+  {# --- Tab navigation --- #}
+  <div class="flex flex-wrap gap-1 mb-5 border-b border-ink-200">
+    <template x-for="t in [['redemptions','Redemptions'],['donors','Top Donors'],['activity','Recent Points'],['rules','Rules'],['tiers','Tiers'],['rewards','Rewards']]" :key="t[0]">
+      <button type="button" @click="tab = t[0]"
+              :class="tab === t[0] ? 'border-brand-600 text-brand-700 font-semibold' : 'border-transparent text-ink-500 hover:text-ink-800'"
+              class="px-4 py-2 text-sm border-b-2 -mb-px transition-colors" x-text="t[1]"></button>
+    </template>
+  </div>
+
+  {# --- Redemptions --- #}
+  <div x-show="tab === 'redemptions'">
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Donor</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Reward</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Points</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Redeemed</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Fulfilled</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for dr in donor_rewards %}
+            <tr>
+              <td class="px-4 py-3 border-t border-ink-100">
+                <div class="font-medium text-ink-900">{{ dr.donor.full_name }}</div>
+                <div class="text-xs text-ink-500">{{ dr.donor.donor_code }}</div>
+              </td>
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-700">{{ dr.reward.name }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 tabular-nums text-brand-600">−{{ dr.points_spent }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-500 whitespace-nowrap">{{ dr.redeemed_at|date:"M j, Y H:i" }}</td>
+              <td class="px-4 py-3 border-t border-ink-100">{% include "components/status_badge.html" with status=dr.status %}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-500 whitespace-nowrap">
+                {% if dr.fulfilled_at %}{{ dr.fulfilled_at|date:"M j, Y H:i" }}{% if dr.fulfilled_by %}<span class="text-xs text-ink-400">by {{ dr.fulfilled_by.username }}</span>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td class="px-4 py-3 border-t border-ink-100 text-right whitespace-nowrap">
+                {% if dr.status == "REDEEMED" %}
+                <form method="post" action="{% url 'rewards:fulfill' dr.pk %}" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-brand-600 text-white text-xs font-semibold hover:bg-brand-700 shadow-sm">Mark fulfilled</button>
+                </form>
+                {% else %}<span class="text-xs text-ink-400">—</span>{% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7">{% include "components/empty_state.html" with empty_title="No redemptions yet" empty_text="Reward redemptions by donors will appear here." %}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% include "components/pagination.html" %}
+    </div>
+  </div>
+
+  {# --- Top donors --- #}
+  <div x-show="tab === 'donors'" x-cloak>
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">#</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Donor</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Blood Type</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Points Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in top_donors %}
+            <tr>
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-500 tabular-nums">{{ forloop.counter }}</td>
+              <td class="px-4 py-3 border-t border-ink-100">
+                <div class="font-medium text-ink-900">{{ d.full_name }}</div>
+                <div class="text-xs text-ink-500">{{ d.donor_code }}</div>
+              </td>
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-700">{{ d.blood_type|default:"—" }}</td>
+              <td class="px-4 py-3 border-t border-ink-100">{% include "components/status_badge.html" with status=d.status %}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-right tabular-nums font-semibold text-brand-600">{{ d.points_balance }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">{% include "components/empty_state.html" with empty_title="No donors with points" empty_text="Donors earn points through configured reward rules." %}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# --- Recent point transactions --- #}
+  <div x-show="tab === 'activity'" x-cloak>
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">When</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Donor</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Type</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Description</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Amount</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Balance</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">By</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for txn in recent_transactions %}
+            <tr>
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-500 whitespace-nowrap">{{ txn.created_at|date:"M j, Y H:i" }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 font-medium text-ink-900">{{ txn.donor.donor_code }}</td>
+              <td class="px-4 py-3 border-t border-ink-100"><span class="inline-flex rounded-md bg-ink-100 px-2 py-0.5 text-xs font-semibold text-ink-700">{{ txn.get_type_display }}</span></td>
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-600">{{ txn.description|default:"—" }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-right tabular-nums font-semibold {% if txn.amount >= 0 %}text-emerald-600{% else %}text-brand-600{% endif %}">
+                {% if txn.amount > 0 %}+{% endif %}{{ txn.amount }}
+              </td>
+              <td class="px-4 py-3 border-t border-ink-100 text-right tabular-nums text-ink-700">{{ txn.running_balance }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-500">{{ txn.created_by.username|default:"system" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7">{% include "components/empty_state.html" with empty_title="No point transactions" empty_text="Ledger activity will appear here." %}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# --- Rules --- #}
+  <div x-show="tab === 'rules'" x-cloak>
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-ink-100">
+        <div>
+          <h2 class="text-base font-semibold text-ink-900">Reward Rules</h2>
+          <p class="text-xs text-ink-500 mt-0.5">Point values per event — institutional configuration, never hard-coded.</p>
+        </div>
+        {% url 'rewards:rule_create' as rule_add_url %}
+    {% include "components/modal_action.html" with ma_url=rule_add_url ma_label="+ New Rule" ma_icon="M12 5v14M5 12h14" %}
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Code</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Event</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Points</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Milestone Every N</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for rule in rules %}
+            <tr>
+              <td class="px-4 py-3 border-t border-ink-100 font-mono text-xs font-medium text-ink-900">{{ rule.code }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-700">{{ rule.get_event_display }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-right tabular-nums font-semibold {% if rule.points >= 0 %}text-emerald-600{% else %}text-brand-600{% endif %}">{% if rule.points > 0 %}+{% endif %}{{ rule.points }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-500 tabular-nums">{{ rule.milestone_every_n|default:"—" }}</td>
+              <td class="px-4 py-3 border-t border-ink-100">
+                {% if rule.is_active %}<span class="inline-flex rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">Active</span>
+                {% else %}<span class="inline-flex rounded-full bg-ink-100 border border-ink-200 px-2.5 py-0.5 text-xs font-semibold text-ink-600">Inactive</span>{% endif %}
+              </td>
+              <td class="px-4 py-3 border-t border-ink-100 text-right">
+                <a href="{% url 'rewards:rule_edit' rule.pk %}" hx-get="{% url 'rewards:rule_edit' rule.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'rewards:rule_edit' rule.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700 font-medium text-xs">Edit</a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">{% include "components/empty_state.html" with empty_title="No reward rules configured" empty_text="Without an active rule, no points are awarded for that event." %}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# --- Tiers --- #}
+  <div x-show="tab === 'tiers'" x-cloak>
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-ink-100">
+        <h2 class="text-base font-semibold text-ink-900">Reward Tiers</h2>
+        {% url 'rewards:tier_create' as tier_add_url %}
+    {% include "components/modal_action.html" with ma_url=tier_add_url ma_label="+ New Tier" ma_icon="M12 5v14M5 12h14" %}
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Tier</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Min Points</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Description</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Order</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for tier in tiers %}
+            <tr>
+              <td class="px-4 py-3 border-t border-ink-100 font-medium text-ink-900">{{ tier.name }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-right tabular-nums text-ink-700">{{ tier.min_points }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-ink-500">{{ tier.description|default:"—"|truncatechars:80 }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-right tabular-nums text-ink-500">{{ tier.order }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-right">
+                <a href="{% url 'rewards:tier_edit' tier.pk %}" hx-get="{% url 'rewards:tier_edit' tier.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'rewards:tier_edit' tier.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700 font-medium text-xs">Edit</a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">{% include "components/empty_state.html" with empty_title="No tiers configured" empty_text="Tiers recognise donors by accumulated points." %}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# --- Rewards catalog --- #}
+  <div x-show="tab === 'rewards'" x-cloak>
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-ink-100">
+        <h2 class="text-base font-semibold text-ink-900">Rewards Catalog</h2>
+        {% url 'rewards:reward_create' as reward_add_url %}
+    {% include "components/modal_action.html" with ma_url=reward_add_url ma_label="+ New Reward" ma_icon="M12 5v14M5 12h14" %}
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Reward</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Points Cost</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Stock</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for reward in rewards %}
+            <tr>
+              <td class="px-4 py-3 border-t border-ink-100">
+                <div class="font-medium text-ink-900">{{ reward.name }}</div>
+                {% if reward.description %}<div class="text-xs text-ink-500">{{ reward.description|truncatechars:80 }}</div>{% endif %}
+              </td>
+              <td class="px-4 py-3 border-t border-ink-100 text-right tabular-nums font-semibold text-brand-600">{{ reward.points_cost }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 text-right tabular-nums text-ink-700">{% if reward.stock is None %}Unlimited{% else %}{{ reward.stock }}{% endif %}</td>
+              <td class="px-4 py-3 border-t border-ink-100">
+                {% if reward.is_active %}<span class="inline-flex rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">Active</span>
+                {% else %}<span class="inline-flex rounded-full bg-ink-100 border border-ink-200 px-2.5 py-0.5 text-xs font-semibold text-ink-600">Inactive</span>{% endif %}
+              </td>
+              <td class="px-4 py-3 border-t border-ink-100 text-right">
+                <a href="{% url 'rewards:reward_edit' reward.pk %}" hx-get="{% url 'rewards:reward_edit' reward.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'rewards:reward_edit' reward.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700 font-medium text-xs">Edit</a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">{% include "components/empty_state.html" with empty_title="No rewards yet" empty_text="Create rewards donors can redeem with points." %}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

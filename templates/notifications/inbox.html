@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Notifications — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">Notifications</h1>
+    <p class="text-sm text-ink-500 mt-0.5">
+      {% if unread %}{{ unread }} unread{% else %}You're all caught up.{% endif %}
+    </p>
+  </div>
+  {% if user.role == "ADMIN" or user.role == "STAFF" %}
+    <div class="flex items-center gap-2">
+      <a href="{% url 'notifications:delivery_list' %}"
+         class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Delivery overview</a>
+      {% if user.role == "ADMIN" %}
+        <a href="{% url 'notifications:template_list' %}"
+           class="rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2 hover:bg-ink-700">Message templates</a>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+<div class="space-y-3 max-w-3xl">
+  {% for notification in notifications %}
+    <article class="bg-white rounded-2xl border {% if notification.is_read %}border-ink-200{% else %}border-brand-200 shadow-sm{% endif %} p-4 sm:p-5">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="font-semibold text-ink-900 flex items-center gap-2">
+            {% if not notification.is_read %}<span class="w-2 h-2 rounded-full bg-brand-600 shrink-0"></span>{% endif %}
+            <span class="truncate">{{ notification.subject|default:"Notification" }}</span>
+          </p>
+          <p class="text-xs text-ink-400 mt-0.5">
+            {{ notification.created_at|date:"M j, Y g:i A" }}
+            {% if notification.template %}· {{ notification.template.name }}{% endif %}
+            {% if notification.blood_request %}· <a class="text-brand-600 hover:underline" href="{% url 'requests:detail' pk=notification.blood_request.pk %}" hx-get="{% url 'requests:detail' pk=notification.blood_request.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ notification.blood_request.request_code }}</a>{% endif %}
+          </p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          {% if notification.donor_id %}
+            {% if notification.donor_response %}
+              <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Responded: {{ notification.get_donor_response_display }}</span>
+            {% else %}
+              <a href="{% url 'notifications:respond' pk=notification.pk %}"
+                 class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-brand-600 text-white hover:bg-brand-700">Respond</a>
+            {% endif %}
+          {% endif %}
+          {% if not notification.is_read %}
+            <form method="post" action="{% url 'notifications:read' pk=notification.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="text-xs font-medium px-3 py-1.5 rounded-lg border border-ink-200 hover:bg-ink-50 text-ink-600">Mark read</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+      <div class="mt-3 text-sm {% if notification.is_read %}text-ink-500{% else %}text-ink-700{% endif %} whitespace-pre-line">{{ notification.body }}</div>
+    </article>
+  {% empty %}
+    <div class="bg-white rounded-2xl border border-ink-200 p-10 text-center">
+      <p class="text-ink-500 text-sm">No notifications yet.</p>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,14 @@
+{
+  "name": "bloodbank-assets",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Local Tailwind CSS 4 build for the Blood Bank Management System (no CDN).",
+  "scripts": {
+    "build:css": "tailwindcss -i static/css/input.css -o static/css/tailwind.css --minify",
+    "watch:css": "tailwindcss -i static/css/input.css -o static/css/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.0",
+    "tailwindcss": "^4.1.0"
+  }
+}

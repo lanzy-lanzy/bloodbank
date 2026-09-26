@@ -1,0 +1,29 @@
+{% extends layout|default:"base.html" %}
+{% block title %}Change appointment status — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto text-center">
+  <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 text-amber-600">
+    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+    </svg>
+  </div>
+  <h1 class="text-lg font-bold text-ink-900 mb-1">Mark appointment as {{ new_status|cut:"_"|lower }}?</h1>
+  <p class="text-sm text-ink-500 mb-2">
+    Donor <strong class="text-ink-800">{{ appointment.donor.donor_code }}</strong> —
+    {{ appointment.date|date:"D, M j" }} at {{ appointment.time|time:"g:i A" }}.
+  </p>
+  <p class="text-xs text-ink-400 mb-6">Current status: {{ appointment.get_status_display }}. This change is audited.</p>
+  <form method="post" action="{% url 'appointments:status' pk=appointment.pk %}"
+        {% if layout %}hx-post="{% url 'appointments:status' pk=appointment.pk %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %}
+        class="flex justify-center gap-2">
+    {% csrf_token %}
+    <input type="hidden" name="status" value="{{ new_status }}">
+    {% if layout %}
+    <button type="button" @click="bbCloseModal()" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-700">Back</button>
+    {% else %}
+    <a href="{% url 'appointments:list' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-700">Back</a>
+    {% endif %}
+    <button type="submit" class="rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-5 py-2 shadow-sm">Confirm change</button>
+  </form>
+</div>
+{% endblock %}

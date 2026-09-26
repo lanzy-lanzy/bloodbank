@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block title %}Requester Dashboard — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">Blood Request Dashboard</h1>
+    <p class="text-sm text-ink-500">
+      {% if profile %}Requests for {{ profile.organization.name }}.{% else %}Track and manage your organization's blood requests.{% endif %}
+    </p>
+  </div>
+  <a href="{% url 'requests:create' %}" hx-get="{% url 'requests:create' %}" hx-target="#modal-root" hx-swap="innerHTML" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+    New Blood Request
+  </a>
+</div>
+
+{% if not profile %}
+<div class="mb-6 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4">
+  <h2 class="font-semibold text-amber-800">No organization linked</h2>
+  <p class="text-sm text-amber-700 mt-1">
+    Your account is not yet linked to a requester organization, so no requests are shown.
+    Please contact the blood bank staff to have your organization profile attached to your account.
+  </p>
+</div>
+{% endif %}
+
+{# ---- Status stats ---- #}
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
+  {% url 'requests:list' as requests_url %}
+  {% include "components/stat_card.html" with stat_label="Pending" stat_value=pending stat_sub="draft, submitted or under review" stat_color="amber" stat_href=requests_url %}
+  {% include "components/stat_card.html" with stat_label="Approved" stat_value=approved stat_sub="approved or partially fulfilled" stat_color="sky" stat_href=requests_url %}
+  {% include "components/stat_card.html" with stat_label="Fulfilled" stat_value=fulfilled stat_color="emerald" stat_href=requests_url %}
+  {% include "components/stat_card.html" with stat_label="Rejected" stat_value=rejected stat_color="slate" stat_href=requests_url %}
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+  {% include "components/stat_card.html" with stat_label="Emergency / Critical" stat_value=emergency stat_sub="open high-urgency requests" stat_color="rose" stat_href=requests_url %}
+</div>
+
+{# ---- Recent requests ---- #}
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm mb-6">
+  <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+    <h2 class="font-semibold text-ink-900">Recent Requests</h2>
+    <a href="{% url 'requests:list' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">View all</a>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead>
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Code</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Organization</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Urgency</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Required By</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Created</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in recent_requests %}
+        <tr class="hover:bg-ink-50/60">
+          <td class="px-4 py-3 border-t border-ink-100 whitespace-nowrap">
+            <a href="{% url 'requests:detail' r.pk %}" hx-get="{% url 'requests:detail' r.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="font-medium text-brand-600 hover:text-brand-700">{{ r.request_code }}</a>
+          </td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-700">{{ r.organization.name }}</td>
+          <td class="px-4 py-3 border-t border-ink-100">{% include "components/status_badge.html" with status=r.urgency %}</td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-500 whitespace-nowrap">{{ r.required_by|date:"M j, Y H:i" }}</td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-500 whitespace-nowrap">{{ r.created_at|date:"M j, Y" }}</td>
+          <td class="px-4 py-3 border-t border-ink-100">{% include "components/status_badge.html" with status=r.status %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="border-t border-ink-100">{% include "components/empty_state.html" with empty_title="No blood requests" empty_text="Create your first blood request to get started." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends base_template %}
+{% block title %}Response recorded — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto text-center py-4">
+  <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-emerald-100 mb-4">
+    <svg class="w-7 h-7 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>
+  </div>
+  <h1 class="text-lg font-bold text-ink-900">Thank you — response recorded</h1>
+  <p class="text-sm text-ink-600 mt-2">
+    You answered: <strong>{{ notification.get_donor_response_display|default:"Response submitted" }}</strong>
+  </p>
+  <p class="text-sm text-ink-500 mt-3">Blood bank staff will review responses and follow up if your help is needed.</p>
+  <div class="mt-6">
+    {% if standalone %}
+      <a href="{% url 'accounts:login' %}" class="text-sm font-semibold text-brand-600 hover:underline">Sign in to your donor account</a>
+    {% else %}
+      <a href="{% url 'notifications:inbox' %}" class="inline-block rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2 hover:bg-ink-700">Back to inbox</a>
+    {% endif %}
+  </div>
+  <p class="mt-6 text-[11px] leading-relaxed text-ink-500 border-t border-ink-200 pt-3">
+    Note: this response indicates availability only — it is not a medical clearance. Standard
+    screening applies before any donation.
+  </p>
+</div>
+{% endblock %}

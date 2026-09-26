@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Delivery Overview — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">Delivery Overview</h1>
+    <p class="text-sm text-ink-500 mt-0.5">Every notification record and its delivery status. Failed sends can be retried.</p>
+  </div>
+  {% if user.role == "ADMIN" %}
+    <a href="{% url 'notifications:template_list' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Message templates</a>
+  {% endif %}
+</div>
+
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4">
+  <form method="get" class="flex flex-wrap items-end gap-3">
+    <div>
+      <label class="block text-xs font-medium text-ink-500 mb-1">Status</label>
+      <select name="status" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500">
+        <option value="">Any status</option>
+        {% for value, label in statuses %}
+          <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-ink-500 mb-1">Channel</label>
+      <select name="channel" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500">
+        <option value="">Any channel</option>
+        {% for value, label in channels %}
+          <option value="{{ value }}" {% if channel_filter == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{% url 'notifications:delivery_list' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Reset</a>
+      <button type="submit" class="rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2">Filter</button>
+    </div>
+  </form>
+</div>
+
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead class="bg-ink-50 text-xs uppercase tracking-wide text-ink-500">
+        <tr>
+          <th class="px-4 py-3 text-left">Recipient</th>
+          <th class="px-4 py-3 text-left">Subject / Body</th>
+          <th class="px-4 py-3 text-left">Channel</th>
+          <th class="px-4 py-3 text-left">Status</th>
+          <th class="px-4 py-3 text-left">Sent</th>
+          <th class="px-4 py-3 text-left">Created</th>
+          <th class="px-4 py-3 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-ink-100">
+        {% for n in notifications %}
+          <tr class="hover:bg-ink-50/60 align-top">
+            <td class="px-4 py-3">
+              {% if n.donor %}
+                <a href="{% url 'donors:detail' pk=n.donor.pk %}" hx-get="{% url 'donors:detail' pk=n.donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="font-medium text-brand-700 hover:underline">{{ n.donor.donor_code }}</a>
+                <span class="block text-xs text-ink-400">{{ n.donor.full_name }}</span>
+              {% elif n.user %}
+                <span class="font-medium text-ink-800">{{ n.user.username }}</span>
+                <span class="block text-xs text-ink-400">{{ n.user.get_role_display }}</span>
+              {% else %}
+                <span class="text-ink-400">—</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 max-w-xs">
+              <span class="font-medium text-ink-800">{{ n.subject|default:"(no subject)" }}</span>
+              <span class="block text-xs text-ink-500 truncate">{{ n.body|slice:":120" }}</span>
+              {% if n.error %}<span class="block text-xs text-red-600 mt-1">Error: {{ n.error|truncatechars:140 }}</span>{% endif %}
+              {% if n.blood_request %}<span class="block text-xs text-ink-400 mt-0.5">Req: {{ n.blood_request.request_code }}</span>{% endif %}
+            </td>
+            <td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-1 rounded-full bg-ink-100 text-ink-600">{{ n.get_channel_display }}</span></td>
+            <td class="px-4 py-3">
+              {% if n.delivery_status == "SENT" or n.delivery_status == "DELIVERED" %}
+                <span class="text-xs font-semibold px-2 py-1 rounded-full bg-emerald-50 text-emerald-700">{{ n.get_delivery_status_display }}</span>
+              {% elif n.delivery_status == "FAILED" %}
+                <span class="text-xs font-semibold px-2 py-1 rounded-full bg-red-50 text-red-700">Failed{% if n.retry_count %} · {{ n.retry_count }}x{% endif %}</span>
+              {% else %}
+                <span class="text-xs font-semibold px-2 py-1 rounded-full bg-amber-50 text-amber-700">{{ n.get_delivery_status_display }}</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-xs text-ink-500">{{ n.sent_at|date:"M j, g:i A"|default:"—" }}</td>
+            <td class="px-4 py-3 text-xs text-ink-500">{{ n.created_at|date:"M j, g:i A" }}</td>
+            <td class="px-4 py-3 text-right whitespace-nowrap">
+              {% if n.delivery_status == "FAILED" %}
+                <form method="post" action="{% url 'notifications:retry' pk=n.pk %}" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-brand-600 text-white hover:bg-brand-700">Retry</button>
+                </form>
+              {% endif %}
+              {% if n.donor_id %}
+                <a href="{% url 'notifications:respond' pk=n.pk %}" class="text-xs font-medium text-ink-500 hover:text-brand-600 ml-1">Responses</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="px-4 py-10 text-center text-ink-500">No notifications found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page_obj.has_other_pages %}
+    <div class="border-t border-ink-100 px-4 py-3 flex items-center justify-between text-sm">
+      <span class="text-ink-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      <div class="flex gap-2">
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if channel_filter %}&channel={{ channel_filter }}{% endif %}" class="rounded-lg border border-ink-200 px-3 py-1.5 hover:bg-ink-50">← Prev</a>{% endif %}
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if channel_filter %}&channel={{ channel_filter }}{% endif %}" class="rounded-lg border border-ink-200 px-3 py-1.5 hover:bg-ink-50">Next →</a>{% endif %}
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

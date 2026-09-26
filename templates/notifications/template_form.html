@@ -1,0 +1,71 @@
+{% extends layout|default:"base.html" %}
+{% block title %}{% if ntemplate %}Edit Template{% else %}New Template{% endif %} — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="lg:col-span-2">
+    <div class="mb-6">
+      <h1 class="text-xl font-bold text-ink-900">{% if ntemplate %}Edit “{{ ntemplate.name }}”{% else %}New Message Template{% endif %}</h1>
+      <p class="text-sm text-ink-500 mt-0.5">Use double-curlybrace placeholders from the list on the right, e.g. <code class="text-xs bg-ink-100 px-1 rounded">&#123;&#123; donor_name &#125;&#125;</code>. Unknown variables are rejected on save.</p>
+    </div>
+    <form method="post" action="{% if ntemplate %}{% url 'notifications:template_edit' pk=ntemplate.pk %}{% else %}{% url 'notifications:template_create' %}{% endif %}" {% if layout %}hx-post="{% if ntemplate %}{% url 'notifications:template_edit' pk=ntemplate.pk %}{% else %}{% url 'notifications:template_create' %}{% endif %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %} class="bg-white rounded-2xl border border-ink-200 shadow-sm p-6 space-y-4">
+      {% csrf_token %}
+      {% include "components/form_errors.html" with form=form %}
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% include "components/field.html" with field=form.name %}
+        {% include "components/field.html" with field=form.code %}
+      </div>
+      {% include "components/field.html" with field=form.subject %}
+      {% include "components/field.html" with field=form.body %}
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% include "components/field.html" with field=form.channels %}
+        {% include "components/field.html" with field=form.is_active %}
+      </div>
+      {% include "components/field.html" with field=form.description %}
+      <div class="flex justify-end gap-2 pt-2">
+        {% if layout %}
+        <button type="button" @click="bbCloseModal()" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Cancel</button>
+        {% else %}
+        <a href="{% url 'notifications:template_list' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Cancel</a>
+        {% endif %}
+        <button type="submit" class="rounded-xl bg-brand-600 text-white text-sm font-semibold px-4 py-2 hover:bg-brand-700 shadow-sm">Save Template</button>
+      </div>
+    </form>
+  </div>
+
+  <aside class="space-y-4">
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-5">
+      <h2 class="text-sm font-bold text-ink-900 mb-2">Available variables</h2>
+      <p class="text-xs text-ink-500 mb-3">A variable that has no value at send time is left as-is in the message, so it is visible and fixable.</p>
+      <dl class="text-xs space-y-2">
+        {% for v in known_variables %}
+          <div class="flex items-start gap-2">
+            <code class="font-mono bg-ink-100 text-ink-700 px-1.5 py-0.5 rounded shrink-0">{{ v }}</code>
+            <dt class="sr-only">{{ v }}</dt>
+          </div>
+        {% endfor %}
+      </dl>
+    </div>
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-5">
+      <h2 class="text-sm font-bold text-ink-900 mb-2">Channels</h2>
+      <p class="text-xs text-ink-500 leading-relaxed">
+        Comma-separated: <code>in_app</code>, <code>email</code>, <code>sms</code>.
+        Email and SMS delivery currently use clearly-labelled <strong>mock providers</strong> in this
+        environment — records are created and logged, but nothing is actually sent until real
+        credentials are configured.
+      </p>
+    </div>
+    {% if ntemplate %}
+      <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-5">
+        <h2 class="text-sm font-bold text-ink-900 mb-2">Recently sent with this template</h2>
+        <ul class="text-xs text-ink-500 space-y-1.5">
+          {% for n in recent_notifications %}
+            <li>{{ n.created_at|date:"M j" }} — {{ n.delivery_status }}{% if n.donor %} · {{ n.donor.donor_code }}{% elif n.user %} · {{ n.user.username }}{% endif %}</li>
+          {% empty %}
+            <li>No deliveries recorded yet.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

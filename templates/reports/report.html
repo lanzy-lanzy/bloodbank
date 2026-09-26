@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ report.title }} — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <p class="text-xs font-semibold uppercase tracking-wide text-ink-400">{{ report.group }}</p>
+    <h1 class="text-xl font-bold text-ink-900">{{ report.title }}</h1>
+  </div>
+  <div class="flex items-center gap-2">
+    <a href="{% url 'reports:center' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">All reports</a>
+    <a href="{% url 'reports:export' key=report_key %}?{% for k, v in filters.items %}{% if v %}&amp;{{ k }}={{ v|urlencode }}{% endif %}{% endfor %}"
+       class="rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2 hover:bg-ink-700 inline-flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0 4-4m-4 4-4-4M4 20h16"/></svg>
+      Export CSV
+    </a>
+  </div>
+</div>
+
+{% if report.filters %}
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4">
+    <form method="get"
+          hx-get="{% url 'reports:run' key=report_key %}" hx-target="#report-table" hx-push-url="true"
+          hx-trigger="change, keyup changed delay:400ms from:input[name=q]"
+          class="flex flex-wrap items-end gap-3">
+      {% for f in report.filters %}
+        {% if f == "q" %}
+          <div class="min-w-[220px] flex-1">
+            <label class="block text-xs font-medium text-ink-500 mb-1">Search</label>
+            <input type="search" name="q" value="{{ filters.q }}" placeholder="ID, name, code…"
+                   class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500">
+          </div>
+        {% elif f == "status" %}
+          <div>
+            <label class="block text-xs font-medium text-ink-500 mb-1">Status</label>
+            <select name="status" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500">
+              <option value="">Any status</option>
+              {% if report_key == "donors" %}
+                {% for value, label in donor_statuses %}<option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+              {% elif report_key == "donations" %}
+                {% for value, label in donation_statuses %}<option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+              {% elif report_key == "inventory" %}
+                {% for value, label in bag_statuses %}<option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+              {% else %}
+                {% for value, label in request_statuses %}<option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+              {% endif %}
+            </select>
+          </div>
+        {% elif f == "blood_type" %}
+          <div>
+            <label class="block text-xs font-medium text-ink-500 mb-1">Blood type</label>
+            <select name="blood_type" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500">
+              <option value="">Any type</option>
+              {% for bt in blood_types %}<option value="{{ bt.pk }}" {% if filters.blood_type == bt.pk|stringformat:"s" %}selected{% endif %}>{{ bt.code }}</option>{% endfor %}
+            </select>
+          </div>
+        {% elif f == "date_from" %}
+          <div>
+            <label class="block text-xs font-medium text-ink-500 mb-1">From</label>
+            <input type="date" name="date_from" value="{{ filters.date_from }}" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500">
+          </div>
+        {% elif f == "date_to" %}
+          <div>
+            <label class="block text-xs font-medium text-ink-500 mb-1">To</label>
+            <input type="date" name="date_to" value="{{ filters.date_to }}" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500">
+          </div>
+        {% endif %}
+      {% endfor %}
+      <div class="flex items-center gap-2">
+        <a href="{% url 'reports:run' key=report_key %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Reset</a>
+        <button type="submit" class="rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2">Apply</button>
+      </div>
+    </form>
+  </div>
+{% endif %}
+
+<div id="report-table">
+  {% include "reports/_table.html" %}
+</div>
+{% endblock %}

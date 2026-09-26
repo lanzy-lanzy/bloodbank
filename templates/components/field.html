@@ -1,0 +1,13 @@
+{# Renders a single form field with label, help text and errors. Include it with field=form.email and similar. #}
+<div class="{% if field.is_hidden %}hidden{% endif %}">
+  {% if field.label %}
+  <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-ink-700 mb-1.5">
+    {{ field.label }}{% if field.field.required %}<span class="text-brand-600 ml-0.5" title="Required">*</span>{% endif %}
+  </label>
+  {% endif %}
+  {{ field }}
+  {% if field.help_text %}<p class="mt-1 text-xs text-ink-500">{{ field.help_text|safe }}</p>{% endif %}
+  {% for error in field.errors %}
+  <p class="mt-1 text-xs font-medium text-brand-600" role="alert">{{ error }}</p>
+  {% endfor %}
+</div>

@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}Blood Bank Configuration — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">Blood Bank Configuration</h1>
+    <p class="text-sm text-ink-500 mt-0.5">Blood types, components, required tests and compatibility rules. All changes are audited; nothing clinical is hard-coded.</p>
+  </div>
+  <a href="{% url 'settings_app:index' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">← System settings</a>
+</div>
+
+<div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 mb-6 leading-relaxed max-w-4xl">
+  <strong>Safety model:</strong> a compatibility pair that is not configured here is treated as
+  <em>not compatible</em> by the system. Rules saved on this page are recorded as approved by you
+  (name + timestamp). Seed/demo entries are explicitly unapproved — review each against your
+  institution's validated policy before relying on them.
+</div>
+
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+  {# ---------------- Blood types ---------------- #}
+  <section class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+      <h2 class="font-bold text-ink-900 text-sm">Blood Types</h2>
+      <span class="text-xs text-ink-400">{{ blood_types|length }} configured</span>
+    </div>
+    <div class="p-5 space-y-2 max-h-72 overflow-y-auto">
+      {% for bt in blood_types %}
+        <div x-data="{ edit: false }">
+          <div class="flex items-center justify-between gap-2 border border-ink-100 rounded-xl px-3 py-2">
+            <div class="flex items-center gap-3">
+              <span class="font-mono font-bold text-ink-900">{{ bt.code }}</span>
+              {% if bt.is_active %}<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">Active</span>
+              {% else %}<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-ink-100 text-ink-500">Inactive</span>{% endif %}
+            </div>
+            <button @click="edit = !edit" class="text-xs font-medium text-ink-500 hover:text-brand-600" x-text="edit ? 'Close' : 'Edit'">Edit</button>
+          </div>
+          <form x-show="edit" x-cloak method="post" action="{% url 'settings_app:blood_type_edit' pk=bt.pk %}" hx-post="{% url 'settings_app:blood_type_edit' pk=bt.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="mt-1 flex flex-wrap items-center gap-2 text-xs bg-ink-50 rounded-xl px-3 py-2">
+          {% csrf_token %}
+          <select name="abo" class="rounded-lg border border-ink-300 px-2 py-1">
+            <option value="A" {% if bt.abo == "A" %}selected{% endif %}>A</option>
+            <option value="B" {% if bt.abo == "B" %}selected{% endif %}>B</option>
+            <option value="AB" {% if bt.abo == "AB" %}selected{% endif %}>AB</option>
+            <option value="O" {% if bt.abo == "O" %}selected{% endif %}>O</option>
+          </select>
+          <select name="rh" class="rounded-lg border border-ink-300 px-2 py-1">
+            <option value="POS" {% if bt.rh == "POS" %}selected{% endif %}>Positive</option>
+            <option value="NEG" {% if bt.rh == "NEG" %}selected{% endif %}>Negative</option>
+          </select>
+            <label class="flex items-center gap-1 text-ink-600"><input type="checkbox" name="is_active" value="on" {% if bt.is_active %}checked{% endif %} class="rounded border-ink-300 text-brand-600 h-3.5 w-3.5">Active</label>
+            <button type="submit" class="rounded-lg bg-ink-900 text-white px-3 py-1 font-semibold">Save</button>
+          </form>
+        </div>
+      {% endfor %}
+    </div>
+    <form method="post" action="{% url 'settings_app:blood_type_create' %}" hx-post="{% url 'settings_app:blood_type_create' %}" hx-target="#modal-root" hx-swap="innerHTML" class="px-5 py-4 border-t border-ink-100 bg-ink-50/50 flex flex-wrap items-end gap-3">
+      {% csrf_token %}
+      <div class="flex-1 min-w-[90px]">{% include "components/field.html" with field=blood_type_form.abo %}</div>
+      <div class="flex-1 min-w-[90px]">{% include "components/field.html" with field=blood_type_form.rh %}</div>
+      <button type="submit" class="rounded-xl bg-brand-600 text-white text-sm font-semibold px-4 py-2 hover:bg-brand-700">+ Add type</button>
+    </form>
+  </section>
+
+  {# ---------------- Components ---------------- #}
+  <section class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+      <h2 class="font-bold text-ink-900 text-sm">Blood Components</h2>
+      <span class="text-xs text-ink-400">shelf life drives expiry</span>
+    </div>
+    <div class="p-5 space-y-2">
+      {% for c in components %}
+        <div x-data="{ edit: false }">
+          <div class="flex items-center justify-between gap-2 border border-ink-100 rounded-xl px-3 py-2">
+            <div class="min-w-0">
+              <span class="font-semibold text-ink-900 text-sm">{{ c.name }}</span>
+              <span class="font-mono text-xs text-ink-400 ml-1">{{ c.code }}</span>
+              <span class="block text-[11px] text-ink-500">Shelf life: {{ c.default_shelf_life_days }} days</span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              {% if not c.is_active %}<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-ink-100 text-ink-500">Inactive</span>{% endif %}
+              <button @click="edit = !edit" class="text-xs font-medium text-ink-500 hover:text-brand-600" x-text="edit ? 'Close' : 'Edit'">Edit</button>
+            </div>
+          </div>
+          <form x-show="edit" x-cloak method="post" action="{% url 'settings_app:component_edit' pk=c.pk %}" hx-post="{% url 'settings_app:component_edit' pk=c.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="mt-1 grid grid-cols-2 gap-2 text-xs bg-ink-50 rounded-xl px-3 py-2">
+            {% csrf_token %}
+            <input name="name" value="{{ c.name }}" class="rounded-lg border border-ink-300 px-2 py-1" required>
+            <input name="code" value="{{ c.code }}" class="rounded-lg border border-ink-300 px-2 py-1 font-mono" required>
+            <label class="flex flex-col gap-1 text-ink-500">Shelf life (days) — institutional value
+              <input type="number" name="default_shelf_life_days" value="{{ c.default_shelf_life_days }}" min="1" class="rounded-lg border border-ink-300 px-2 py-1" required></label>
+            <label class="flex flex-col gap-1 text-ink-500">Description
+              <input name="description" value="{{ c.description }}" class="rounded-lg border border-ink-300 px-2 py-1"></label>
+            <div class="col-span-2 flex items-center justify-between">
+              <label class="flex items-center gap-1 text-ink-600"><input type="checkbox" name="is_active" value="on" {% if c.is_active %}checked{% endif %} class="rounded border-ink-300 text-brand-600 h-3.5 w-3.5">Active</label>
+              <button type="submit" class="rounded-lg bg-ink-900 text-white px-3 py-1 font-semibold">Save</button>
+            </div>
+          </form>
+        </div>
+      {% endfor %}
+    </div>
+    <form method="post" action="{% url 'settings_app:component_create' %}" hx-post="{% url 'settings_app:component_create' %}" hx-target="#modal-root" hx-swap="innerHTML" class="px-5 py-4 border-t border-ink-100 bg-ink-50/50 space-y-3">
+      {% csrf_token %}
+      <div class="grid grid-cols-2 gap-3">
+        {% include "components/field.html" with field=component_form.name %}
+        {% include "components/field.html" with field=component_form.code %}
+        {% include "components/field.html" with field=component_form.default_shelf_life_days %}
+        {% include "components/field.html" with field=component_form.description %}
+      </div>
+      <button type="submit" class="rounded-xl bg-brand-600 text-white text-sm font-semibold px-4 py-2 hover:bg-brand-700">+ Add component</button>
+    </form>
+  </section>
+
+  {# ---------------- Test types ---------------- #}
+  <section class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-ink-100">
+      <h2 class="font-bold text-ink-900 text-sm">Safety Screening Tests</h2>
+      <p class="text-[11px] text-ink-400 mt-0.5">Required tests gate release: a bag cannot become AVAILABLE until every required test has an acceptable, verified result.</p>
+    </div>
+    <div class="p-5 space-y-2">
+      {% for t in test_types %}
+        <div x-data="{ edit: false }">
+          <div class="flex items-center justify-between gap-2 border border-ink-100 rounded-xl px-3 py-2">
+            <div>
+              <span class="font-semibold text-ink-900 text-sm">{{ t.name }}</span>
+              <span class="block text-[11px] text-ink-500">{{ t.get_category_display }}</span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              {% if t.is_required %}<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200">REQUIRED</span>{% endif %}
+              {% if not t.is_active %}<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-ink-100 text-ink-500">Inactive</span>{% endif %}
+              <button @click="edit = !edit" class="text-xs font-medium text-ink-500 hover:text-brand-600" x-text="edit ? 'Close' : 'Edit'">Edit</button>
+            </div>
+          </div>
+          <form x-show="edit" x-cloak method="post" action="{% url 'settings_app:test_type_edit' pk=t.pk %}" hx-post="{% url 'settings_app:test_type_edit' pk=t.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="mt-1 flex flex-wrap items-center gap-2 text-xs bg-ink-50 rounded-xl px-3 py-2">
+            {% csrf_token %}
+            <input name="name" value="{{ t.name }}" class="flex-1 min-w-[140px] rounded-lg border border-ink-300 px-2 py-1" required>
+            <select name="category" class="rounded-lg border border-ink-300 px-2 py-1">
+              <option value="GROUPING" {% if t.category == "GROUPING" %}selected{% endif %}>Blood grouping</option>
+              <option value="RH" {% if t.category == "RH" %}selected{% endif %}>Rh typing</option>
+              <option value="INFECTIOUS" {% if t.category == "INFECTIOUS" %}selected{% endif %}>Infectious-disease screening</option>
+              <option value="OTHER" {% if t.category == "OTHER" %}selected{% endif %}>Other</option>
+            </select>
+            <label class="flex items-center gap-1 text-ink-600"><input type="checkbox" name="is_required" value="on" {% if t.is_required %}checked{% endif %} class="rounded border-ink-300 text-brand-600 h-3.5 w-3.5">Required for release</label>
+            <label class="flex items-center gap-1 text-ink-600"><input type="checkbox" name="is_active" value="on" {% if t.is_active %}checked{% endif %} class="rounded border-ink-300 text-brand-600 h-3.5 w-3.5">Active</label>
+            <button type="submit" class="rounded-lg bg-ink-900 text-white px-3 py-1 font-semibold">Save</button>
+          </form>
+        </div>
+      {% endfor %}
+    </div>
+    <form method="post" action="{% url 'settings_app:test_type_create' %}" hx-post="{% url 'settings_app:test_type_create' %}" hx-target="#modal-root" hx-swap="innerHTML" class="px-5 py-4 border-t border-ink-100 bg-ink-50/50 space-y-3">
+      {% csrf_token %}
+      <div class="grid grid-cols-2 gap-3">
+        {% include "components/field.html" with field=test_type_form.name %}
+        {% include "components/field.html" with field=test_type_form.category %}
+      </div>
+      <label class="flex items-center gap-2 text-sm text-ink-600">
+        <input type="checkbox" name="is_required" value="on" class="rounded border-ink-300 text-brand-600 h-4 w-4">
+        Required before bag release
+      </label>
+      <button type="submit" class="rounded-xl bg-brand-600 text-white text-sm font-semibold px-4 py-2 hover:bg-brand-700">+ Add test type</button>
+    </form>
+  </section>
+
+  {# ---------------- Compatibility rules ---------------- #}
+  <section class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+      <h2 class="font-bold text-ink-900 text-sm">Compatibility Rules</h2>
+      <span class="text-xs text-ink-400">{{ rules|length }} rule{{ rules|length|pluralize }}</span>
+    </div>
+    <div class="max-h-[480px] overflow-y-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-ink-50 text-[11px] uppercase tracking-wide text-ink-500 sticky top-0">
+          <tr>
+            <th class="px-3 py-2 text-left">Patient ← Donor</th>
+            <th class="px-3 py-2 text-left">Component</th>
+            <th class="px-3 py-2 text-left">Verdict</th>
+            <th class="px-3 py-2 text-left">Approval</th>
+            <th class="px-3 py-2 text-right"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-ink-100">
+          {% for r in rules %}
+            <tr class="align-top hover:bg-ink-50/60">
+              <td class="px-3 py-2 font-mono text-xs text-ink-800">{{ r.patient_type.code }} ← {{ r.donor_type.code }}</td>
+              <td class="px-3 py-2 text-xs text-ink-600">{{ r.component.code|default:"All" }}</td>
+              <td class="px-3 py-2">
+                {% if r.is_allowed %}<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">Allowed</span>
+                {% else %}<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700">Not allowed</span>{% endif %}
+                {% if not r.is_active %}<span class="block text-[10px] text-ink-400 mt-1">inactive</span>{% endif %}
+                {% if r.note %}<span class="block text-[10px] text-ink-400 mt-1 max-w-[180px]">{{ r.note|truncatechars:60 }}</span>{% endif %}
+              </td>
+              <td class="px-3 py-2 text-[11px]">
+                {% if r.approved_by %}<span class="text-emerald-700">{{ r.approved_by.username }} · {{ r.approved_at|date:"M j, Y" }}</span>
+                {% else %}<span class="text-amber-600 font-semibold">NOT APPROVED</span>{% endif %}
+              </td>
+              <td class="px-3 py-2 text-right whitespace-nowrap">
+                <form method="post" action="{% url 'settings_app:compatibility_edit' pk=r.pk %}" hx-post="{% url 'settings_app:compatibility_edit' pk=r.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="patient_type" value="{{ r.patient_type_id }}">
+                  <input type="hidden" name="donor_type" value="{{ r.donor_type_id }}">
+                  {% if r.component_id %}<input type="hidden" name="component" value="{{ r.component_id }}">{% endif %}
+                  <input type="hidden" name="note" value="{{ r.note }}">
+                  {# Toggle: send the OPPOSITE of current is_allowed; keep is_active as-is. #}
+                  <input type="hidden" name="is_allowed" value="{% if not r.is_allowed %}on{% endif %}">
+                  <input type="hidden" name="is_active" value="{% if r.is_active %}on{% endif %}">
+                  <button type="submit" class="text-[10px] font-semibold px-2 py-1 rounded-lg border border-ink-200 hover:bg-ink-50 text-ink-500"
+                          title="Toggle allowed/not-allowed">{% if r.is_allowed %}Disallow{% else %}Allow{% endif %}</button>
+                </form>
+                <button type="button" class="text-[10px] font-semibold px-2 py-1 rounded-lg border border-red-100 text-red-500 hover:bg-red-50"
+                        @click="$dispatch('bb-confirm-delete', { title: 'Delete compatibility rule {{ r.patient_type }} ← {{ r.donor_type }}?', text: 'Unconfigured pairs are treated as NOT compatible (fail-safe). The deletion is audited.', url: '{% url "settings_app:compatibility_delete" pk=r.pk %}' })">✕</button>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="px-3 py-8 text-center text-ink-500 text-sm">No rules configured — nothing will be treated as compatible.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <form method="post" action="{% url 'settings_app:compatibility_create' %}" class="px-5 py-4 border-t border-ink-100 bg-ink-50/50 space-y-3">
+      {% csrf_token %}
+      <p class="text-[11px] text-ink-500">Saving a rule here records <strong>you</strong> as the approving administrator. Only add rules validated by your institution.</p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {% include "components/field.html" with field=compatibility_form.patient_type %}
+        {% include "components/field.html" with field=compatibility_form.donor_type %}
+        {% include "components/field.html" with field=compatibility_form.component %}
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {% include "components/field.html" with field=compatibility_form.note %}
+        <div class="flex items-end gap-4 pb-1">
+          <label class="flex items-center gap-2 text-sm text-ink-600"><input type="checkbox" name="is_allowed" value="on" checked class="rounded border-ink-300 text-brand-600 h-4 w-4">Allowed</label>
+          <label class="flex items-center gap-2 text-sm text-ink-600"><input type="checkbox" name="is_active" value="on" checked class="rounded border-ink-300 text-brand-600 h-4 w-4">Active</label>
+        </div>
+      </div>
+      <button type="submit" class="rounded-xl bg-brand-600 text-white text-sm font-semibold px-4 py-2 hover:bg-brand-700">+ Add / update rule</button>
+    </form>
+  </section>
+</div>
+
+{# Page-level destructive confirmation modal (no native confirm dialogs). #}
+<div x-data="{ open: false, title: '', text: '', url: '' }"
+     @bb-confirm-delete.window="open = true; title = $event.detail.title; text = $event.detail.text; url = $event.detail.url"
+     x-show="open" x-cloak class="fixed inset-0 z-[98] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+  <div class="fixed inset-0 bg-ink-950/50" @click="open = false" x-transition.opacity></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" x-transition>
+    <h3 class="text-base font-semibold text-ink-900" x-text="title">Delete?</h3>
+    <p class="text-sm text-ink-500 mt-1" x-text="text"></p>
+    <div class="mt-6 flex justify-end gap-2">
+      <button type="button" @click="open = false" class="px-4 py-2 text-sm font-medium rounded-xl border border-ink-200 hover:bg-ink-50 text-ink-700">Cancel</button>
+      <form method="post" :action="url" @submit.prevent="open = false; $el.submit()">
+        {% csrf_token %}
+        <button type="submit" class="px-4 py-2 text-sm font-semibold rounded-xl bg-red-600 text-white hover:bg-red-700 shadow-sm">Delete</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

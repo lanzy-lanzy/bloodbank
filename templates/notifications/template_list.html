@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Message Templates — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">Message Templates</h1>
+    <p class="text-sm text-ink-500 mt-0.5">Admin-managed notification content. Codes are referenced by system services — change a code only if you know what you are doing.</p>
+  </div>
+  {% url 'notifications:template_create' as tpl_add_url %}
+  {% include "components/modal_action.html" with ma_url=tpl_add_url ma_label="+ New Template" ma_icon="M12 5v14M5 12h14" %}
+</div>
+
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead class="bg-ink-50 text-xs uppercase tracking-wide text-ink-500">
+        <tr>
+          <th class="px-4 py-3 text-left">Name / Code</th>
+          <th class="px-4 py-3 text-left">Subject</th>
+          <th class="px-4 py-3 text-left">Channels</th>
+          <th class="px-4 py-3 text-left">Variables used</th>
+          <th class="px-4 py-3 text-left">Active</th>
+          <th class="px-4 py-3 text-left">Updated</th>
+          <th class="px-4 py-3 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-ink-100">
+        {% for t in templates %}
+          <tr class="hover:bg-ink-50/60 align-top">
+            <td class="px-4 py-3">
+              <span class="font-medium text-ink-900">{{ t.name }}</span>
+              <span class="block text-xs font-mono text-ink-400">{{ t.code }}</span>
+            </td>
+            <td class="px-4 py-3 text-ink-600 max-w-xs truncate">{{ t.subject|default:"—" }}</td>
+            <td class="px-4 py-3">
+              {% for c in t.channel_list %}<span class="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full bg-ink-100 text-ink-600 mr-1">{{ c }}</span>{% endfor %}
+            </td>
+            <td class="px-4 py-3 text-xs font-mono text-ink-500">{{ t.variables_used|join:", "|default:"—" }}</td>
+            <td class="px-4 py-3">
+              {% if t.is_active %}<span class="text-xs font-semibold px-2 py-1 rounded-full bg-emerald-50 text-emerald-700">Active</span>
+              {% else %}<span class="text-xs font-semibold px-2 py-1 rounded-full bg-ink-100 text-ink-500">Inactive</span>{% endif %}
+            </td>
+            <td class="px-4 py-3 text-xs text-ink-500">{{ t.updated_at|date:"M j, Y" }}</td>
+            <td class="px-4 py-3 text-right">
+              <a href="{% url 'notifications:template_edit' pk=t.pk %}" hx-get="{% url 'notifications:template_edit' pk=t.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'notifications:template_edit' pk=t.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-ink-200 hover:bg-ink-50 text-ink-700">Edit</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="px-4 py-10 text-center text-ink-500">No templates yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 max-w-3xl">
+  <strong>Codes used by system services:</strong>
+  <code>emergency_alert</code>, <code>emergency_request_alert</code>, <code>request_fulfilled</code>,
+  <code>appointment_reminder</code>, <code>expiration_alert</code>, <code>donation_thank_you</code>, <code>reward_earned</code>.
+  Deactivating a template used by a workflow will make that notification fall back to a generic message or fail — check delivery status after changes.
+</div>
+{% endblock %}

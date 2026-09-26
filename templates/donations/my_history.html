@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}My Donation History — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">My Donation History</h1>
+    <p class="text-sm text-ink-500 mt-0.5">Your personal record of donations and reward points.</p>
+  </div>
+  <a href="{% url 'rewards:my_rewards' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm">
+    View my rewards
+  </a>
+</div>
+
+{% if donor %}
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+  {% include "components/stat_card.html" with stat_label="Donations" stat_value=donations|length stat_color="rose" %}
+  {% include "components/stat_card.html" with stat_label="Points balance" stat_value=donor.points_balance stat_sub="See rewards for redemptions" stat_color="violet" stat_href=rewards_url %}
+  {% include "components/stat_card.html" with stat_label="Donor since" stat_value=donor.created_at|date:"Y" stat_sub=donor.donor_code stat_color="sky" %}
+</div>
+
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden mb-4">
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead>
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Donation</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Date</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Type</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Volume</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for donation in donations %}
+        <tr class="hover:bg-ink-50/60">
+          <td class="px-4 py-3 border-t border-ink-100 font-medium text-ink-900 whitespace-nowrap">{{ donation.donation_code }}</td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-600 whitespace-nowrap">
+            {{ donation.donation_date|date:"M j, Y" }}{% if donation.donation_time %} · {{ donation.donation_time|date:"H:i" }}{% endif %}
+          </td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-600">{{ donation.get_donation_type_display }}</td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-600">{% if donation.volume_ml %}{{ donation.volume_ml }} mL{% else %}—{% endif %}</td>
+          <td class="px-4 py-3 border-t border-ink-100">{% include "components/status_badge.html" with status=donation.status %}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="px-4 py-3 border-t border-ink-100">
+            {% include "components/empty_state.html" with empty_title="No donations yet" empty_text="When you donate, your history will appear here. Thank you for considering donation!" %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+  <div class="px-6 pt-5 pb-3">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-ink-500">Points history</h2>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead>
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">When</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Type</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Points</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Balance</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for txn in donor.point_transactions.all|slice:":10" %}
+        <tr class="hover:bg-ink-50/60">
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-500 whitespace-nowrap">{{ txn.created_at|date:"M j, Y H:i" }}</td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-700">{{ txn.get_type_display }}</td>
+          <td class="px-4 py-3 border-t border-ink-100 font-semibold {% if txn.amount >= 0 %}text-emerald-600{% else %}text-brand-600{% endif %}">{{ txn.amount|stringformat:"+d" }}</td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-600 tabular-nums">{{ txn.running_balance }}</td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-500">{{ txn.description|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="px-4 py-3 border-t border-ink-100 text-sm text-ink-500 text-center py-8">No point transactions yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+  {% include "components/empty_state.html" with empty_title="No donor record linked" empty_text="Your account is not linked to a donor profile, so there is no donation history to show." %}
+</div>
+{% endif %}
+{% endblock %}

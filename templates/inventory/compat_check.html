@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Compatibility Check — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-xl font-bold text-ink-900">Compatibility Check</h1>
+  <p class="text-sm text-ink-500 mt-0.5 max-w-3xl">
+    Find inventory that may be <em>considered</em> compatible with a patient blood type, per the configured
+    compatibility rule set. Final release for a patient always requires authorized staff confirmation.
+  </p>
+</div>
+
+<form method="post" action="{% url 'inventory:compat_check' %}"
+      class="bg-white rounded-2xl border border-ink-200 shadow-sm p-5 grid grid-cols-1 sm:grid-cols-4 gap-3 items-end mb-4">
+  {% csrf_token %}
+  <div>
+    <label class="block text-sm font-medium text-ink-700 mb-1.5">Patient blood type</label>
+    <select name="blood_type" required class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+      <option value="">Select…</option>
+      {% for bt in blood_types %}
+        <option value="{{ bt.pk }}" {% if selected_type.pk == bt.pk %}selected{% endif %}>{{ bt.code }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="block text-sm font-medium text-ink-700 mb-1.5">Component</label>
+    <select name="component" required class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+      <option value="">Select…</option>
+      {% for c in components %}
+        <option value="{{ c.pk }}" {% if selected_component.pk == c.pk %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="block text-sm font-medium text-ink-700 mb-1.5">Quantity (units)</label>
+    <input type="number" name="quantity" min="1" max="50" value="{{ quantity|default:1 }}"
+           class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+  </div>
+  <div>
+    <button type="submit" class="w-full rounded-xl bg-brand-600 text-white text-sm font-semibold px-4 py-2 hover:bg-brand-700 shadow-sm">Check Inventory</button>
+  </div>
+</form>
+
+{% if bags is not None and selected_type %}
+  {% if shortage %}
+  <div class="mb-4 rounded-2xl border border-brand-200 bg-brand-50 px-5 py-4 text-sm text-brand-800" role="alert">
+    <p class="font-semibold">Shortage detected.</p>
+    <p class="mt-0.5">Only {{ bags|length }} compatible unit(s) available for {{ quantity }} requested.
+      Consider the emergency donor notification workflow (open the request → Notify eligible donors).</p>
+  </div>
+  {% else %}
+  <div class="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-800">
+    Sufficient compatible inventory found ({{ bags|length }} unit(s) suggested, FIFO by expiry).
+  </div>
+  {% endif %}
+
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden mb-4">
+    <div class="px-5 py-4 border-b border-ink-100"><h2 class="font-semibold text-ink-900">Compatible Available Bags</h2></div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead><tr>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Bag</th>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Type / Component</th>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Expires</th>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Location</th>
+        </tr></thead>
+        <tbody>
+          {% for bag in bags %}
+          <tr class="hover:bg-ink-50/60">
+            <td class="px-4 py-2.5"><a class="font-semibold text-ink-900 hover:text-brand-600" href="{% url 'inventory:bag_detail' bag.pk %}" hx-get="{% url 'inventory:bag_detail' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ bag.bag_code }}</a></td>
+            <td class="px-4 py-2.5"><span class="font-bold text-brand-700">{{ bag.blood_type.code }}</span> {{ bag.component }}</td>
+            <td class="px-4 py-2.5 text-ink-600">{{ bag.expires_at|date:"Y-m-d H:i" }} <span class="text-xs text-ink-400">({{ bag.days_until_expiry }}d)</span></td>
+            <td class="px-4 py-2.5 text-ink-600">{{ bag.location|default:"—" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="px-4 py-6 text-center text-ink-500">No compatible AVAILABLE bags found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-ink-100">
+      <h2 class="font-semibold text-ink-900">Compatibility Rules Used</h2>
+      <p class="text-xs text-ink-500 mt-0.5">Traceability: these are the configured rules that produced the result above.</p>
+    </div>
+    {% if rules %}
+    <table class="min-w-full text-sm">
+      <thead><tr>
+        <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Donor Type</th>
+        <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Allowed</th>
+        <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Component scope</th>
+        <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Approved</th>
+      </tr></thead>
+      <tbody>
+        {% for rule in rules %}
+        <tr class="border-t border-ink-100">
+          <td class="px-4 py-2.5 font-bold text-brand-700">{{ rule.donor_type.code }}</td>
+          <td class="px-4 py-2.5">{% if rule.is_allowed %}<span class="text-emerald-600 font-semibold">yes</span>{% else %}<span class="text-brand-600 font-semibold">no</span>{% endif %}</td>
+          <td class="px-4 py-2.5 text-ink-600">{{ rule.component|default:"all components" }}</td>
+          <td class="px-4 py-2.5 text-xs {% if rule.approved_by %}text-emerald-600{% else %}text-amber-600 font-semibold{% endif %}">
+            {% if rule.approved_by %}{{ rule.approved_by.get_username }} · {{ rule.approved_at|date:"Y-m-d" }}{% else %}NOT APPROVED{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    <div class="px-5 py-3 text-xs {% if not rules %}text-brand-700 bg-brand-50{% else %}text-ink-500 bg-amber-50{% endif %}">
+      {% if not rules %}
+        No compatibility rules are configured for this type/component — the system reports nothing as compatible
+        rather than assuming clinical rules. Configure and approve them under <strong>Settings → Blood Bank → Compatibility</strong>
+        (institutional validation required).
+      {% else %}
+        Note: compatibility rules are clinical configuration. Rules marked NOT APPROVED still take effect until an
+        administrator reviews them — validate the full matrix under Settings → Blood Bank.
+      {% endif %}
+    </div>
+  </div>
+{% elif selected_type %}
+  <div class="rounded-2xl border border-ink-200 bg-white px-5 py-4 text-sm text-ink-600">No inventory matched.</div>
+{% endif %}
+{% endblock %}

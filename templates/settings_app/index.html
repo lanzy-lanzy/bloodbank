@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}System Settings — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">System Settings</h1>
+    <p class="text-sm text-ink-500 mt-0.5">Institution-wide configuration. Every change here is written to the audit log with before/after values.</p>
+  </div>
+  <a href="{% url 'settings_app:blood_bank' %}" class="rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2 hover:bg-ink-700">Blood bank configuration →</a>
+</div>
+
+<div class="flex flex-wrap gap-2 mb-4">
+  {% for value, label in categories %}
+    <a href="?category={{ value }}"
+       class="px-4 py-2 rounded-xl text-sm font-medium border {% if category == value %}bg-brand-600 text-white border-brand-600{% else %}bg-white text-ink-600 border-ink-200 hover:bg-ink-50{% endif %}">
+      {{ label }}
+    </a>
+  {% endfor %}
+</div>
+
+<div class="space-y-3 max-w-5xl">
+  {% for s in settings %}
+    <div x-data="{ edit: false }" class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="font-mono text-sm font-semibold text-ink-900">{{ s.key }}</p>
+          <p class="text-xs text-ink-500 mt-0.5 max-w-xl">{{ s.description }}</p>
+          <p class="text-[11px] text-ink-400 mt-1">type: {{ s.get_value_type_display }}{% if s.is_sensitive %} · <span class="text-red-600 font-semibold">SENSITIVE</span>{% endif %} · last change: {{ s.updated_at|date:"M j, Y g:i A" }}{% if s.updated_by %} by {{ s.updated_by.username }}{% endif %}</p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          {% if s.is_sensitive %}
+            <span class="text-sm font-mono text-ink-400 bg-ink-50 rounded-lg px-3 py-2">••••••••</span>
+          {% else %}
+            <form method="post" action="{% url 'settings_app:quick_set' pk=s.pk %}" hx-post="{% url 'settings_app:quick_set' pk=s.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="flex items-center gap-2">
+              {% csrf_token %}
+              <input name="value" value="{{ s.value }}" class="w-40 rounded-xl border border-ink-300 px-3 py-2 text-sm font-mono focus:border-brand-500">
+              <button type="submit" class="text-xs font-semibold px-3 py-2 rounded-lg bg-ink-900 text-white hover:bg-ink-700">Save</button>
+            </form>
+          {% endif %}
+          <button @click="edit = !edit" class="text-xs font-semibold px-3 py-2 rounded-lg border border-ink-200 hover:bg-ink-50 text-ink-600" x-text="edit ? 'Close' : 'Edit'">Edit</button>
+        </div>
+      </div>
+      <form x-show="edit" x-cloak x-transition method="post" action="{% url 'settings_app:save' pk=s.pk %}"
+            hx-post="{% url 'settings_app:save' pk=s.pk %}" hx-target="#modal-root" hx-swap="innerHTML"
+            class="mt-4 pt-4 border-t border-ink-100 grid grid-cols-1 md:grid-cols-2 gap-3">
+        {% csrf_token %}
+        <div class="md:col-span-2">
+          <label class="block text-xs font-medium text-ink-500 mb-1">Key (slug — referenced by code, change carefully)</label>
+          <input name="key" value="{{ s.key }}" class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm font-mono">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-ink-500 mb-1">Value</label>
+          <textarea name="value" rows="2" class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm font-mono">{{ s.value }}</textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-ink-500 mb-1">Category</label>
+            <select name="category" class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm">
+              {% for value, label in categories %}<option value="{{ value }}" {% if s.category == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-ink-500 mb-1">Value type</label>
+            <select name="value_type" class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm">
+              <option value="str" {% if s.value_type == "str" %}selected{% endif %}>Text</option>
+              <option value="int" {% if s.value_type == "int" %}selected{% endif %}>Number</option>
+              <option value="bool" {% if s.value_type == "bool" %}selected{% endif %}>Yes/No</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-ink-500 mb-1">Description</label>
+          <input name="description" value="{{ s.description }}" class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm">
+        </div>
+        <label class="flex items-center gap-2 text-sm text-ink-600 self-end pb-2">
+          <input type="checkbox" name="is_sensitive" value="on" {% if s.is_sensitive %}checked{% endif %} class="rounded border-ink-300 text-brand-600 h-4 w-4"> Sensitive (value hidden in lists)
+        </label>
+        <div class="md:col-span-2 flex justify-between items-center gap-3">
+          <button type="submit" class="rounded-xl bg-brand-600 text-white text-sm font-semibold px-4 py-2 hover:bg-brand-700">Save full setting</button>
+          <button type="button"
+                  @click="$dispatch('bb-confirm-delete', { title: 'Delete setting “{{ s.key }}”?', text: 'This removes the configuration row (the deletion itself is audited). Historical code paths may depend on it.', url: '{% url "settings_app:delete" pk=s.pk %}' })"
+                  class="rounded-xl border border-red-200 text-red-600 text-sm font-semibold px-4 py-2 hover:bg-red-50">Delete setting</button>
+        </div>
+      </form>
+    </div>
+  {% empty %}
+    <div class="bg-white rounded-2xl border border-ink-200 p-10 text-center text-sm text-ink-500">
+      No settings in this category yet. Add one below.
+    </div>
+  {% endfor %}
+</div>
+
+<div class="mt-8 max-w-5xl" x-data="{ open: false }">
+  <button @click="open = !open" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-semibold text-ink-700" x-text="open ? 'Cancel new setting' : '+ New setting'">+ New setting</button>
+  <form x-show="open" x-cloak x-transition method="post" action="{% url 'settings_app:create' %}"
+        hx-post="{% url 'settings_app:create' %}" hx-target="#modal-root" hx-swap="innerHTML"
+        class="mt-4 bg-white rounded-2xl border border-ink-200 shadow-sm p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% csrf_token %}
+    <div>
+      <label class="block text-xs font-medium text-ink-500 mb-1">Key (slug) *</label>
+      <input name="key" required placeholder="e.g. low_stock_threshold" class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm font-mono">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-ink-500 mb-1">Value *</label>
+      <input name="value" required class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm font-mono">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-ink-500 mb-1">Category</label>
+      <select name="category" class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm">
+        {% for value, label in categories %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-ink-500 mb-1">Value type</label>
+      <select name="value_type" class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm">
+        <option value="str">Text</option><option value="int">Number</option><option value="bool">Yes/No</option>
+      </select>
+    </div>
+    <div class="md:col-span-2">
+      <label class="block text-xs font-medium text-ink-500 mb-1">Description</label>
+      <input name="description" class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm">
+    </div>
+    <label class="flex items-center gap-2 text-sm text-ink-600">
+      <input type="checkbox" name="is_sensitive" value="on" class="rounded border-ink-300 text-brand-600 h-4 w-4"> Sensitive
+    </label>
+    <div class="md:col-span-2 flex justify-end">
+      <button type="submit" class="rounded-xl bg-brand-600 text-white text-sm font-semibold px-4 py-2 hover:bg-brand-700">Create setting</button>
+    </div>
+  </form>
+</div>
+
+<div class="mt-6 max-w-5xl rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 leading-relaxed">
+  <strong>Eligibility & clinical caution:</strong> keys such as
+  <code>min_donation_interval_days</code>, <code>min_age_years</code>, <code>max_age_years</code>,
+  <code>min_weight_kg</code>, <code>max_donations_per_year</code> drive donor eligibility decisions.
+  They must reflect your institution's medical policy — if unset, the system refuses to guess and
+  routes donors to <em>Requires staff review</em> instead. Demo seed values are placeholders, not
+  medical guidance.
+</div>
+
+{# Page-level destructive confirmation modal (no native confirm dialogs). #}
+<div x-data="{ open: false, title: '', text: '', url: '' }"
+     @bb-confirm-delete.window="open = true; title = $event.detail.title; text = $event.detail.text; url = $event.detail.url"
+     x-show="open" x-cloak class="fixed inset-0 z-[98] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+  <div class="fixed inset-0 bg-ink-950/50" @click="open = false" x-transition.opacity></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" x-transition>
+    <h3 class="text-base font-semibold text-ink-900" x-text="title">Delete?</h3>
+    <p class="text-sm text-ink-500 mt-1" x-text="text"></p>
+    <div class="mt-6 flex justify-end gap-2">
+      <button type="button" @click="open = false" class="px-4 py-2 text-sm font-medium rounded-xl border border-ink-200 hover:bg-ink-50 text-ink-700">Cancel</button>
+      <form method="post" :action="url" @submit.prevent="open = false; $el.submit()">
+        {% csrf_token %}
+        <button type="submit" class="px-4 py-2 text-sm font-semibold rounded-xl bg-red-600 text-white hover:bg-red-700 shadow-sm">Delete</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,8 @@
+{# Renders non-field error summary for a form. Include it with form=form. #}
+{% if form.non_field_errors %}
+<div class="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800 mb-4" role="alert">
+  <ul class="list-disc list-inside space-y-1">
+    {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}

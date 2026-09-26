@@ -1,0 +1,80 @@
+{% extends layout|default:"base.html" %}
+{% block title %}Screening — {{ screening.donor.donor_code }} — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <div class="flex flex-wrap items-center gap-2">
+      <h1 class="text-xl font-bold text-ink-900">Screening Record</h1>
+      {% include "components/status_badge.html" with status=screening.result %}
+    </div>
+    <p class="text-sm text-ink-500 mt-0.5">
+      <a href="{% url 'donors:detail' screening.donor.pk %}" hx-get="{% url 'donors:detail' screening.donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700 font-medium">{{ screening.donor.full_name }}</a>
+      · {{ screening.donor.donor_code }} · {{ screening.performed_at|date:"M j, Y H:i" }}
+      {% if screening.donation %} · Donation <span class="font-medium text-ink-700">{{ screening.donation.donation_code }}</span>{% endif %}
+    </p>
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="{% url 'donors:screening_create' screening.donor.pk %}" hx-get="{% url 'donors:screening_create' screening.donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm">+ New Screening</a>
+    <a href="{% url 'donors:detail' screening.donor.pk %}" hx-get="{% url 'donors:detail' screening.donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="rounded-xl border border-ink-200 bg-white hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-700">← Back to donor</a>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-5">
+    <h3 class="font-semibold text-ink-900 mb-3">Session</h3>
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+      <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Performed at</dt><dd class="text-ink-800">{{ screening.performed_at|date:"M j, Y H:i" }}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Performed by</dt><dd class="text-ink-800">{{ screening.performed_by|default:"—" }}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Result</dt><dd>{% include "components/status_badge.html" with status=screening.result %}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Deferral (days)</dt><dd class="text-ink-800 tabular-nums">{{ screening.deferral_days|default:"—" }}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Identity verified</dt><dd class="text-ink-800">{% if screening.identity_verified %}<span class="text-emerald-600 font-medium">Yes</span>{% else %}<span class="text-brand-600 font-medium">No</span>{% endif %}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Consent given</dt><dd class="text-ink-800">{% if screening.consent_given %}<span class="text-emerald-600 font-medium">Yes</span>{% else %}<span class="text-brand-600 font-medium">No</span>{% endif %}</dd></div>
+    </dl>
+    {% if screening.notes %}
+    <div class="mt-4">
+      <p class="text-xs font-semibold uppercase tracking-wide text-ink-500 mb-1">Notes</p>
+      <p class="text-sm text-ink-700 whitespace-pre-line rounded-xl bg-ink-50 border border-ink-100 p-3">{{ screening.notes }}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-5">
+    <h3 class="font-semibold text-ink-900 mb-3">Vitals</h3>
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+      <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Weight (kg)</dt><dd class="text-ink-800 tabular-nums">{{ screening.weight_kg|default:"—" }}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Temperature (°C)</dt><dd class="text-ink-800 tabular-nums">{{ screening.temperature_c|default:"—" }}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Blood pressure</dt><dd class="text-ink-800 tabular-nums">{% if screening.bp_systolic or screening.bp_diastolic %}{{ screening.bp_systolic|default:"?" }}/{{ screening.bp_diastolic|default:"?" }} mmHg{% else %}—{% endif %}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Pulse (bpm)</dt><dd class="text-ink-800 tabular-nums">{{ screening.pulse_bpm|default:"—" }}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Hemoglobin (g/dL)</dt><dd class="text-ink-800 tabular-nums">{{ screening.hemoglobin_gdl|default:"—" }}</dd></div>
+    </dl>
+  </div>
+
+  <div class="lg:col-span-2 bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-ink-100"><h3 class="font-semibold text-ink-900">Questionnaire responses</h3></div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm divide-y divide-ink-100">
+        <thead>
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Category</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Question</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Answer</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in responses %}
+          <tr class="hover:bg-ink-50/60">
+            <td class="px-4 py-3 border-t border-ink-100 text-ink-600">{{ r.question.category }}</td>
+            <td class="px-4 py-3 border-t border-ink-100 text-ink-800">{{ r.question.text }}</td>
+            <td class="px-4 py-3 border-t border-ink-100">
+              {% if r.answer_text %}<span class="font-medium text-ink-900">{{ r.answer_text }}</span>{% else %}<span class="text-ink-400">—</span>{% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="px-4 py-3 border-t border-ink-100 text-ink-400">No questionnaire responses recorded.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

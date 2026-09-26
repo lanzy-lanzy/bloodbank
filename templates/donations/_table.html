@@ -1,0 +1,45 @@
+{% load core_extras %}
+<div class="overflow-x-auto">
+  <table class="min-w-full text-sm">
+    <thead>
+      <tr>
+        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Donation</th>
+        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Donor</th>
+        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Date</th>
+        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Type</th>
+        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Blood type</th>
+        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for donation in donations %}
+      <tr class="hover:bg-ink-50/60">
+        <td class="px-4 py-3 border-t border-ink-100 font-medium text-ink-900 whitespace-nowrap">
+          <a href="{% url 'donations:detail' donation.pk %}" hx-get="{% url 'donations:detail' donation.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'donations:detail' donation.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="hover:text-brand-700">{{ donation.donation_code }}</a>
+        </td>
+        <td class="px-4 py-3 border-t border-ink-100">
+          <a href="{% url 'donors:detail' donation.donor_id %}" hx-get="{% url 'donors:detail' donation.donor_id %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-ink-800 hover:text-brand-700 font-medium">{{ donation.donor.full_name }}</a>
+          <div class="text-xs text-ink-400">{{ donation.donor.donor_code }}</div>
+        </td>
+        <td class="px-4 py-3 border-t border-ink-100 text-ink-600 whitespace-nowrap">
+          {{ donation.donation_date|date:"M j, Y" }}{% if donation.donation_time %} · {{ donation.donation_time|date:"H:i" }}{% endif %}
+        </td>
+        <td class="px-4 py-3 border-t border-ink-100 text-ink-600">{{ donation.get_donation_type_display }}</td>
+        <td class="px-4 py-3 border-t border-ink-100 text-ink-600">{{ donation.blood_type|default:"—" }}</td>
+        <td class="px-4 py-3 border-t border-ink-100">{% include "components/status_badge.html" with status=donation.status %}</td>
+        <td class="px-4 py-3 border-t border-ink-100 text-right whitespace-nowrap">
+          <a href="{% url 'donations:detail' donation.pk %}" hx-get="{% url 'donations:detail' donation.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'donations:detail' donation.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700 font-medium text-xs">View</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7" class="px-4 py-3 border-t border-ink-100">
+          {% include "components/empty_state.html" with empty_title="No donations found" empty_text="Adjust the filters above or register a new donation." %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include "components/pagination.html" with page_obj=page_obj %}

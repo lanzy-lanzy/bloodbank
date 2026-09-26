@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Blood Requests — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">Blood Requests</h1>
+    <p class="text-sm text-ink-500 mt-0.5">{% if is_staff_view %}All organization requests.{% else %}Your organization's requests.{% endif %}</p>
+  </div>
+  <div class="flex gap-2">
+    {% if is_staff_view %}
+    <a href="{% url 'requests:organization_list' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-ink-200 bg-white text-sm font-medium text-ink-700 hover:bg-ink-50">Organizations</a>
+    {% endif %}
+    {% url 'requests:create' as req_add_url %}
+    {% include "components/modal_action.html" with ma_url=req_add_url ma_label="+ New Blood Request" ma_icon="M12 5v14M5 12h14" %}
+  </div>
+</div>
+
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4">
+  <form method="get" action="{% url 'requests:list' %}"
+        hx-get="{% url 'requests:list' %}" hx-target="#results" hx-push-url="true"
+        hx-trigger="change, keyup changed delay:300ms from:input[name=q]"
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <input type="search" name="q" value="{{ q }}" placeholder="Request code, organization, patient ref…"
+           class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500 lg:col-span-2">
+    <select name="status" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+      <option value="">Any status</option>
+      {% for value, label in statuses %}
+        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="urgency" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+      <option value="">Any urgency</option>
+      {% for value, label in urgencies %}
+        <option value="{{ value }}" {% if urgency_filter == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <div class="flex justify-end gap-2 sm:col-span-2 lg:col-span-4">
+      <a href="{% url 'requests:list' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Reset</a>
+      <button type="submit" class="rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2">Filter</button>
+    </div>
+  </form>
+</div>
+
+<div id="results">
+  {% include "requests/_table.html" %}
+</div>
+{% endblock %}

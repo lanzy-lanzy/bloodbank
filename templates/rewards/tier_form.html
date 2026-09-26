@@ -1,0 +1,30 @@
+{% extends layout|default:"base.html" %}
+{% block title %}{% if tier %}Edit Tier — {{ tier.name }}{% else %}New Tier{% endif %} — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">{% if tier %}Edit Reward Tier{% else %}New Reward Tier{% endif %}</h1>
+    <p class="text-sm text-ink-500 mt-0.5">Tiers recognise donors by accumulated points (e.g. Bronze / Silver / Gold).</p>
+  </div>
+</div>
+
+<div class="max-w-2xl">
+  <form method="post" action="{% if tier %}{% url 'rewards:tier_edit' tier.pk %}{% else %}{% url 'rewards:tier_create' %}{% endif %}" {% if layout %}hx-post="{% if tier %}{% url 'rewards:tier_edit' tier.pk %}{% else %}{% url 'rewards:tier_create' %}{% endif %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %} class="bg-white rounded-2xl border border-ink-200 shadow-sm p-6" novalidate>
+    {% csrf_token %}
+    {% include "components/form_errors.html" with form=form %}
+    <div class="space-y-4">
+      {% for field in form %}
+        {% include "components/field.html" with field=field %}
+      {% endfor %}
+    </div>
+    <div class="mt-6 flex items-center justify-end gap-3 border-t border-ink-100 pt-5">
+      {% if layout %}
+      <button type="button" @click="bbCloseModal()" class="px-4 py-2 text-sm font-medium rounded-xl border border-ink-200 hover:bg-ink-50 text-ink-700">Cancel</button>
+      {% else %}
+      <a href="{% url 'rewards:admin_overview' %}" class="px-4 py-2 text-sm font-medium rounded-xl border border-ink-200 hover:bg-ink-50 text-ink-700">Cancel</a>
+      {% endif %}
+      <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm">Save Tier</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

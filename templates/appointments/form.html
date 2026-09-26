@@ -1,0 +1,40 @@
+{% extends layout|default:"base.html" %}
+{% block title %}{% if appointment %}Edit Appointment{% else %}Schedule Appointment{% endif %} — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <div class="mb-6">
+    <h1 class="text-xl font-bold text-ink-900">{% if appointment %}Edit appointment{% else %}Schedule appointment{% endif %}</h1>
+    <p class="text-sm text-ink-500 mt-0.5">
+      {% if appointment %}Updating an existing appointment is recorded in the audit log.{% else %}Book a donor for a donation session.{% endif %}
+    </p>
+  </div>
+  <form method="post" action="{% if appointment %}{% url 'appointments:edit' pk=appointment.pk %}{% else %}{% url 'appointments:create' %}{% endif %}"
+        {% if layout %}hx-post="{% if appointment %}{% url 'appointments:edit' pk=appointment.pk %}{% else %}{% url 'appointments:create' %}{% endif %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %}
+        class="bg-white rounded-2xl border border-ink-200 shadow-sm p-6 space-y-4">
+    {% csrf_token %}
+    {% include "components/form_errors.html" with form=form %}
+    {% if creating %}
+      {% include "components/field.html" with field=form.donor %}
+    {% else %}
+      <div class="text-sm text-ink-600">Donor: <strong>{{ appointment.donor.donor_code }}</strong> — {{ appointment.donor.full_name }}
+        <input type="hidden" name="donor" value="{{ appointment.donor.pk }}"></div>
+    {% endif %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {% include "components/field.html" with field=form.date %}
+      {% include "components/field.html" with field=form.time %}
+    </div>
+    {% include "components/field.html" with field=form.location %}
+    {% include "components/field.html" with field=form.status %}
+    {% include "components/field.html" with field=form.notes %}
+    <p class="text-xs text-ink-400">Bulk status flow (confirm / check-in / complete) lives on the appointments list; setting a status here overrides it and is audited.</p>
+    <div class="flex justify-end gap-2 pt-2">
+      {% if layout %}
+      <button type="button" @click="bbCloseModal()" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Cancel</button>
+      {% else %}
+      <a href="{% url 'appointments:list' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Cancel</a>
+      {% endif %}
+      <button type="submit" class="rounded-xl bg-brand-600 text-white text-sm font-semibold px-4 py-2 hover:bg-brand-700 shadow-sm">{% if appointment %}Save changes{% else %}Schedule{% endif %}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

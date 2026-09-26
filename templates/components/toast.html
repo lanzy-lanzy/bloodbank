@@ -1,0 +1,14 @@
+<!-- Global toast container. Trigger from anywhere:
+     document.dispatchEvent(new CustomEvent('toast', {detail: {message: '...', type: 'success'}})) -->
+<div x-data="{ toasts: [] }" class="fixed bottom-4 right-4 z-[100] space-y-2 w-80"
+     @toast.window="toasts.push({...$event.detail, id: Date.now()}); setTimeout(() => toasts.shift(), 5000)">
+  <template x-for="t in toasts" :key="t.id">
+    <div x-show="true" x-transition
+         class="rounded-xl shadow-lg border px-4 py-3 text-sm flex items-start gap-2"
+         :class="t.type === 'error' ? 'bg-brand-600 border-brand-700 text-white' : 'bg-ink-900 border-ink-800 text-white'">
+      <svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+      <span x-text="t.message" class="flex-1"></span>
+      <button @click="toasts = toasts.filter(x => x.id !== t.id)" class="opacity-70 hover:opacity-100" aria-label="Dismiss">&times;</button>
+    </div>
+  </template>
+</div>

@@ -1,0 +1,20 @@
+{% load core_extras %}
+{# Status badge: include it with status=obj.status. #}
+{% with color=status|status_color %}
+<span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold border
+  {% if color == 'green' %}bg-emerald-50 text-emerald-700 border-emerald-200
+  {% elif color == 'red' %}bg-brand-50 text-brand-700 border-brand-200
+  {% elif color == 'amber' %}bg-amber-50 text-amber-700 border-amber-200
+  {% elif color == 'sky' %}bg-sky-50 text-sky-700 border-sky-200
+  {% elif color == 'violet' %}bg-violet-50 text-violet-700 border-violet-200
+  {% else %}bg-ink-100 text-ink-600 border-ink-200{% endif %}">
+  <span class="w-1.5 h-1.5 rounded-full
+    {% if color == 'green' %}bg-emerald-500
+    {% elif color == 'red' %}bg-brand-500
+    {% elif color == 'amber' %}bg-amber-500
+    {% elif color == 'sky' %}bg-sky-500
+    {% elif color == 'violet' %}bg-violet-500
+    {% else %}bg-ink-400{% endif %}" aria-hidden="true"></span>
+  {{ status|display_status }}
+</span>
+{% endwith %}

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}My Donor Profile — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">{{ donor.full_name }}</h1>
+    <p class="text-sm text-ink-500 mt-0.5">Donor {{ donor.donor_code }}
+      {% if donor.blood_type %} · Blood type <strong class="text-ink-700">{{ donor.blood_type.code }}</strong>{% endif %}</p>
+  </div>
+  <div class="flex items-center gap-2">
+    <a href="{% url 'rewards:my_rewards' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">My rewards</a>
+    <a href="{% url 'appointments:my_appointments' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">My appointments</a>
+    <a href="{% url 'donors:my_profile_edit' %}" class="rounded-xl bg-brand-600 text-white text-sm font-semibold px-4 py-2 hover:bg-brand-700 shadow-sm">Edit contact info</a>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-5">
+    <h2 class="text-xs font-bold uppercase tracking-wide text-ink-400 mb-2">Eligibility</h2>
+    {% if eligibility.status == "ELIGIBLE" %}
+      <span class="inline-block text-sm font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Eligible to donate</span>
+    {% elif eligibility.status == "DEFERRED" %}
+      <span class="inline-block text-sm font-bold px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Deferred</span>
+      {% if eligibility.next_eligible_date %}<p class="text-xs text-ink-500 mt-2">Potentially eligible again on {{ eligibility.next_eligible_date|date:"F j, Y" }}.</p>{% endif %}
+    {% elif eligibility.status == "NOT_ELIGIBLE" %}
+      <span class="inline-block text-sm font-bold px-3 py-1 rounded-full bg-red-50 text-red-700 border border-red-200">Not eligible</span>
+    {% else %}
+      <span class="inline-block text-sm font-bold px-3 py-1 rounded-full bg-ink-100 text-ink-600 border border-ink-200">Requires staff review</span>
+      <p class="text-xs text-ink-500 mt-2">Some eligibility rules have not been configured by your blood bank, so staff must confirm in person.</p>
+    {% endif %}
+    {% if eligibility.reasons %}
+      <ul class="mt-3 text-xs text-ink-500 list-disc pl-4 space-y-1">
+        {% for reason in eligibility.reasons %}<li>{{ reason }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-5">
+    <h2 class="text-xs font-bold uppercase tracking-wide text-ink-400 mb-2">Reward status</h2>
+    <p class="text-2xl font-bold text-ink-900">{{ donor.points_balance }} <span class="text-sm font-medium text-ink-500">points</span></p>
+    {% if tier %}<p class="text-sm text-ink-600 mt-1">Tier: <strong>{{ tier.name }}</strong></p>{% endif %}
+    {% if next_tier %}
+      <p class="text-xs text-ink-500 mt-2">{{ next_tier.min_points }} points are needed for the {{ next_tier.name }} tier — you currently have {{ donor.points_balance }}.</p>
+    {% endif %}
+    <a href="{% url 'rewards:my_rewards' %}" class="mt-3 inline-block text-sm font-semibold text-brand-600 hover:underline">Browse rewards →</a>
+  </div>
+
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-5">
+    <h2 class="text-xs font-bold uppercase tracking-wide text-ink-400 mb-2">Contact details</h2>
+    <dl class="text-sm space-y-1.5">
+      <div><dt class="inline text-ink-400">Phone:</dt> <dd class="inline text-ink-700">{{ donor.contact_number }}</dd></div>
+      <div><dt class="inline text-ink-400">Email:</dt> <dd class="inline text-ink-700">{{ donor.email|default:"—" }}</dd></div>
+      <div><dt class="inline text-ink-400">Address:</dt> <dd class="inline text-ink-700">{{ donor.address|default:"—" }}, {{ donor.municipality }}</dd></div>
+      <div><dt class="inline text-ink-400">Emergency:</dt> <dd class="inline text-ink-700">{{ donor.emergency_contact_name|default:"—" }}{% if donor.emergency_contact_phone %} ({{ donor.emergency_contact_phone }}){% endif %}</dd></div>
+    </dl>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+      <h2 class="font-bold text-ink-900 text-sm">Recent donations</h2>
+      <a href="{% url 'donations:my_history' %}" class="text-xs font-semibold text-brand-600 hover:underline">Full history</a>
+    </div>
+    <ul class="divide-y divide-ink-100">
+      {% for d in donations %}
+        <li class="px-5 py-3 flex items-center justify-between gap-3">
+          <div>
+            <span class="text-sm font-medium text-ink-800">{{ d.donation_code }}</span>
+            <span class="block text-xs text-ink-400">{{ d.donation_date|date:"F j, Y" }}{% if d.location %} · {{ d.location }}{% endif %}</span>
+          </div>
+          <span class="text-[11px] font-semibold px-2 py-1 rounded-full bg-ink-100 text-ink-600">{{ d.get_status_display }}</span>
+        </li>
+      {% empty %}
+        <li class="px-5 py-6 text-sm text-ink-400">No donations recorded yet.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+      <h2 class="font-bold text-ink-900 text-sm">Upcoming & recent appointments</h2>
+      <a href="{% url 'appointments:my_appointments' %}" class="text-xs font-semibold text-brand-600 hover:underline">Book one</a>
+    </div>
+    <ul class="divide-y divide-ink-100">
+      {% for a in appointments %}
+        <li class="px-5 py-3 flex items-center justify-between gap-3">
+          <div>
+            <span class="text-sm font-medium text-ink-800">{{ a.date|date:"D, M j, Y" }} · {{ a.time|time:"g:i A" }}</span>
+            <span class="block text-xs text-ink-400">{{ a.location|default:"Main branch" }}</span>
+          </div>
+          <span class="text-[11px] font-semibold px-2 py-1 rounded-full
+            {% if a.status == "CONFIRMED" %}bg-emerald-50 text-emerald-700
+            {% elif a.status == "REQUESTED" %}bg-amber-50 text-amber-700
+            {% else %}bg-ink-100 text-ink-600{% endif %}">{{ a.get_status_display }}</span>
+        </li>
+      {% empty %}
+        <li class="px-5 py-6 text-sm text-ink-400">No appointments yet.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-ink-100">
+      <h2 class="font-bold text-ink-900 text-sm">Recent screenings</h2>
+      <p class="text-[11px] text-ink-400 mt-0.5">Screening results are recorded by qualified staff.</p>
+    </div>
+    <ul class="divide-y divide-ink-100">
+      {% for s in screenings %}
+        <li class="px-5 py-3 flex items-center justify-between gap-3">
+          <div>
+            <span class="text-sm font-medium text-ink-800">{{ s.performed_at|date:"F j, Y" }}</span>
+            <span class="block text-xs text-ink-400">{{ s.notes|truncatechars:60|default:"—" }}</span>
+          </div>
+          <span class="text-[11px] font-semibold px-2 py-1 rounded-full
+            {% if s.result == "CLEARED" %}bg-emerald-50 text-emerald-700
+            {% elif s.result == "DEFERRED" %}bg-amber-50 text-amber-700
+            {% else %}bg-ink-100 text-ink-600{% endif %}">{{ s.get_result_display }}</span>
+        </li>
+      {% empty %}
+        <li class="px-5 py-6 text-sm text-ink-400">No screenings on record.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-ink-100">
+      <h2 class="font-bold text-ink-900 text-sm">Point activity</h2>
+    </div>
+    <ul class="divide-y divide-ink-100">
+      {% for p in point_transactions %}
+        <li class="px-5 py-3 flex items-center justify-between gap-3">
+          <div>
+            <span class="text-sm text-ink-800">{{ p.description|default:p.get_type_display }}</span>
+            <span class="block text-xs text-ink-400">{{ p.created_at|date:"M j, Y" }} · balance {{ p.running_balance }}</span>
+          </div>
+          <span class="text-sm font-bold {% if p.amount >= 0 %}text-emerald-600{% else %}text-red-600{% endif %}">{% if p.amount >= 0 %}+{% endif %}{{ p.amount }}</span>
+        </li>
+      {% empty %}
+        <li class="px-5 py-6 text-sm text-ink-400">No points yet — complete a donation to start earning.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

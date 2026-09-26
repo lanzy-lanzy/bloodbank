@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Donations — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">Donations</h1>
+    <p class="text-sm text-ink-500 mt-0.5">Registration, screening flow and collection history.</p>
+  </div>
+  {% url 'donations:create' as donation_add_url %}
+  {% include "components/modal_action.html" with ma_url=donation_add_url ma_label="+ Register Donation" ma_icon="M12 5v14M5 12h14" %}
+</div>
+
+<form method="get"
+      hx-get="{% url 'donations:list' %}"
+      hx-target="#results"
+      hx-push-url="true"
+      hx-trigger="change, keyup changed delay:300ms from:input[name=q]"
+      class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search code or donor…"
+         class="rounded-xl border border-ink-300 px-3 py-2 text-sm lg:col-span-2">
+  <select name="status" hx-trigger="change" class="rounded-xl border border-ink-300 px-3 py-2 text-sm bg-white">
+    <option value="">All statuses</option>
+    {% for value, label in statuses %}
+      <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <label class="flex items-center gap-2 text-xs text-ink-500">
+    From
+    <input type="date" name="date_from" value="{{ date_from|default:'' }}"
+           class="flex-1 rounded-xl border border-ink-300 px-3 py-2 text-sm">
+  </label>
+  <label class="flex items-center gap-2 text-xs text-ink-500">
+    To
+    <input type="date" name="date_to" value="{{ date_to|default:'' }}"
+           class="flex-1 rounded-xl border border-ink-300 px-3 py-2 text-sm">
+  </label>
+</form>
+
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+  <div id="results">
+    {% include "donations/_table.html" %}
+  </div>
+</div>
+{% endblock %}

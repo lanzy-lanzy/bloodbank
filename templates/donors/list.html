@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Donors — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">Donors</h1>
+    <p class="text-sm text-ink-500 mt-0.5">Registered donors, eligibility and contact records.</p>
+  </div>
+  {% url 'donors:create' as donor_add_url %}
+  {% include "components/modal_action.html" with ma_url=donor_add_url ma_label="+ Register Donor" ma_icon="M12 5v14M5 12h14" %}
+</div>
+
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4">
+  <form method="get" action="{% url 'donors:list' %}"
+        hx-get="{% url 'donors:list' %}" hx-target="#results" hx-push-url="true"
+        hx-trigger="change, keyup changed delay:300ms from:input[name=q]"
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <input type="search" name="q" value="{{ q }}" placeholder="Search code, name, contact, email…"
+           class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500 lg:col-span-2">
+    <select name="status" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+      <option value="">Any status</option>
+      {% for value, label in statuses %}
+        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="blood_type" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+      <option value="">Any blood type</option>
+      {% for bt in blood_types %}
+        <option value="{{ bt.pk }}" {% if blood_type_filter == bt.pk|stringformat:"s" %}selected{% endif %}>{{ bt.code }}</option>
+      {% endfor %}
+    </select>
+    <select name="municipality" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+      <option value="">Any municipality</option>
+      {% for m in municipalities %}
+        <option value="{{ m }}" {% if municipality_filter == m %}selected{% endif %}>{{ m }}</option>
+      {% endfor %}
+    </select>
+    <select name="eligibility" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+      <option value="">Any eligibility</option>
+      <option value="ELIGIBLE" {% if eligibility_filter == "ELIGIBLE" %}selected{% endif %}>Eligible</option>
+      <option value="DEFERRED" {% if eligibility_filter == "DEFERRED" %}selected{% endif %}>Deferred</option>
+      <option value="NOT_ELIGIBLE" {% if eligibility_filter == "NOT_ELIGIBLE" %}selected{% endif %}>Not eligible</option>
+      <option value="REQUIRES_STAFF_REVIEW" {% if eligibility_filter == "REQUIRES_STAFF_REVIEW" %}selected{% endif %}>Requires staff review</option>
+    </select>
+    <div class="flex items-center gap-2">
+      <label class="text-xs text-ink-500 shrink-0">Last donation</label>
+      <input type="date" name="last_donation_from" value="{{ request.GET.last_donation_from|default:'' }}"
+             class="w-full rounded-xl border border-ink-300 px-2 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+      <input type="date" name="last_donation_to" value="{{ request.GET.last_donation_to|default:'' }}"
+             class="w-full rounded-xl border border-ink-300 px-2 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+    </div>
+    <div class="flex items-center justify-end gap-2 sm:col-span-2 lg:col-span-4">
+      <a href="{% url 'donors:list' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Reset</a>
+      <button type="submit" class="rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2">Filter</button>
+    </div>
+  </form>
+</div>
+
+<div id="results">
+  {% include "donors/_table.html" %}
+</div>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Blood Bags — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">Blood Bags</h1>
+    <p class="text-sm text-ink-500 mt-0.5">Search and filter the bag inventory.</p>
+  </div>
+  <div class="flex gap-2">
+    <a href="{% url 'inventory:compat_check' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-ink-200 bg-white text-sm font-medium text-ink-700 hover:bg-ink-50">Compatibility Check</a>
+    {% url 'inventory:bag_register' as bag_add_url %}
+    {% include "components/modal_action.html" with ma_url=bag_add_url ma_label="+ Register Bag" ma_icon="M12 5v14M5 12h14" %}
+  </div>
+</div>
+
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4">
+  <form method="get" action="{% url 'inventory:bag_list' %}"
+        hx-get="{% url 'inventory:bag_list' %}" hx-target="#results" hx-push-url="true"
+        hx-trigger="change, keyup changed delay:300ms from:input[name=q]"
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <input type="search" name="q" value="{{ q }}" placeholder="Bag code, donation code, donor code, location…"
+           class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500 lg:col-span-2">
+    <select name="status" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+      <option value="">Any status</option>
+      {% for value, label in statuses %}
+        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="blood_type" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+      <option value="">Any blood type</option>
+      {% for bt in blood_types %}
+        <option value="{{ bt.pk }}" {% if blood_type_filter == bt.pk|stringformat:"s" %}selected{% endif %}>{{ bt.code }}</option>
+      {% endfor %}
+    </select>
+    <select name="component" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+      <option value="">Any component</option>
+      {% for c in components %}
+        <option value="{{ c.pk }}" {% if component_filter == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="expiry" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+      <option value="">Any expiry</option>
+      <option value="soon" {% if expiry_filter == "soon" %}selected{% endif %}>Expiring within 7 days</option>
+      <option value="expired" {% if expiry_filter == "expired" %}selected{% endif %}>Past expiry</option>
+    </select>
+    <select name="sort" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+      <option value="">Newest collected</option>
+      <option value="oldest" {% if sort == "oldest" %}selected{% endif %}>Oldest collected</option>
+      <option value="expiry" {% if sort == "expiry" %}selected{% endif %}>Earliest expiration</option>
+      <option value="blood_type" {% if sort == "blood_type" %}selected{% endif %}>Blood type</option>
+      <option value="status" {% if sort == "status" %}selected{% endif %}>Status</option>
+    </select>
+    <div class="sm:col-span-2 lg:col-span-1 flex items-center gap-2">
+      <div class="flex-1">
+        <label class="block text-[10px] uppercase tracking-wide text-ink-400 mb-0.5">Collected from</label>
+        <input type="date" name="collected_from" value="{{ request.GET.collected_from|default:'' }}"
+               class="w-full rounded-xl border border-ink-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500">
+      </div>
+      <div class="flex-1">
+        <label class="block text-[10px] uppercase tracking-wide text-ink-400 mb-0.5">to</label>
+        <input type="date" name="collected_to" value="{{ request.GET.collected_to|default:'' }}"
+               class="w-full rounded-xl border border-ink-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500">
+      </div>
+    </div>
+    <div class="flex items-end justify-end gap-2 sm:col-span-2 lg:col-span-1">
+      <a href="{% url 'inventory:bag_list' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Reset</a>
+      <button type="submit" class="rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2">Filter</button>
+    </div>
+  </form>
+</div>
+
+<div id="results">
+  {% include "inventory/_bag_table.html" %}
+</div>
+{% endblock %}

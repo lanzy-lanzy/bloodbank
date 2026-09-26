@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block title %}Users — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-ink-900">User Management</h1>
+    <p class="text-sm text-ink-500 mt-0.5">Manage accounts, roles and access status.</p>
+  </div>
+  {% url 'accounts:user_create' as user_add_url %}
+  {% include "components/modal_action.html" with ma_url=user_add_url ma_label="+ New User" ma_icon="M12 5v14M5 12h14" %}
+</div>
+
+<form method="get" class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search username, name, email…" class="rounded-xl border-ink-300 border px-3 py-2 text-sm lg:col-span-2">
+  <select name="role" class="rounded-xl border-ink-300 border px-3 py-2 text-sm">
+    <option value="">All roles</option>
+    {% for value, label in roles %}<option value="{{ value }}" {% if role_filter == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <div class="flex gap-2">
+    <select name="status" class="flex-1 rounded-xl border-ink-300 border px-3 py-2 text-sm">
+      <option value="">Any status</option>
+      <option value="active" {% if status_filter == "active" %}selected{% endif %}>Active</option>
+      <option value="locked" {% if status_filter == "locked" %}selected{% endif %}>Locked</option>
+      <option value="inactive" {% if status_filter == "inactive" %}selected{% endif %}>Inactive</option>
+    </select>
+    <button class="rounded-xl bg-ink-900 text-white text-sm font-semibold px-4">Filter</button>
+  </div>
+</form>
+
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-ink-200 text-sm">
+      <thead class="bg-ink-50 text-left text-xs font-semibold uppercase tracking-wide text-ink-500">
+        <tr>
+          <th class="px-4 py-3">User</th>
+          <th class="px-4 py-3">Role</th>
+          <th class="px-4 py-3">Contact</th>
+          <th class="px-4 py-3">Status</th>
+          <th class="px-4 py-3">Last login</th>
+          <th class="px-4 py-3 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-ink-100">
+        {% for u in users %}
+        <tr class="hover:bg-ink-50/60">
+          <td class="px-4 py-3">
+            <div class="font-medium text-ink-900">{{ u.full_name }}</div>
+            <div class="text-xs text-ink-500">@{{ u.username }}</div>
+          </td>
+          <td class="px-4 py-3"><span class="inline-flex rounded-md bg-ink-100 px-2 py-0.5 text-xs font-semibold text-ink-700">{{ u.get_role_display }}</span></td>
+          <td class="px-4 py-3 text-ink-600">
+            <div>{{ u.email|default:"—" }}</div>
+            <div class="text-xs text-ink-400">{{ u.phone|default:"" }}</div>
+          </td>
+          <td class="px-4 py-3">
+            {% if not u.is_active %}<span class="inline-flex items-center gap-1 rounded-full bg-ink-100 border border-ink-200 px-2.5 py-0.5 text-xs font-semibold text-ink-600">Inactive</span>
+            {% elif u.is_locked_now %}<span class="inline-flex items-center gap-1 rounded-full bg-red-50 border border-red-200 px-2.5 py-0.5 text-xs font-semibold text-red-700">Locked</span>
+            {% else %}<span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">Active</span>{% endif %}
+          </td>
+          <td class="px-4 py-3 text-ink-500 whitespace-nowrap">{{ u.last_login|date:"M j, Y H:i"|default:"Never" }}</td>
+          <td class="px-4 py-3 text-right whitespace-nowrap">
+            <a href="{% url 'accounts:user_update' u.pk %}" hx-get="{% url 'accounts:user_update' u.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'accounts:user_update' u.pk %}" hx-target="#modal-root" hx-swap="innerHTML"
+               class="text-brand-600 hover:text-brand-700 font-medium text-xs">Edit</a>
+            {% if u != request.user %}
+            <button type="button" hx-get="{% url 'accounts:user_toggle_lock' u.pk %}" hx-target="#modal-root" hx-swap="innerHTML"
+                    class="ml-3 text-xs font-medium {% if u.is_locked_now %}text-emerald-600 hover:text-emerald-700{% else %}text-ink-500 hover:text-red-600{% endif %}">
+              {% if u.is_locked_now %}Unlock{% else %}Lock{% endif %}
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">{% include "components/empty_state.html" with empty_title="No users found" %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/pagination.html" %}
+</div>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% if messages %}
+<div class="space-y-2 mb-4" x-data>
+  {% for message in messages %}
+  <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 6000)" x-transition
+       class="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-sm
+       {% if message.tags == 'error' %}bg-brand-50 border-brand-200 text-brand-800
+       {% elif message.tags == 'success' %}bg-emerald-50 border-emerald-200 text-emerald-800
+       {% elif message.tags == 'warning' %}bg-amber-50 border-amber-200 text-amber-800
+       {% else %}bg-sky-50 border-sky-200 text-sky-800{% endif %}" role="alert">
+    <span class="flex-1">{{ message }}</span>
+    <button @click="show = false" class="opacity-60 hover:opacity-100" aria-label="Dismiss">&times;</button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

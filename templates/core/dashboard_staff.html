@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block title %}Staff Dashboard — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">Staff Dashboard</h1>
+    <p class="text-sm text-ink-500">Today's operations: appointments, donations, testing and request fulfilment.</p>
+  </div>
+</div>
+
+{# ---- Workload stats ---- #}
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+  {% url 'donations:list' as donations_url %}
+  {% include "components/stat_card.html" with stat_label="Donations Today" stat_value=todays_donations stat_sub="recorded for today" stat_color="violet" stat_href=donations_url %}
+  {% include "components/stat_card.html" with stat_label="Pending Screenings" stat_value=pending_screenings stat_sub="registered or in screening" stat_color="sky" stat_href=donations_url %}
+  {% url 'inventory:bag_list' as bags_url %}
+  {% include "components/stat_card.html" with stat_label="Pending Tests" stat_value=pending_tests stat_sub="quarantined or awaiting results" stat_color="amber" stat_href=bags_url %}
+  {% url 'requests:list' as requests_url %}
+  {% include "components/stat_card.html" with stat_label="Pending Requests" stat_value=pending_requests stat_sub="submitted or under review" stat_color="rose" stat_href=requests_url %}
+</div>
+
+{# ---- Quick actions ---- #}
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm mb-6">
+  <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+    <h2 class="font-semibold text-ink-900">Quick Actions</h2>
+  </div>
+  <div class="p-5 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
+    <a href="{% url 'donors:create' %}" hx-get="{% url 'donors:create' %}" hx-target="#modal-root" hx-swap="innerHTML" class="flex flex-col items-center gap-2 rounded-xl border border-ink-200 bg-ink-50 hover:bg-brand-50 hover:border-brand-200 px-3 py-4 text-center transition-colors">
+      <span class="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z"/></svg>
+      </span>
+      <span class="text-xs font-semibold text-ink-700">Register Donor</span>
+    </a>
+    <a href="{% url 'donations:create' %}" hx-get="{% url 'donations:create' %}" hx-target="#modal-root" hx-swap="innerHTML" class="flex flex-col items-center gap-2 rounded-xl border border-ink-200 bg-ink-50 hover:bg-brand-50 hover:border-brand-200 px-3 py-4 text-center transition-colors">
+      <span class="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+      </span>
+      <span class="text-xs font-semibold text-ink-700">Record Donation</span>
+    </a>
+    <a href="{% url 'inventory:bag_register' %}" hx-get="{% url 'inventory:bag_register' %}" hx-target="#modal-root" hx-swap="innerHTML" class="flex flex-col items-center gap-2 rounded-xl border border-ink-200 bg-ink-50 hover:bg-brand-50 hover:border-brand-200 px-3 py-4 text-center transition-colors">
+      <span class="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5 12 3 3.75 7.5m16.5 0v9L12 21m8.25-13.5L12 12m0 9L3.75 16.5m8.25 4.5v-9m0 0L3.75 7.5M12 12 3.75 7.5m0 0v9"/></svg>
+      </span>
+      <span class="text-xs font-semibold text-ink-700">Add Blood Bag</span>
+    </a>
+    <a href="{% url 'requests:list' %}" class="flex flex-col items-center gap-2 rounded-xl border border-ink-200 bg-ink-50 hover:bg-brand-50 hover:border-brand-200 px-3 py-4 text-center transition-colors">
+      <span class="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25Z"/></svg>
+      </span>
+      <span class="text-xs font-semibold text-ink-700">Process Requests</span>
+    </a>
+    <a href="{% url 'inventory:bag_list' %}" class="flex flex-col items-center gap-2 rounded-xl border border-ink-200 bg-ink-50 hover:bg-brand-50 hover:border-brand-200 px-3 py-4 text-center transition-colors">
+      <span class="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></svg>
+      </span>
+      <span class="text-xs font-semibold text-ink-700">Inventory Search</span>
+    </a>
+  </div>
+</div>
+
+{# ---- Emergency requests + today's appointments ---- #}
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+      <h2 class="font-semibold text-ink-900">Emergency / Critical Requests</h2>
+      <a href="{% url 'requests:list' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">All requests</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead>
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Code</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Organization</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Urgency</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Required By</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in emergency_requests %}
+          <tr class="hover:bg-ink-50/60">
+            <td class="px-4 py-3 border-t border-ink-100 whitespace-nowrap">
+              <a href="{% url 'requests:detail' r.pk %}" hx-get="{% url 'requests:detail' r.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="font-medium text-brand-600 hover:text-brand-700">{{ r.request_code }}</a>
+            </td>
+            <td class="px-4 py-3 border-t border-ink-100 text-ink-700">{{ r.organization.name }}</td>
+            <td class="px-4 py-3 border-t border-ink-100">{% include "components/status_badge.html" with status=r.urgency %}</td>
+            <td class="px-4 py-3 border-t border-ink-100 text-ink-500 whitespace-nowrap">{{ r.required_by|date:"M j, Y H:i" }}</td>
+            <td class="px-4 py-3 border-t border-ink-100">{% include "components/status_badge.html" with status=r.status %}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="border-t border-ink-100">{% include "components/empty_state.html" with empty_title="No emergency requests" empty_text="Open emergency or critical requests will appear here." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+      <h2 class="font-semibold text-ink-900">Today's Appointments</h2>
+      <a href="{% url 'appointments:list' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">View all</a>
+    </div>
+    <ul class="divide-y divide-ink-100">
+      {% for a in todays_appointments %}
+      <li class="px-5 py-3 flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="text-sm font-medium text-ink-800 truncate">{{ a.donor.full_name }}</p>
+          <p class="text-xs text-ink-500">{{ a.donor.donor_code }}{% if a.location %} · {{ a.location }}{% endif %}</p>
+        </div>
+        <div class="flex items-center gap-3 shrink-0">
+          <span class="text-sm font-semibold text-ink-700 tabular-nums">{{ a.time|date:"H:i" }}</span>
+          {% include "components/status_badge.html" with status=a.status %}
+        </div>
+      </li>
+      {% empty %}
+      <li>{% include "components/empty_state.html" with empty_title="No appointments today" empty_text="Nothing scheduled for today." %}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+
+{# ---- Expiring bags + low stock ---- #}
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+      <h2 class="font-semibold text-ink-900">Bags Expiring Within 7 Days</h2>
+      <a href="{% url 'inventory:bag_list' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">Inventory</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead>
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Bag</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Type</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Component</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Expires</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Days Left</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for bag in expiring_bags %}
+          <tr class="hover:bg-ink-50/60">
+            <td class="px-4 py-3 border-t border-ink-100 whitespace-nowrap">
+              <a href="{% url 'inventory:bag_detail' bag.pk %}" hx-get="{% url 'inventory:bag_detail' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="font-medium text-brand-600 hover:text-brand-700">{{ bag.bag_code }}</a>
+            </td>
+            <td class="px-4 py-3 border-t border-ink-100 font-semibold text-ink-800">{{ bag.blood_type.code }}</td>
+            <td class="px-4 py-3 border-t border-ink-100 text-ink-600">{{ bag.component.name }}</td>
+            <td class="px-4 py-3 border-t border-ink-100 text-ink-500 whitespace-nowrap">{{ bag.expires_at|date:"M j, Y H:i" }}</td>
+            <td class="px-4 py-3 border-t border-ink-100">
+              <span class="inline-flex rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-700 tabular-nums">{{ bag.days_until_expiry }}d</span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="border-t border-ink-100">{% include "components/empty_state.html" with empty_title="Nothing expiring soon" empty_text="No available bags expire within the next 7 days." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 gap-4">
+    {% if low_stock %}
+    <div class="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4">
+      <h2 class="font-semibold text-amber-800">Low stock</h2>
+      <p class="text-sm text-amber-700 mt-1">Blood types at or below the configured low-stock threshold:</p>
+      <div class="mt-3 flex flex-wrap gap-2">
+        {% for row in low_stock %}
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-white border border-amber-300 px-3 py-1 text-sm font-semibold text-amber-800">
+          {{ row.blood_type.code }} <span class="text-xs font-medium text-amber-600">({{ row.available }} available)</span>
+        </span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+        <h2 class="font-semibold text-ink-900">Inventory Matrix</h2>
+        <a href="{% url 'inventory:dashboard' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">View inventory</a>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Blood Type</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Available</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Reserved</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Expiring Soon</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in inventory_matrix %}
+            <tr class="hover:bg-ink-50/60">
+              <td class="px-4 py-3 border-t border-ink-100 font-semibold text-ink-900">{{ row.blood_type.code }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 tabular-nums text-emerald-700 font-medium">{{ row.available }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 tabular-nums text-sky-700">{{ row.reserved }}</td>
+              <td class="px-4 py-3 border-t border-ink-100 tabular-nums {% if row.expiring_soon %}text-amber-700 font-medium{% else %}text-ink-500{% endif %}">{{ row.expiring_soon }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="border-t border-ink-100">{% include "components/empty_state.html" with empty_title="No blood types configured" empty_text="Add active blood types to see the inventory matrix." %}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ---- Charts ---- #}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+      <h2 class="font-semibold text-ink-900">Donations Over Time</h2>
+      <span class="text-xs text-ink-400">last 6 months</span>
+    </div>
+    <div class="p-5"><canvas id="donationsChart" height="220" aria-label="Donations per month" role="img"></canvas></div>
+  </div>
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+      <h2 class="font-semibold text-ink-900">Available Inventory by Blood Type</h2>
+      <a href="{% url 'inventory:dashboard' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">Inventory</a>
+    </div>
+    <div class="p-5"><canvas id="inventoryChart" height="220" aria-label="Available bags per blood type" role="img"></canvas></div>
+  </div>
+</div>
+
+{# ---- Recent activity ---- #}
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm mb-6">
+  <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+    <h2 class="font-semibold text-ink-900">Recent Donation Activity</h2>
+    <a href="{% url 'donations:list' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">View all</a>
+  </div>
+  <ul class="divide-y divide-ink-100">
+    {% for d in recent_activity %}
+    <li class="px-5 py-3 flex items-center justify-between gap-3">
+      <div class="min-w-0">
+        <p class="text-sm text-ink-800">
+          <a href="{% url 'donations:detail' d.pk %}" hx-get="{% url 'donations:detail' d.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="font-medium text-brand-600 hover:text-brand-700">{{ d.donation_code }}</a>
+          <span class="text-ink-600">· {{ d.donor.full_name }}</span>
+        </p>
+        <p class="text-xs text-ink-500">{{ d.donation_date|date:"M j, Y" }}{% if d.location %} · {{ d.location }}{% endif %}</p>
+      </div>
+      <div class="shrink-0">{% include "components/status_badge.html" with status=d.status %}</div>
+    </li>
+    {% empty %}
+    <li>{% include "components/empty_state.html" with empty_title="No recent activity" empty_text="Recorded donations will appear here." %}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var charts = [
+    { id: "donationsChart", url: "{% url 'core:chart_data' 'donations_over_time' %}", type: "line",
+      color: "#e11d48", label: "Donations" },
+    { id: "inventoryChart", url: "{% url 'core:chart_data' 'inventory_by_type' %}", type: "bar",
+      color: "#0ea5e9", label: "Available bags" }
+  ];
+
+  function build(spec, data) {
+    var el = document.getElementById(spec.id);
+    if (!el || !data || !data.labels) { return; }
+    var dataset = { label: spec.label, data: data.data };
+    if (spec.type === "line") {
+      dataset.borderColor = spec.color;
+      dataset.backgroundColor = spec.color + "22";
+      dataset.fill = true;
+      dataset.tension = 0.3;
+    } else {
+      dataset.backgroundColor = spec.color;
+      dataset.borderRadius = 6;
+      dataset.maxBarThickness = 42;
+    }
+    new Chart(el, {
+      type: spec.type,
+      data: { labels: data.labels, datasets: [dataset] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: "#f1f5f9" } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  function renderAll() {
+    if (typeof Chart === "undefined") {
+      window.addEventListener("load", renderAll, { once: true });
+      return;
+    }
+    charts.forEach(function (spec) {
+      fetch(spec.url, { credentials: "same-origin", headers: { "Accept": "application/json" } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) { build(spec, data); })
+        .catch(function () { /* chart endpoints are best-effort */ });
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", renderAll);
+  } else {
+    renderAll();
+  }
+})();
+</script>
+{% endblock %}

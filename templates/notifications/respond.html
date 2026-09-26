@@ -1,0 +1,47 @@
+{% extends base_template %}
+{% block title %}Respond to alert — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+{% if standalone %}
+  {% for message in messages %}
+    <div class="mb-4 rounded-xl px-4 py-3 text-sm {% if message.tags == 'error' %}bg-red-50 text-red-700 border border-red-200{% else %}bg-ink-50 text-ink-700 border border-ink-200{% endif %}">{{ message }}</div>
+  {% endfor %}
+{% endif %}
+
+<div class="max-w-xl mx-auto">
+  <h1 class="text-lg font-bold text-ink-900 mb-1">Emergency alert response</h1>
+  {% if not standalone %}<p class="text-sm text-ink-500 mb-4">Your answer helps blood bank staff plan next steps.</p>{% endif %}
+
+  <div class="bg-ink-50 border border-ink-200 rounded-2xl p-4 mb-5">
+    <p class="font-semibold text-ink-900 text-sm">{{ notification.subject|default:"Blood availability alert" }}</p>
+    <p class="text-xs text-ink-400 mt-0.5">{{ notification.created_at|date:"M j, Y g:i A" }}</p>
+    <div class="mt-2 text-sm text-ink-700 whitespace-pre-line">{{ notification.body }}</div>
+    {% if notification.blood_request %}
+      <p class="text-xs text-ink-500 mt-2">Related request: {{ notification.blood_request.request_code }}
+        ({{ notification.blood_request.organization.name }} — {{ notification.blood_request.get_urgency_display }})</p>
+    {% endif %}
+  </div>
+
+  {% if notification.donor_response %}
+    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+      You already responded: <strong>{{ notification.get_donor_response_display }}</strong>
+      on {{ notification.responded_at|date:"M j, Y g:i A" }}. Staff will follow up if needed.
+    </div>
+  {% else %}
+    <form method="post" class="space-y-2.5">
+      {% csrf_token %}
+      {% for value, label in choices %}
+        <button type="submit" name="response" value="{{ value }}"
+                class="w-full text-left px-4 py-3 rounded-xl border border-ink-200 bg-white hover:border-brand-400 hover:bg-brand-50/50 font-semibold text-sm text-ink-800 transition">
+          {{ label }}
+        </button>
+      {% endfor %}
+    </form>
+  {% endif %}
+
+  <p class="mt-5 text-[11px] leading-relaxed text-ink-500 border-t border-ink-200 pt-3">
+    Important: Your response indicates <strong>availability only</strong>. It is not a medical
+    clearance. You will still undergo the organization's standard health history and screening
+    process before any donation.
+  </p>
+</div>
+{% endblock %}

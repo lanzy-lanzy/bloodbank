@@ -1,0 +1,15 @@
+<div class="space-y-3">
+  {% for log in logs %}
+  <div class="rounded-xl border border-ink-200 p-4 text-sm">
+    <div class="flex items-center justify-between gap-2">
+      <span class="font-semibold text-ink-800">{{ log.action }}</span>
+      <span class="text-xs text-ink-500">{{ log.created_at|date:"M j, Y H:i" }} · {{ log.user.username|default:"system" }}</span>
+    </div>
+    {% if log.description %}<p class="text-ink-600 mt-1">{{ log.description }}</p>{% endif %}
+    {% if log.before_state %}<pre class="mt-2 text-xs bg-ink-50 rounded-lg p-2 overflow-x-auto">{{ log.before_state }}</pre>{% endif %}
+    {% if log.after_state %}<pre class="mt-2 text-xs bg-emerald-50 rounded-lg p-2 overflow-x-auto">{{ log.after_state }}</pre>{% endif %}
+  </div>
+  {% empty %}
+  <p class="text-sm text-ink-500">No history for this object.</p>
+  {% endfor %}
+</div>

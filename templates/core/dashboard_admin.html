@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block title %}Admin Dashboard — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">Administrator Dashboard</h1>
+    <p class="text-sm text-ink-500">System-wide overview of donors, inventory, requests and audit activity.</p>
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="{% url 'accounts:user_list' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-ink-200 bg-white text-sm font-semibold text-ink-700 hover:bg-ink-50 shadow-sm">Manage Users</a>
+    <a href="{% url 'audit:list' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-ink-200 bg-white text-sm font-semibold text-ink-700 hover:bg-ink-50 shadow-sm">Audit Logs</a>
+  </div>
+</div>
+
+{# ---- Headline stats ---- #}
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
+  {% url 'donors:list' as donors_url %}
+  {% with active_sub=active_donors|stringformat:"d active donors" %}
+  {% include "components/stat_card.html" with stat_label="Registered Donors" stat_value=total_donors stat_sub=active_sub stat_color="sky" stat_href=donors_url %}
+  {% endwith %}
+  {% url 'donations:list' as donations_url %}
+  {% include "components/stat_card.html" with stat_label="Donations This Month" stat_value=donations_this_month stat_color="violet" stat_href=donations_url %}
+  {% url 'inventory:bag_list' as bags_url %}
+  {% include "components/stat_card.html" with stat_label="Bags Available" stat_value=bags_available stat_sub="ready for issue" stat_color="emerald" stat_href=bags_url %}
+  {% url 'requests:list' as requests_url %}
+  {% include "components/stat_card.html" with stat_label="Pending Requests" stat_value=pending_requests stat_sub="draft, submitted or under review" stat_color="amber" stat_href=requests_url %}
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+  {% include "components/stat_card.html" with stat_label="Emergency Requests" stat_value=emergency_requests stat_sub="open emergency / critical" stat_color="rose" stat_href=requests_url %}
+  {% include "components/stat_card.html" with stat_label="Expiring Soon" stat_value=bags_expiring_soon stat_sub="available bags expiring within 7 days" stat_color="amber" stat_href=bags_url %}
+  {% include "components/stat_card.html" with stat_label="Quarantined / Testing" stat_value=bags_quarantined stat_sub="not yet released" stat_color="slate" stat_href=bags_url %}
+  {% include "components/stat_card.html" with stat_label="Fulfilled Requests" stat_value=fulfilled_requests stat_color="emerald" stat_href=requests_url %}
+</div>
+
+{# ---- Low stock alert ---- #}
+{% if low_stock %}
+<div class="mb-6 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4">
+  <h2 class="font-semibold text-amber-800">Low stock alert</h2>
+  <p class="text-sm text-amber-700 mt-1">The following blood types are at or below the configured low-stock threshold:</p>
+  <div class="mt-3 flex flex-wrap gap-2">
+    {% for row in low_stock %}
+    <span class="inline-flex items-center gap-1.5 rounded-full bg-white border border-amber-300 px-3 py-1 text-sm font-semibold text-amber-800">
+      {{ row.blood_type.code }} <span class="text-xs font-medium text-amber-600">({{ row.available }} available)</span>
+    </span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# ---- Charts ---- #}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+      <h2 class="font-semibold text-ink-900">Donations Over Time</h2>
+      <span class="text-xs text-ink-400">last 6 months</span>
+    </div>
+    <div class="p-5"><canvas id="donationsChart" height="220" aria-label="Donations per month" role="img"></canvas></div>
+  </div>
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+      <h2 class="font-semibold text-ink-900">Available Inventory by Blood Type</h2>
+      <a href="{% url 'inventory:dashboard' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">Inventory</a>
+    </div>
+    <div class="p-5"><canvas id="inventoryChart" height="220" aria-label="Available bags per blood type" role="img"></canvas></div>
+  </div>
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+      <h2 class="font-semibold text-ink-900">Component Distribution</h2>
+      <span class="text-xs text-ink-400">available + reserved</span>
+    </div>
+    <div class="p-5"><canvas id="componentChart" height="220" aria-label="Bags per component" role="img"></canvas></div>
+  </div>
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+      <h2 class="font-semibold text-ink-900">Requests by Urgency</h2>
+      <a href="{% url 'requests:list' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">All requests</a>
+    </div>
+    <div class="p-5"><canvas id="urgencyChart" height="220" aria-label="Blood requests per urgency level" role="img"></canvas></div>
+  </div>
+</div>
+
+{# ---- Inventory matrix + recent donations ---- #}
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+      <h2 class="font-semibold text-ink-900">Inventory Matrix</h2>
+      <a href="{% url 'inventory:dashboard' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">View inventory</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead>
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Blood Type</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Available</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Reserved</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Expiring Soon</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in inventory_matrix %}
+          <tr class="hover:bg-ink-50/60">
+            <td class="px-4 py-3 border-t border-ink-100 font-semibold text-ink-900">{{ row.blood_type.code }}</td>
+            <td class="px-4 py-3 border-t border-ink-100 tabular-nums text-emerald-700 font-medium">{{ row.available }}</td>
+            <td class="px-4 py-3 border-t border-ink-100 tabular-nums text-sky-700">{{ row.reserved }}</td>
+            <td class="px-4 py-3 border-t border-ink-100 tabular-nums {% if row.expiring_soon %}text-amber-700 font-medium{% else %}text-ink-500{% endif %}">{{ row.expiring_soon }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="border-t border-ink-100">{% include "components/empty_state.html" with empty_title="No blood types configured" empty_text="Add active blood types to see the inventory matrix." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+      <h2 class="font-semibold text-ink-900">Recent Donations</h2>
+      <a href="{% url 'donations:list' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">View all</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead>
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Code</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Donor</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Type</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Date</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in recent_donations %}
+          <tr class="hover:bg-ink-50/60">
+            <td class="px-4 py-3 border-t border-ink-100 whitespace-nowrap">
+              <a href="{% url 'donations:detail' d.pk %}" hx-get="{% url 'donations:detail' d.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="font-medium text-brand-600 hover:text-brand-700">{{ d.donation_code }}</a>
+            </td>
+            <td class="px-4 py-3 border-t border-ink-100 text-ink-700 whitespace-nowrap">{{ d.donor.full_name }}</td>
+            <td class="px-4 py-3 border-t border-ink-100 text-ink-600">{{ d.blood_type.code|default:"—" }}</td>
+            <td class="px-4 py-3 border-t border-ink-100 text-ink-500 whitespace-nowrap">{{ d.donation_date|date:"M j, Y" }}</td>
+            <td class="px-4 py-3 border-t border-ink-100">{% include "components/status_badge.html" with status=d.status %}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="border-t border-ink-100">{% include "components/empty_state.html" with empty_title="No donations yet" empty_text="Recorded donations will appear here." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# ---- Recent requests + audit + notifications ---- #}
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+      <h2 class="font-semibold text-ink-900">Recent Blood Requests</h2>
+      <a href="{% url 'requests:list' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">View all</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead>
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Code</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Organization</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Urgency</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Required By</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in recent_requests %}
+          <tr class="hover:bg-ink-50/60">
+            <td class="px-4 py-3 border-t border-ink-100 whitespace-nowrap">
+              <a href="{% url 'requests:detail' r.pk %}" hx-get="{% url 'requests:detail' r.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="font-medium text-brand-600 hover:text-brand-700">{{ r.request_code }}</a>
+            </td>
+            <td class="px-4 py-3 border-t border-ink-100 text-ink-700">{{ r.organization.name }}</td>
+            <td class="px-4 py-3 border-t border-ink-100">{% include "components/status_badge.html" with status=r.urgency %}</td>
+            <td class="px-4 py-3 border-t border-ink-100 text-ink-500 whitespace-nowrap">{{ r.required_by|date:"M j, Y H:i" }}</td>
+            <td class="px-4 py-3 border-t border-ink-100">{% include "components/status_badge.html" with status=r.status %}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="border-t border-ink-100">{% include "components/empty_state.html" with empty_title="No blood requests" empty_text="Submitted requests will appear here." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 gap-4">
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+        <h2 class="font-semibold text-ink-900">Recent Audit Activity</h2>
+        <a href="{% url 'audit:list' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">Full log</a>
+      </div>
+      <ul class="divide-y divide-ink-100">
+        {% for log in recent_audit %}
+        <li class="px-5 py-3 flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <p class="text-sm text-ink-800">
+              <span class="inline-flex rounded-md bg-ink-100 px-2 py-0.5 text-xs font-semibold text-ink-700">{{ log.action }}</span>
+              <span class="ml-1 text-ink-600">{{ log.module }} · {{ log.object_type }}{% if log.object_id %} #{{ log.object_id }}{% endif %}</span>
+            </p>
+            {% if log.description %}<p class="mt-0.5 text-xs text-ink-500 truncate">{{ log.description }}</p>{% endif %}
+          </div>
+          <div class="text-right shrink-0">
+            <p class="text-xs text-ink-500 whitespace-nowrap">{{ log.created_at|date:"M j, H:i" }}</p>
+            <p class="text-xs text-ink-400">{{ log.user.username|default:"system" }}</p>
+          </div>
+        </li>
+        {% empty %}
+        <li>{% include "components/empty_state.html" with empty_title="No audit records" empty_text="Audit events will appear here as the system is used." %}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+        <h2 class="font-semibold text-ink-900">Recent Notifications</h2>
+        <a href="{% url 'notifications:delivery_list' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">Delivery log</a>
+      </div>
+      <ul class="divide-y divide-ink-100">
+        {% for n in recent_notifications %}
+        <li class="px-5 py-3">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="text-sm font-medium text-ink-800 truncate">{{ n.subject|default:n.template.name|default:"Notification" }}</p>
+              <p class="mt-0.5 text-xs text-ink-500 truncate">{{ n.body }}</p>
+            </div>
+            <div class="text-right shrink-0">
+              <p class="text-xs text-ink-500 whitespace-nowrap">{{ n.created_at|date:"M j, H:i" }}</p>
+              <p class="text-xs text-ink-400">{{ n.get_channel_display }}</p>
+            </div>
+          </div>
+        </li>
+        {% empty %}
+        <li>{% include "components/empty_state.html" with empty_title="No notifications" empty_text="Sent notifications will appear here." %}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var charts = [
+    { id: "donationsChart", url: "{% url 'core:chart_data' 'donations_over_time' %}", type: "line",
+      color: "#e11d48", label: "Donations" },
+    { id: "inventoryChart", url: "{% url 'core:chart_data' 'inventory_by_type' %}", type: "bar",
+      color: "#0ea5e9", label: "Available bags" },
+    { id: "componentChart", url: "{% url 'core:chart_data' 'component_distribution' %}", type: "doughnut",
+      palette: ["#e11d48", "#0ea5e9", "#10b981", "#f59e0b", "#8b5cf6", "#64748b"], label: "Bags" },
+    { id: "urgencyChart", url: "{% url 'core:chart_data' 'requests_by_urgency' %}", type: "bar",
+      color: "#f59e0b", label: "Requests" }
+  ];
+
+  function build(spec, data) {
+    var el = document.getElementById(spec.id);
+    if (!el || !data || !data.labels) { return; }
+    var dataset = { label: spec.label, data: data.data };
+    if (spec.type === "doughnut") {
+      dataset.backgroundColor = spec.palette;
+    } else if (spec.type === "line") {
+      dataset.borderColor = spec.color;
+      dataset.backgroundColor = spec.color + "22";
+      dataset.fill = true;
+      dataset.tension = 0.3;
+    } else {
+      dataset.backgroundColor = spec.color;
+      dataset.borderRadius = 6;
+      dataset.maxBarThickness = 42;
+    }
+    new Chart(el, {
+      type: spec.type,
+      data: { labels: data.labels, datasets: [dataset] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: spec.type === "doughnut" } },
+        scales: spec.type === "doughnut" ? {} : {
+          y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: "#f1f5f9" } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  function renderAll() {
+    if (typeof Chart === "undefined") {
+      window.addEventListener("load", renderAll, { once: true });
+      return;
+    }
+    charts.forEach(function (spec) {
+      fetch(spec.url, { credentials: "same-origin", headers: { "Accept": "application/json" } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) { build(spec, data); })
+        .catch(function () { /* chart endpoints are best-effort */ });
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", renderAll);
+  } else {
+    renderAll();
+  }
+})();
+</script>
+{% endblock %}

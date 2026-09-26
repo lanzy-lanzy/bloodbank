@@ -1,0 +1,6 @@
+<a href="{% url 'notifications:inbox' %}" class="relative inline-flex items-center justify-center w-9 h-9 rounded-xl hover:bg-ink-100 text-ink-500" aria-label="Notifications">
+  <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.86 20H9.14a.5.5 0 0 1-.45-.72l.7-1.39A5.99 5.99 0 0 1 6 13V8a6 6 0 1 1 12 0v5c0 1.78-.86 3.36-2.39 4.89l.7 1.39a.5.5 0 0 1-.45.72Z"/><path stroke-linecap="round" d="M10 20a2 2 0 0 0 4 0"/></svg>
+  {% if count %}
+    <span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-brand-600 text-white text-[10px] font-bold flex items-center justify-center">{% if count > 99 %}99+{% else %}{{ count }}{% endif %}</span>
+  {% endif %}
+</a>

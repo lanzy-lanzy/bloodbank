@@ -1,0 +1,50 @@
+{% extends layout|default:"base.html" %}
+{% block title %}{% if creating %}Register Donor{% else %}Edit Donor{% endif %} — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto">
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 class="text-xl font-bold text-ink-900">{% if creating %}Register Donor{% else %}Edit {{ donor.full_name }}{% endif %}</h1>
+      <p class="text-sm text-ink-500 mt-0.5">
+        {% if creating %}A donor code is generated automatically on save.{% else %}Donor {{ donor.donor_code }} — changes are audited.{% endif %}
+      </p>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-6">
+    <form method="post" action="{% if creating %}{% url 'donors:create' %}{% else %}{% url 'donors:edit' donor.pk %}{% endif %}"
+          {% if layout %}hx-post="{% if creating %}{% url 'donors:create' %}{% else %}{% url 'donors:edit' donor.pk %}{% endif %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %}>
+      {% csrf_token %}
+      {% include "components/form_errors.html" with form=form %}
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% include "components/field.html" with field=form.first_name %}
+        {% include "components/field.html" with field=form.middle_name %}
+        {% include "components/field.html" with field=form.last_name %}
+        {% include "components/field.html" with field=form.suffix %}
+        {% include "components/field.html" with field=form.date_of_birth %}
+        {% include "components/field.html" with field=form.sex %}
+        {% include "components/field.html" with field=form.contact_number %}
+        {% include "components/field.html" with field=form.email %}
+        <div class="md:col-span-2">{% include "components/field.html" with field=form.address %}</div>
+        {% include "components/field.html" with field=form.municipality %}
+        {% include "components/field.html" with field=form.province %}
+        {% include "components/field.html" with field=form.emergency_contact_name %}
+        {% include "components/field.html" with field=form.emergency_contact_phone %}
+        {% include "components/field.html" with field=form.blood_type %}
+        {% include "components/field.html" with field=form.status %}
+      </div>
+      <div class="mt-6 flex justify-end gap-2">
+        {% if layout %}
+        <button type="button" @click="bbCloseModal()" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-700">Cancel</button>
+        {% else %}
+        <a href="{% if creating %}{% url 'donors:list' %}{% else %}{% url 'donors:detail' donor.pk %}{% endif %}"
+           class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-700">Cancel</a>
+        {% endif %}
+        <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm">
+          {% if creating %}Register donor{% else %}Save changes{% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

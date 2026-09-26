@@ -1,0 +1,31 @@
+{% load core_extras %}
+{# Pagination fragment. Include it with page_obj=page_obj. Preserves current query-string filters across pages. #}
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="flex items-center justify-between border-t border-ink-200 px-1 py-3 text-sm" aria-label="Pagination">
+  <p class="text-ink-500">
+    Showing <span class="font-medium text-ink-700">{{ page_obj.start_index }}</span>–<span class="font-medium text-ink-700">{{ page_obj.end_index }}</span>
+    of <span class="font-medium text-ink-700">{{ page_obj.paginator.count }}</span>
+  </p>
+  <div class="flex items-center gap-1">
+    {% if page_obj.has_previous %}
+      <a href="?{% querystring page=page_obj.previous_page_number %}" class="px-3 py-1.5 rounded-lg border border-ink-200 bg-white hover:bg-ink-50 text-ink-600">Previous</a>
+    {% else %}
+      <span class="px-3 py-1.5 rounded-lg border border-ink-100 bg-ink-50 text-ink-300 cursor-not-allowed">Previous</span>
+    {% endif %}
+    {% for num in page_obj.paginator.page_range|slice_pages:page_obj.number %}
+      {% if num == '…' %}
+        <span class="px-2 text-ink-400">…</span>
+      {% elif num == page_obj.number %}
+        <span class="px-3 py-1.5 rounded-lg bg-brand-600 text-white font-medium">{{ num }}</span>
+      {% else %}
+        <a href="?{% querystring page=num %}" class="px-3 py-1.5 rounded-lg border border-ink-200 bg-white hover:bg-ink-50 text-ink-600">{{ num }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if page_obj.has_next %}
+      <a href="?{% querystring page=page_obj.next_page_number %}" class="px-3 py-1.5 rounded-lg border border-ink-200 bg-white hover:bg-ink-50 text-ink-600">Next</a>
+    {% else %}
+      <span class="px-3 py-1.5 rounded-lg border border-ink-100 bg-ink-50 text-ink-300 cursor-not-allowed">Next</span>
+    {% endif %}
+  </div>
+</nav>
+{% endif %}

@@ -1,0 +1,104 @@
+{% extends layout|default:"base.html" %}
+{% block title %}Screening — {{ donor.donor_code }} — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">Record Screening</h1>
+    <p class="text-sm text-ink-500 mt-0.5">
+      {{ donor.full_name }} · {{ donor.donor_code }}
+      {% if donation %} · Linked donation <span class="font-medium text-ink-700">{{ donation.donation_code }}</span>{% endif %}
+    </p>
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    {% include "components/status_badge.html" with status=eligibility.status %}
+    <a href="{% url 'donors:detail' donor.pk %}" hx-get="{% url 'donors:detail' donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="rounded-xl border border-ink-200 bg-white hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-700">← Back to donor</a>
+  </div>
+</div>
+
+{% if eligibility.reasons %}
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4">
+  <p class="text-xs font-semibold uppercase tracking-wide text-ink-500 mb-2">Current eligibility summary</p>
+  <ul class="list-disc list-inside space-y-1 text-sm text-ink-700">
+    {% for reason in eligibility.reasons %}<li>{{ reason }}</li>{% endfor %}
+  </ul>
+  {% if eligibility.next_eligible_date %}
+  <p class="text-xs text-ink-500 mt-2">Next eligible date: <span class="font-medium text-ink-700">{{ eligibility.next_eligible_date|date:"M j, Y" }}</span></p>
+  {% endif %}
+</div>
+{% endif %}
+
+<form method="post" action="{% url 'donors:screening_create' donor.pk %}" {% if layout %}hx-post="{% url 'donors:screening_create' donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %}>
+  {% csrf_token %}
+  {% if donation %}<input type="hidden" name="donation" value="{{ donation.pk }}">{% endif %}
+  {% include "components/form_errors.html" with form=form %}
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+    <!-- Vitals -->
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-5">
+      <h3 class="font-semibold text-ink-900 mb-4">Verification &amp; vitals</h3>
+      <div class="space-y-4">
+        <div class="flex items-start gap-3 rounded-xl border border-ink-200 p-3">
+          <div class="pt-0.5">{{ form.identity_verified }}</div>
+          <div>
+            <label for="{{ form.identity_verified.id_for_label }}" class="block text-sm font-medium text-ink-700">{{ form.identity_verified.label }}</label>
+            <p class="text-xs text-ink-500">Required before a donor can be cleared.</p>
+            {% for error in form.identity_verified.errors %}<p class="mt-1 text-xs font-medium text-brand-600">{{ error }}</p>{% endfor %}
+          </div>
+        </div>
+        <div class="flex items-start gap-3 rounded-xl border border-ink-200 p-3">
+          <div class="pt-0.5">{{ form.consent_given }}</div>
+          <div>
+            <label for="{{ form.consent_given.id_for_label }}" class="block text-sm font-medium text-ink-700">{{ form.consent_given.label }}</label>
+            <p class="text-xs text-ink-500">Required before a donor can be cleared.</p>
+            {% for error in form.consent_given.errors %}<p class="mt-1 text-xs font-medium text-brand-600">{{ error }}</p>{% endfor %}
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {% include "components/field.html" with field=form.weight_kg %}
+          {% include "components/field.html" with field=form.temperature_c %}
+          {% include "components/field.html" with field=form.bp_systolic %}
+          {% include "components/field.html" with field=form.bp_diastolic %}
+          {% include "components/field.html" with field=form.pulse_bpm %}
+          {% include "components/field.html" with field=form.hemoglobin_gdl %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Outcome -->
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-5">
+      <h3 class="font-semibold text-ink-900 mb-4">Staff outcome</h3>
+      <div class="space-y-4">
+        {% include "components/field.html" with field=form.result %}
+        {% include "components/field.html" with field=form.deferral_days %}
+        {% include "components/field.html" with field=form.notes %}
+        <p class="text-xs text-ink-500">The final eligibility decision is the staff member's — the system only summarises configured rules.</p>
+      </div>
+    </div>
+
+    <!-- Dynamic questionnaire -->
+    <div class="lg:col-span-2 bg-white rounded-2xl border border-ink-200 shadow-sm p-5">
+      <h3 class="font-semibold text-ink-900 mb-4">Medical questionnaire</h3>
+      {% for entry in question_forms %}
+      <fieldset class="rounded-xl border border-ink-200 p-4 mb-3 last:mb-0">
+        <legend class="px-1 text-xs font-semibold uppercase tracking-wide text-ink-500">{{ entry.question.category }}</legend>
+        {% for qfield in entry.form %}
+          {% include "components/field.html" with field=qfield %}
+        {% empty %}
+          <p class="text-sm text-ink-400">No answer fields configured.</p>
+        {% endfor %}
+        {% for error in entry.form.non_field_errors %}
+          <p class="mt-1 text-xs font-medium text-brand-600" role="alert">{{ error }}</p>
+        {% endfor %}
+      </fieldset>
+      {% empty %}
+      <p class="text-sm text-ink-400">No active questionnaire questions are configured.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="mt-6 flex justify-end gap-2">
+    {% if layout %}<button type="button" @click="bbCloseModal()" class="rounded-xl border border-ink-200 bg-white hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-700">Cancel</button>{% else %}<a href="{% url 'donors:detail' donor.pk %}" hx-get="{% url 'donors:detail' donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="rounded-xl border border-ink-200 bg-white hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-700">Cancel</a>{% endif %}
+    <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm">Save screening</button>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,39 @@
+/* Blood Bank Management System — Tailwind CSS 4 source.
+   Build:  npm run build:css   (output: static/css/tailwind.css, served locally)
+   Watch:  npm run watch:css   (rebuilds on template/py changes during development) */
+@import "tailwindcss";
+
+/* Scan the whole repo for class names (Django templates + Python form classes).
+   Git-ignored paths (.venv, node_modules, staticfiles…) are skipped automatically. */
+@source "../../";
+
+@theme {
+  --color-brand-50: #fff1f2; --color-brand-100: #ffe4e6; --color-brand-200: #fecdd3;
+  --color-brand-300: #fda4af; --color-brand-400: #fb7185; --color-brand-500: #f43f5e;
+  --color-brand-600: #e11d48; --color-brand-700: #be123c; --color-brand-800: #9f1239;
+  --color-brand-900: #881337;
+  --color-ink-50: #f8fafc; --color-ink-100: #f1f5f9; --color-ink-200: #e2e8f0;
+  --color-ink-300: #cbd5e1; --color-ink-400: #94a3b8; --color-ink-500: #64748b;
+  --color-ink-600: #475569; --color-ink-700: #334155; --color-ink-800: #1e293b;
+  --color-ink-900: #0f172a; --color-ink-950: #020617;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px -12px rgb(15 23 42 / 0.12);
+  --shadow-glow: 0 0 0 1px rgb(255 255 255 / 0.06), 0 24px 80px -24px rgb(225 29 72 / 0.35);
+}
+
+@layer base {
+  body { font-family: var(--font-sans); }
+  .htmx-request .htmx-loading-indicator, .htmx-request.htmx-loading-indicator { display: inline-block !important; }
+  [x-cloak] { display: none !important; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+  ::selection { background: var(--color-brand-200); color: var(--color-brand-900); }
+}
+
+/* --- Modal system (see core/modals.py + components/modal_shell.html) -------- */
+body.bb-modal-open { overflow: hidden; }
+/* The panel body is a light surface so the templates' own white cards render
+   identically inside a modal as they do on the full page. */
+.modal-body { background: var(--color-ink-50); border-radius: 1rem; padding: 1.25rem; }
+.modal-body > div.max-w-3xl.mx-auto { max-width: none; margin: 0; }

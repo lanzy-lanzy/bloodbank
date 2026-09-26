@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block title %}Audit Logs — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-ink-900">Audit Logs</h1>
+    <p class="text-sm text-ink-500 mt-0.5">Immutable record of every critical system action.</p>
+  </div>
+</div>
+
+<form method="get" class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search action, description, object…"
+         class="rounded-xl border-ink-300 border px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500 lg:col-span-2">
+  <select name="module" class="rounded-xl border-ink-300 border px-3 py-2 text-sm">
+    <option value="">All modules</option>
+    {% for m in modules %}<option value="{{ m }}" {% if request.GET.module == m %}selected{% endif %}>{{ m }}</option>{% endfor %}
+  </select>
+  <select name="action" class="rounded-xl border-ink-300 border px-3 py-2 text-sm">
+    <option value="">All actions</option>
+    {% for a in actions %}<option value="{{ a }}" {% if request.GET.action == a %}selected{% endif %}>{{ a|display_status }}</option>{% endfor %}
+  </select>
+  <button class="rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2 hover:bg-ink-800">Filter</button>
+</form>
+
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-ink-200 text-sm">
+      <thead class="bg-ink-50 text-left text-xs font-semibold uppercase tracking-wide text-ink-500">
+        <tr>
+          <th class="px-4 py-3">Time</th>
+          <th class="px-4 py-3">User</th>
+          <th class="px-4 py-3">Action</th>
+          <th class="px-4 py-3">Module</th>
+          <th class="px-4 py-3">Object</th>
+          <th class="px-4 py-3">IP</th>
+          <th class="px-4 py-3">Description</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-ink-100">
+        {% for log in logs %}
+        <tr class="hover:bg-ink-50/60">
+          <td class="px-4 py-2.5 whitespace-nowrap text-ink-500">{{ log.created_at|date:"M j, Y H:i" }}</td>
+          <td class="px-4 py-2.5 whitespace-nowrap">{{ log.user.username|default:"system" }}</td>
+          <td class="px-4 py-2.5"><span class="inline-flex rounded-md bg-ink-100 px-2 py-0.5 text-xs font-semibold text-ink-700">{{ log.action }}</span></td>
+          <td class="px-4 py-2.5 text-ink-600">{{ log.module }}</td>
+          <td class="px-4 py-2.5 text-ink-600 whitespace-nowrap">{{ log.object_type }}{% if log.object_id %} #{{ log.object_id }}{% endif %}</td>
+          <td class="px-4 py-2.5 text-ink-400 text-xs">{{ log.ip_address|default:"—" }}</td>
+          <td class="px-4 py-2.5 text-ink-600 max-w-md truncate" title="{{ log.description }}">{{ log.description|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7">{% include "components/empty_state.html" with empty_title="No audit records" empty_text="Audit events will appear here as the system is used." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/pagination.html" %}
+</div>
+{% endblock %}

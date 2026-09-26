@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Inventory Movements — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">Inventory Movement Ledger</h1>
+    <p class="text-sm text-ink-500 mt-0.5">Append-only record of every bag status change. Historical entries cannot be edited or deleted.</p>
+  </div>
+  <a href="{% url 'inventory:dashboard' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">← Inventory dashboard</a>
+</div>
+
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4">
+  <form method="get" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <input type="search" name="q" value="{{ q }}" placeholder="Bag code, reference, reason…"
+           class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+    <select name="type" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+      <option value="">All transaction types</option>
+      {% for value, label in types %}
+        <option value="{{ value }}" {% if type_filter == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <div class="flex justify-end gap-2">
+      <a href="{% url 'inventory:transactions' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Reset</a>
+      <button type="submit" class="rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2">Filter</button>
+    </div>
+  </form>
+</div>
+
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead>
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">When</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Bag</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Type</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Movement</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Actor</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Reason / Reference</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in transactions %}
+        <tr class="hover:bg-ink-50/60">
+          <td class="px-4 py-2.5 text-ink-500 whitespace-nowrap">{{ t.created_at|date:"Y-m-d H:i" }}</td>
+          <td class="px-4 py-2.5"><a class="font-semibold text-ink-900 hover:text-brand-600" href="{% url 'inventory:bag_detail' t.bag.pk %}" hx-get="{% url 'inventory:bag_detail' t.bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ t.bag.bag_code }}</a>
+            <span class="block text-[11px] text-ink-400">{{ t.bag.blood_type.code }} · {{ t.bag.component.code|upper }}</span></td>
+          <td class="px-4 py-2.5 text-ink-700">{{ t.get_transaction_type_display }}</td>
+          <td class="px-4 py-2.5 text-xs text-ink-600 whitespace-nowrap">{% if t.previous_status %}{{ t.previous_status }} → {{ t.new_status }}{% else %}{{ t.new_status }}{% endif %}</td>
+          <td class="px-4 py-2.5 text-ink-600">{{ t.actor.get_username|default:"system" }}</td>
+          <td class="px-4 py-2.5 text-xs text-ink-500">{{ t.reason|default:"—" }}{% if t.reference %}<span class="block text-ink-400">ref: {{ t.reference }}</span>{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="px-4 py-10">
+          {% include "components/empty_state.html" with empty_title="No movements recorded" empty_text="Inventory transactions appear here as bags change status." %}
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/pagination.html" with page_obj=page_obj %}
+</div>
+{% endblock %}

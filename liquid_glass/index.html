@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aether — Liquid Glass</title>
+  <meta name="description" content="A glassmorphism landing page with a WebGL liquid-glass shader, GSAP scroll animations and cursor lighting.">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Import map so Three.js can resolve its bare internal imports -->
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+  </script>
+</head>
+<body>
+
+  <!-- Fixed WebGL backdrop: the liquid glass blob lives here (see main.js) -->
+  <div id="glow"></div>
+  <canvas id="scene"></canvas>
+
+  <!-- Floating glass nav -->
+  <header class="glass glass--nav">
+    <nav>
+      <a class="logo" href="#hero"><span class="logo-mark"></span>Aether</a>
+      <ul class="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#showcase">Showcase</a></li>
+        <li><a href="#cta">Pricing</a></li>
+      </ul>
+      <a class="btn btn--ghost" href="#cta">Sign in</a>
+    </nav>
+  </header>
+
+  <main id="ProgressBar">
+
+    <!-- ============ HERO ============ -->
+    <section id="hero">
+      <div class="hero-copy" data-reveal>
+        <p class="eyebrow">Introducing Aether 2.0</p>
+        <h1>Interface, as<br><em class="grad">liquid&nbsp;glass</em>.</h1>
+        <p class="lede">A design surface where light bends through your UI.
+          Translucent layers, real-time refraction and physics-driven depth —
+          rendered on the GPU at 60&nbsp;fps.</p>
+        <div class="hero-actions">
+          <a class="btn btn--primary" href="#features">Start building</a>
+          <a class="btn btn--glass" href="#showcase">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            Watch the film
+          </a>
+        </div>
+        <ul class="hero-stats">
+          <li><strong>60<span>fps</span></strong><span>shader budget</span></li>
+          <li><strong>0<span>deps</span></strong><span>build step</span></li>
+          <li><strong>3.2<span>kb</span></strong><span>core CSS</span></li>
+        </ul>
+      </div>
+
+      <!-- Glass panel: heavy blur shows the blob refracting through it -->
+      <aside class="glass glass--heavy hero-panel" aria-label="Live render stats">
+        <h2>Live render</h2>
+        <div class="meter"><span style="--v:.86"></span><em>refraction</em><b>86%</b></div>
+        <div class="meter"><span style="--v:.72"></span><em>blur depth</em><b>24&nbsp;px</b></div>
+        <div class="meter"><span style="--v:.93"></span><em>specular</em><b>93%</b></div>
+        <div class="hero-panel-note">Move your cursor — the light follows.</div>
+      </aside>
+    </section>
+
+    <!-- ============ MARQUEE ============ -->
+    <section class="marquee-wrap" aria-hidden="true">
+      <div class="marquee">
+        <div class="marquee-track">
+          <span>Backdrop blur</span><i>◆</i><span>Custom GLSL</span><i>◆</i>
+          <span>GSAP timelines</span><i>◆</i><span>Scroll velocity</span><i>◆</i>
+          <span>Fresnel edges</span><i>◆</i><span>No build step</span><i>◆</i>
+          <!-- duplicated for a seamless loop -->
+          <span>Backdrop blur</span><i>◆</i><span>Custom GLSL</span><i>◆</i>
+          <span>GSAP timelines</span><i>◆</i><span>Scroll velocity</span><i>◆</i>
+          <span>Fresnel edges</span><i>◆</i><span>No build step</span><i>◆</i>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FEATURES ============ -->
+    <section id="features">
+      <h2 class="section-title" data-reveal>Why it feels <em class="grad">alive</em></h2>
+      <div class="card-grid">
+        <article class="glass tilt" data-reveal>
+          <div class="card-icon">◈</div>
+          <h3>Real refraction</h3>
+          <p>Vertex-displaced geometry with a Fresnel rim — the blob bends the
+             scene behind the glass exactly where light would expect it to.</p>
+        </article>
+        <article class="glass tilt" data-reveal>
+          <div class="card-icon">◎</div>
+          <h3>Cursor lighting</h3>
+          <p>A point light tracks your pointer across every card as a radial
+             sheen, and pulls the 3D highlight with it. One rAF-throttled
+             listener, zero layout thrash.</p>
+        </article>
+        <article class="glass tilt" data-reveal>
+          <div class="card-icon">↕</div>
+          <h3>Scroll depth</h3>
+          <p>GSAP ScrollTrigger maps scroll velocity into shader distortion and
+             layers parallax at three depths, so the page reads as a physical
+             space instead of a flat sheet.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============ SHOWCASE (parallax sandwich) ============ -->
+    <section id="showcase">
+      <div class="showcase-layer" data-speed="0.4">
+        <div class="glass chip chip--a">specular ✔</div>
+        <div class="glass chip chip--b">ior 1.52</div>
+      </div>
+      <div class="glass glass--heavy showcase-card tilt" data-speed="0.8" data-reveal>
+        <p class="eyebrow">The core idea</p>
+        <blockquote>“Glass is not a colour. It is what happens to light
+          when it decides to keep going.”</blockquote>
+        <div class="swatches">
+          <span style="--c:#7c5cff"></span><span style="--c:#22d3ee"></span>
+          <span style="--c:#f472b6"></span><span style="--c:#fbbf24"></span>
+        </div>
+      </div>
+      <div class="showcase-layer" data-speed="1.3">
+        <div class="glass chip chip--c">60 fps</div>
+        <div class="glass orb chip--d" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <!-- ============ CTA ============ -->
+    <section id="cta">
+      <div class="glass glass--heavy cta-card tilt" data-reveal>
+        <h2>Ship the <em class="grad">refraction</em>.</h2>
+        <p>Drop three files into any project. No bundler, no config —
+           just light through glass.</p>
+      </div>
+      <div class="cta-form-row" data-reveal>
+        <form class="glass cta-form" onsubmit="return false;">
+          <label for="ctaEmail" class="sr-only">Email</label>
+          <span class="cta-form-icon" aria-hidden="true">@</span>
+          <input id="ctaEmail" type="email" placeholder="you@studio.com" autocomplete="email">
+          <button class="btn btn--primary" type="submit">Notify me</button>
+        </form>
+        <p class="form-note" role="status">Early access opens soon. No spam, ever.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>© 2026 Aether Studio</span>
+    <span class="grad">Rendered live in WebGL</span>
+  </footer>
+
+  <!-- GSAP (classic script) + our ES modules -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+  <script type="module" src="main.js"></script>
+</body>
+</html>

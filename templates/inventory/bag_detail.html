@@ -1,0 +1,244 @@
+{% extends layout|default:"base.html" %}
+{% block title %}{{ bag.bag_code }} — Inventory — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+  <div>
+    <div class="flex items-center gap-3 flex-wrap">
+      <h1 class="text-xl font-bold text-ink-900">{{ bag.bag_code }}</h1>
+      {% include "components/status_badge.html" with status=bag.status %}
+      <span class="text-lg font-black text-brand-700">{{ bag.blood_type.code }}</span>
+      <span class="text-sm text-ink-600">{{ bag.component }}</span>
+    </div>
+    <p class="text-sm text-ink-500 mt-1">
+      {% if bag.is_expired_by_date %}
+        <span class="font-semibold text-brand-600">Past expiration ({{ bag.expires_at|date:"Y-m-d H:i" }})</span>
+      {% else %}
+        Expires {{ bag.expires_at|date:"Y-m-d H:i" }}
+        <span class="font-semibold {% if bag.days_until_expiry <= 3 %}text-brand-600{% elif bag.days_until_expiry <= 7 %}text-amber-600{% else %}text-ink-500{% endif %}">({{ bag.days_until_expiry }} day{{ bag.days_until_expiry|pluralize }} left)</span>
+      {% endif %}
+      · {{ bag.volume_ml }} mL · screening: {{ bag.get_screening_status_display }}
+    </p>
+  </div>
+  {% if layout %}
+  <button type="button" @click="bbCloseModal()" class="text-sm font-medium text-brand-600 hover:text-brand-700">Close</button>
+  {% else %}
+  <a href="{% url 'inventory:bag_list' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">← Back to inventory</a>
+  {% endif %}
+</div>
+
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+  <div class="space-y-4">
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-ink-100"><h2 class="font-semibold text-ink-900">Bag Details</h2></div>
+      <dl class="px-5 py-4 text-sm divide-y divide-ink-100">
+        <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Donation</dt><dd class="text-right">{% if bag.donation %}<a class="text-brand-600 hover:text-brand-700 font-medium" href="{% url 'donations:detail' bag.donation.pk %}" hx-get="{% url 'donations:detail' bag.donation.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ bag.donation.donation_code }}</a>{% else %}<span class="text-ink-400">external bag</span>{% endif %}</dd></div>
+        <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Donor</dt><dd class="text-right">{% if bag.donor %}<a class="text-brand-600 hover:text-brand-700 font-medium" href="{% url 'donors:detail' bag.donor.pk %}" hx-get="{% url 'donors:detail' bag.donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ bag.donor.donor_code }} · {{ bag.donor.full_name }}</a>{% else %}<span class="text-ink-400">—</span>{% endif %}</dd></div>
+        <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Collected</dt><dd class="text-right text-ink-700">{{ bag.collected_at|date:"Y-m-d H:i" }}</dd></div>
+        <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Expires</dt><dd class="text-right text-ink-700">{{ bag.expires_at|date:"Y-m-d H:i" }}</dd></div>
+        <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Location</dt><dd class="text-right text-ink-700">{{ bag.location|default:"—" }}{% if bag.storage_position %} · {{ bag.storage_position }}{% endif %}</dd></div>
+        {% if bag.released_at %}<div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Released</dt><dd class="text-right text-ink-700">{{ bag.released_at|date:"Y-m-d H:i" }} by {{ bag.released_by.get_full_name|default:bag.released_by.username }}</dd></div>{% endif %}
+      </dl>
+    </div>
+
+    {% if allocations %}
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-ink-100"><h2 class="font-semibold text-ink-900">Allocations</h2></div>
+      <table class="min-w-full text-sm">
+        <thead><tr>
+          <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Request</th>
+          <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+          <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Issued</th>
+        </tr></thead>
+        <tbody>
+          {% for a in allocations %}
+          <tr class="border-t border-ink-100">
+            <td class="px-4 py-2"><a class="text-brand-600 hover:text-brand-700 font-medium" href="{% url 'requests:detail' a.request.pk %}" hx-get="{% url 'requests:detail' a.request.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ a.request.request_code }}</a></td>
+            <td class="px-4 py-2">{% include "components/status_badge.html" with status=a.status %}</td>
+            <td class="px-4 py-2 text-ink-600">{{ a.issued_at|date:"Y-m-d H:i"|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-ink-100"><h2 class="font-semibold text-ink-900">Movement Ledger</h2><p class="text-xs text-ink-500 mt-0.5">Append-only. Every transition is recorded with actor and reason.</p></div>
+      <ul class="divide-y divide-ink-100 max-h-80 overflow-y-auto">
+        {% for t in transactions %}
+        <li class="px-5 py-3 text-sm">
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-medium text-ink-800">{{ t.get_transaction_type_display }}</span>
+            <span class="text-xs text-ink-400">{{ t.created_at|date:"Y-m-d H:i" }}</span>
+          </div>
+          <p class="text-xs text-ink-500 mt-0.5">
+            {% if t.previous_status %}{{ t.previous_status }} → {{ t.new_status }}{% else %}{{ t.new_status }}{% endif %}
+            · {{ t.actor.get_username|default:"system" }}{% if t.reason %} — {{ t.reason }}{% endif %}{% if t.reference %} · ref {{ t.reference }}{% endif %}
+          </p>
+        </li>
+        {% empty %}
+        <li class="px-5 py-4 text-sm text-ink-500">No ledger entries.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="xl:col-span-2 space-y-4">
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between gap-2 flex-wrap">
+        <div>
+          <h2 class="font-semibold text-ink-900">Safety Screening / Tests</h2>
+          <p class="text-xs text-ink-500 mt-0.5">Required tests must be recorded and verified by a second person before release.</p>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead><tr>
+            <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Test</th>
+            <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Required</th>
+            <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Latest Result</th>
+            <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Performed</th>
+            <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Verification</th>
+          </tr></thead>
+          <tbody>
+            {% for tt, res in latest_results.items %}
+            <tr class="border-t border-ink-100">
+              <td class="px-4 py-2.5 font-medium text-ink-800">{{ tt.name }}<span class="block text-[11px] text-ink-400">{{ tt.get_category_display }}</span></td>
+              <td class="px-4 py-2.5">{% if tt.is_required %}<span class="text-xs font-semibold text-brand-600">REQUIRED</span>{% else %}<span class="text-xs text-ink-400">optional</span>{% endif %}</td>
+              <td class="px-4 py-2.5">
+                {% if res %}{% include "components/status_badge.html" with status=res.result_status %}
+                  {% if res.result %}<span class="block text-[11px] text-ink-400">{{ res.result }}</span>{% endif %}
+                {% else %}<span class="text-xs text-ink-400">not done</span>{% endif %}
+              </td>
+              <td class="px-4 py-2.5 text-xs text-ink-500">{% if res %}{{ res.performed_by.get_username|default:"?" }} · {{ res.performed_at|date:"m-d H:i" }}{% else %}—{% endif %}</td>
+              <td class="px-4 py-2.5 text-xs">
+                {% if res %}
+                  {% if res.verified_by %}<span class="text-emerald-600 font-medium">✓ {{ res.verified_by.get_username }} · {{ res.verified_at|date:"m-d H:i" }}</span>
+                  {% else %}
+                  <form method="post" action="{% url 'inventory:test_verify' bag.pk res.pk %}"
+                        {% if layout %}hx-post="{% url 'inventory:test_verify' bag.pk res.pk %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %} class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="rounded-lg border border-amber-300 bg-amber-50 text-amber-700 px-2.5 py-1 text-xs font-semibold hover:bg-amber-100">Verify (2nd person)</button>
+                  </form>
+                  {% endif %}
+                {% else %}—{% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="px-4 py-4 text-sm text-ink-500">No test types configured. Define them under Settings → Blood Bank (institutional configuration required).</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if bag.status == "QUARANTINED" or bag.status == "TESTING" %}
+      <div class="px-5 py-4 border-t border-ink-100 bg-ink-50/60">
+        <h3 class="text-sm font-semibold text-ink-800 mb-2">Record Test Result</h3>
+        <form method="post" action="{% url 'inventory:bag_test' bag.pk %}"
+              {% if layout %}hx-post="{% url 'inventory:bag_test' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %}
+              class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 items-end">
+          {% csrf_token %}
+          {% include "components/form_errors.html" with form=test_form %}
+          <div>{% include "components/field.html" with field=test_form.test_type %}</div>
+          <div>{% include "components/field.html" with field=test_form.result %}</div>
+          <div>{% include "components/field.html" with field=test_form.result_status %}</div>
+          <div>{% include "components/field.html" with field=test_form.notes %}</div>
+          <div><button type="submit" class="w-full rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2 hover:bg-ink-800">Save Result</button></div>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-ink-100"><h2 class="font-semibold text-ink-900">Inventory Actions</h2></div>
+      <div class="p-5 space-y-5">
+        {% if can_release %}
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4" x-data="{ confirmOpen: false }">
+          <h3 class="text-sm font-semibold text-emerald-800">Authorized Release to AVAILABLE</h3>
+          <p class="text-xs text-emerald-700 mt-1 mb-3">
+            Safety-critical. The system re-checks that every required test is non-reactive/acceptable and verified before release.
+            {% if bag.status == "TESTING" %}Current screening gate: required tests {{ bag.screening_status|lower }}.{% endif %}
+          </p>
+          <form method="post" action="{% url 'inventory:bag_release' bag.pk %}" @submit.prevent="confirmOpen = true"
+                {% if layout %}hx-post="{% url 'inventory:bag_release' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-trigger="bb:form-submit"{% endif %}>
+            {% csrf_token %}
+            <input type="hidden" name="confirm" value="RELEASE">
+            <input type="text" name="reason" maxlength="255" placeholder="Release note (optional; defaults to authorized release)"
+                   class="w-full sm:w-96 rounded-xl border border-emerald-300 px-3 py-2 text-sm mb-2 focus:border-brand-500 focus:ring-brand-500">
+            <button type="submit" class="rounded-xl bg-emerald-600 text-white text-sm font-semibold px-4 py-2 hover:bg-emerald-700 shadow-sm">Release Bag…</button>
+            {% include "components/confirmation.html" with confirm_title="Release blood bag to inventory?" confirm_text=bag.bag_code|add:" will move to AVAILABLE and become reservable/issuable. Required test results are re-validated at release time." confirm_button="Confirm Release" %}
+          </form>
+        </div>
+        {% else %}
+          {% if bag.status == "QUARANTINED" or bag.status == "TESTING" %}
+          <div class="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+            <p class="text-xs text-amber-800">Release is not available yet: all required tests must be recorded as non-reactive/acceptable and verified by a second person first. Release will re-enter via TESTING → AVAILABLE through the guarded release action.</p>
+          </div>
+          {% endif %}
+        {% endif %}
+
+        {% with choices=transition_form.new_status.field.choices %}
+        {% if choices|length > 1 %}
+        <div x-data="{ status: '' }">
+          <h3 class="text-sm font-semibold text-ink-800 mb-2">Other Transitions</h3>
+          <form method="post" action="{% url 'inventory:bag_transition' bag.pk %}"
+                {% if layout %}hx-post="{% url 'inventory:bag_transition' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %}
+                class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 items-end">
+            {% csrf_token %}
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">New status</label>
+              <select name="new_status" x-model="status" class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+                {% for value, label in choices %}
+                  {% if value %}<option value="{{ value }}">{{ label }}</option>{% endif %}
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Reason <span class="text-xs text-ink-400">(required for DISCARDED / REJECTED)</span></label>
+              <input type="text" name="reason" maxlength="255" x-bind:required="status === 'DISCARDED' || status === 'REJECTED'"
+                     class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+            </div>
+            <input type="hidden" name="confirm" x-bind:value="status === 'DISCARDED' || status === 'REJECTED' ? 'YES' : ''">
+            <div class="flex items-end">
+              <button type="submit" x-bind:class="status === 'DISCARDED' || status === 'REJECTED' ? 'bg-brand-600 hover:bg-brand-700' : 'bg-ink-900 hover:bg-ink-800'"
+                      class="w-full rounded-xl text-white text-sm font-semibold px-4 py-2 shadow-sm">Apply Transition</button>
+            </div>
+          </form>
+          <p class="text-[11px] text-ink-400 mt-2">Allowed from {{ bag.status }}: {% for value, label in choices %}{% if value %}{{ value }}{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}. Every transition is written to the ledger and audit log.</p>
+        </div>
+        {% else %}
+        <p class="text-sm text-ink-500">No further transitions are allowed from status <strong>{{ bag.status }}</strong> (terminal state).</p>
+        {% endif %}
+        {% endwith %}
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-ink-100"><h2 class="font-semibold text-ink-900">Test Result History</h2></div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead><tr>
+            <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Test</th>
+            <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Result</th>
+            <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+            <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Performed by</th>
+            <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Verified by</th>
+          </tr></thead>
+          <tbody>
+            {% for r in test_results %}
+            <tr class="border-t border-ink-100">
+              <td class="px-4 py-2 text-ink-700">{{ r.test_type.name }}</td>
+              <td class="px-4 py-2 text-ink-600">{{ r.result|default:"—" }}</td>
+              <td class="px-4 py-2">{% include "components/status_badge.html" with status=r.result_status %}</td>
+              <td class="px-4 py-2 text-xs text-ink-500">{{ r.performed_by.get_username|default:"—" }} · {{ r.performed_at|date:"Y-m-d H:i" }}</td>
+              <td class="px-4 py-2 text-xs {% if r.verified_by %}text-emerald-600{% else %}text-ink-400{% endif %}">{{ r.verified_by.get_username|default:"not verified" }}{% if r.verified_at %} · {{ r.verified_at|date:"Y-m-d H:i" }}{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="px-4 py-4 text-sm text-ink-500">No results recorded.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

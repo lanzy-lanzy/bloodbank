@@ -1,0 +1,23 @@
+{# Confirmation dialog fragment for Alpine forms toggling a confirmOpen state. Pass confirm_title, confirm_text, confirm_button. Inside a modal (layout set) the confirm button dispatches 'bb:form-submit' which the parent form listens for via hx-trigger; on a full page it is a normal submit. #}
+<div x-show="confirmOpen" x-cloak class="fixed inset-0 z-[98] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+  <div class="fixed inset-0 bg-ink-950/50" @click="confirmOpen = false" x-transition.opacity></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" x-transition>
+    <div class="flex items-start gap-4">
+      <span class="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 9v3.75m0 3.75h.008M10.34 3.94 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.66 3.94a2 2 0 0 0-3.32 0Z"/></svg>
+      </span>
+      <div>
+        <h3 class="text-base font-semibold text-ink-900">{{ confirm_title|default:"Are you sure?" }}</h3>
+        <p class="text-sm text-ink-500 mt-1">{{ confirm_text }}</p>
+      </div>
+    </div>
+    <div class="mt-6 flex justify-end gap-2">
+      <button type="button" @click="confirmOpen = false" class="px-4 py-2 text-sm font-medium rounded-xl border border-ink-200 hover:bg-ink-50 text-ink-700">Cancel</button>
+      {% if layout %}
+      <button type="button" @click="confirmOpen = false; $dispatch('bb:form-submit')" class="px-4 py-2 text-sm font-semibold rounded-xl bg-brand-600 text-white hover:bg-brand-700 shadow-sm">{{ confirm_button|default:"Confirm" }}</button>
+      {% else %}
+      <button type="button" @click="confirmOpen = false; $el.closest('form').submit()" class="px-4 py-2 text-sm font-semibold rounded-xl bg-brand-600 text-white hover:bg-brand-700 shadow-sm">{{ confirm_button|default:"Confirm" }}</button>
+      {% endif %}
+    </div>
+  </div>
+</div>

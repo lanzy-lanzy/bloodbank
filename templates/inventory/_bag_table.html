@@ -1,0 +1,43 @@
+{% load humanize %}
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead>
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Bag</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Type / Component</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Donor / Donation</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Collected</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Expires</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Location</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for bag in bags %}
+        <tr class="hover:bg-ink-50/60">
+          <td class="px-4 py-3"><a class="font-semibold text-ink-900 hover:text-brand-600" href="{% url 'inventory:bag_detail' bag.pk %}" hx-get="{% url 'inventory:bag_detail' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'inventory:bag_detail' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ bag.bag_code }}</a>
+            <span class="block text-xs text-ink-400">{{ bag.volume_ml }} mL</span></td>
+          <td class="px-4 py-3"><span class="font-bold text-brand-700">{{ bag.blood_type.code }}</span> <span class="text-ink-600">{{ bag.component }}</span></td>
+          <td class="px-4 py-3 text-xs">
+            {% if bag.donor %}<a class="text-ink-700 hover:text-brand-600 font-medium" href="{% url 'donors:detail' bag.donor.pk %}" hx-get="{% url 'donors:detail' bag.donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ bag.donor.donor_code }}</a>{% else %}<span class="text-ink-400">external</span>{% endif %}
+            {% if bag.donation %}<span class="block text-ink-400">{{ bag.donation.donation_code }}</span>{% endif %}
+          </td>
+          <td class="px-4 py-3 text-ink-600 whitespace-nowrap">{{ bag.collected_at|date:"Y-m-d H:i" }}</td>
+          <td class="px-4 py-3 whitespace-nowrap {% if bag.is_expired_by_date %}text-brand-600 font-semibold{% elif bag.days_until_expiry <= 7 %}text-amber-600 font-semibold{% else %}text-ink-600{% endif %}">
+            {{ bag.expires_at|date:"Y-m-d H:i" }}
+            <span class="block text-[11px] font-normal text-ink-400">{% if bag.is_expired_by_date %}expired{% else %}{{ bag.days_until_expiry }} day{{ bag.days_until_expiry|pluralize }} left{% endif %}</span>
+          </td>
+          <td class="px-4 py-3 text-ink-600 text-xs">{{ bag.location|default:"—" }}{% if bag.storage_position %} · {{ bag.storage_position }}{% endif %}</td>
+          <td class="px-4 py-3">{% include "components/status_badge.html" with status=bag.status %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="px-4 py-10">
+          {% include "components/empty_state.html" with empty_title="No blood bags found" empty_text="Adjust filters or register a bag." %}
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/pagination.html" with page_obj=page_obj %}
+</div>

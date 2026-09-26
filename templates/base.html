@@ -1,0 +1,70 @@
+{% load static core_extras %}<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>{% block title %}{{ ORG_NAME }}{% endblock %}</title>
+  <link rel="stylesheet" href="{% static_v 'css/tailwind.css' %}">
+  <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="h-full bg-ink-50 text-ink-800 antialiased" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+{% block body %}
+<div x-data="{ sidebarOpen: false }" class="min-h-full">
+  {% include "components/topbar.html" %}
+  {% include "components/sidebar.html" %}
+  <div class="lg:pl-64 pt-16">
+    <main class="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
+      <div id="page-content">
+        {% include "components/messages.html" %}
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+</div>
+<div id="modal-root" class="bb-modal-root"></div>
+{% include "components/toast.html" %}
+{% endblock body %}
+<script>
+  // Redirect to login on HTMX 401 responses
+  document.body.addEventListener('htmx:responseError', function (evt) {
+    if (evt.detail.xhr.status === 401) {
+      window.location.href = "{% url 'accounts:login' %}";
+    }
+  });
+
+  // --- Modal controller -------------------------------------------------------
+  // Modals are injected into #modal-root by htmx (hx-get on a Create/Edit/
+  // Detail/Delete trigger). Each fragment is a self-contained Alpine dialog.
+  window.bbCloseModal = function () {
+    var root = document.getElementById('modal-root');
+    if (root) root.innerHTML = '';
+    document.body.classList.remove('bb-modal-open');
+  };
+  window.bbModal = function () {
+    return {
+      show: false,
+      open() { this.show = true; document.body.classList.add('bb-modal-open'); },
+      close() { this.show = false; setTimeout(window.bbCloseModal, 160); },
+    };
+  };
+  // A successful hx-post form returns HX-Trigger: bb:modal-success. Close the
+  // modal and re-fetch the current page content in place (keeps list filters,
+  // surfaces the queued success message) instead of a full navigation.
+  document.body.addEventListener('bb:modal-success', function (evt) {
+    window.bbCloseModal();
+    var redirect = evt && evt.detail && evt.detail.redirect;
+    if (redirect && redirect !== window.location.pathname) { window.location.href = redirect; return; }
+    if (window.htmx) {
+      htmx.ajax('GET', window.location.href, { target: '#page-content', swap: 'innerHTML' });
+    } else {
+      window.location.reload();
+    }
+  });
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

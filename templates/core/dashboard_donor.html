@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block title %}My Dashboard — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">Welcome back, {{ donor.first_name }}</h1>
+    <p class="text-sm text-ink-500">Donor {{ donor.donor_code }}{% if donor.blood_type %} · Blood type <span class="font-semibold text-brand-600">{{ donor.blood_type.code }}</span>{% endif %}</p>
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="{% url 'appointments:my_appointments' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm">Book Appointment</a>
+    <a href="{% url 'donors:my_profile_edit' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-ink-200 bg-white text-sm font-semibold text-ink-700 hover:bg-ink-50 shadow-sm">Edit Profile</a>
+  </div>
+</div>
+
+{# ---- Eligibility summary ---- #}
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm mb-6">
+  <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+    <h2 class="font-semibold text-ink-900">Donation Eligibility</h2>
+    {% include "components/status_badge.html" with status=eligibility.status %}
+  </div>
+  <div class="p-5">
+    {% if eligibility.reasons %}
+    <ul class="space-y-1.5">
+      {% for reason in eligibility.reasons %}
+      <li class="flex items-start gap-2 text-sm text-ink-600">
+        <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-400 shrink-0" aria-hidden="true"></span>
+        {{ reason }}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-ink-600">Final eligibility is always confirmed by staff at screening.</p>
+    {% endif %}
+  </div>
+</div>
+
+{# ---- Donations / Points / Rewards / Next eligible ---- #}
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+  {% url 'donations:my_history' as my_donations_url %}
+  {% with volume_sub=lifetime_volume|stringformat:"d mL lifetime volume" %}
+  {% include "components/stat_card.html" with stat_label="Donations" stat_value=total_donations stat_sub=volume_sub stat_color="rose" stat_href=my_donations_url %}
+  {% endwith %}
+  {% url 'rewards:my_rewards' as my_rewards_url %}
+  {% include "components/stat_card.html" with stat_label="Points" stat_value=points_balance stat_sub="rewards points balance" stat_color="violet" stat_href=my_rewards_url %}
+  {% if current_tier %}
+    {% with tier_sub=current_tier.min_points|stringformat:"d+ points tier" %}
+    {% include "components/stat_card.html" with stat_label="Current Tier" stat_value=current_tier.name stat_sub=tier_sub stat_color="amber" stat_href=my_rewards_url %}
+    {% endwith %}
+  {% else %}
+    {% include "components/stat_card.html" with stat_label="Current Tier" stat_value="—" stat_sub="no tier reached yet" stat_color="slate" stat_href=my_rewards_url %}
+  {% endif %}
+  {% url 'appointments:my_appointments' as my_appointments_url %}
+  {% if eligibility.next_eligible_date %}
+    {% with next_date=eligibility.next_eligible_date|date:"M j, Y" %}
+    {% include "components/stat_card.html" with stat_label="Next Eligible Date" stat_value=next_date stat_sub="earliest date you may donate again" stat_color="emerald" stat_href=my_appointments_url %}
+    {% endwith %}
+  {% else %}
+    {% include "components/stat_card.html" with stat_label="Next Eligible Date" stat_value="—" stat_sub="no interval restriction on record" stat_color="emerald" stat_href=my_appointments_url %}
+  {% endif %}
+</div>
+
+{# ---- Upcoming appointment + notifications ---- #}
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+      <h2 class="font-semibold text-ink-900">Upcoming Appointment</h2>
+      <a href="{% url 'appointments:my_appointments' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">My appointments</a>
+    </div>
+    {% if upcoming_appointment %}
+    <div class="p-5 flex items-center justify-between gap-3">
+      <div>
+        <p class="text-lg font-bold text-ink-900">{{ upcoming_appointment.date|date:"l, M j, Y" }} · {{ upcoming_appointment.time|date:"H:i" }}</p>
+        <p class="text-sm text-ink-500 mt-0.5">{% if upcoming_appointment.location %}{{ upcoming_appointment.location }}{% else %}Location to be confirmed{% endif %}</p>
+      </div>
+      <div class="shrink-0">{% include "components/status_badge.html" with status=upcoming_appointment.status %}</div>
+    </div>
+    {% else %}
+    {% include "components/empty_state.html" with empty_title="No upcoming appointment" empty_text="Book an appointment to reserve your next donation slot." %}
+    {% endif %}
+  </div>
+
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+      <h2 class="font-semibold text-ink-900">Recent Notifications</h2>
+      <a href="{% url 'notifications:inbox' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">Inbox</a>
+    </div>
+    <ul class="divide-y divide-ink-100">
+      {% for n in recent_notifications %}
+      <li class="px-5 py-3">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <p class="text-sm font-medium {% if not n.is_read %}text-ink-900{% else %}text-ink-700{% endif %} truncate">{{ n.subject|default:"Notification" }}</p>
+            <p class="mt-0.5 text-xs text-ink-500 truncate">{{ n.body }}</p>
+          </div>
+          <p class="text-xs text-ink-400 whitespace-nowrap shrink-0">{{ n.created_at|date:"M j, H:i" }}</p>
+        </div>
+      </li>
+      {% empty %}
+      <li>{% include "components/empty_state.html" with empty_title="No notifications" empty_text="Messages from the blood bank will appear here." %}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+
+{# ---- Donation history ---- #}
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm mb-6">
+  <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+    <h2 class="font-semibold text-ink-900">Recent Donations</h2>
+    <a href="{% url 'donations:my_history' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">Full history</a>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead>
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Code</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Date</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Type</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Volume</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in recent_donations %}
+        <tr class="hover:bg-ink-50/60">
+          <td class="px-4 py-3 border-t border-ink-100 whitespace-nowrap">
+            <a href="{% url 'donations:detail' d.pk %}" hx-get="{% url 'donations:detail' d.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="font-medium text-brand-600 hover:text-brand-700">{{ d.donation_code }}</a>
+          </td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-600 whitespace-nowrap">{{ d.donation_date|date:"M j, Y" }}</td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-600">{{ d.get_donation_type_display }}</td>
+          <td class="px-4 py-3 border-t border-ink-100 text-ink-600 tabular-nums">{% if d.volume_ml %}{{ d.volume_ml }} mL{% else %}—{% endif %}</td>
+          <td class="px-4 py-3 border-t border-ink-100">{% include "components/status_badge.html" with status=d.status %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="border-t border-ink-100">{% include "components/empty_state.html" with empty_title="No donations yet" empty_text="Your donation history will appear here after your first visit." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

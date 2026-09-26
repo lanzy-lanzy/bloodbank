@@ -1,0 +1,314 @@
+{% extends layout|default:"base.html" %}
+{% block title %}{{ blood_request.request_code }} — Blood Requests — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+{% with r=blood_request %}
+<div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+  <div>
+    <div class="flex items-center gap-3 flex-wrap">
+      <h1 class="text-xl font-bold text-ink-900">{{ r.request_code }}</h1>
+      {% include "components/status_badge.html" with status=r.status %}
+      <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold
+        {% if r.urgency == 'CRITICAL' %}bg-brand-600 text-white
+        {% elif r.urgency == 'EMERGENCY' %}bg-brand-50 text-brand-700 ring-1 ring-brand-300
+        {% elif r.urgency == 'URGENT' %}bg-amber-50 text-amber-700 ring-1 ring-amber-200
+        {% else %}bg-ink-100 text-ink-600{% endif %}">{{ r.get_urgency_display }}</span>
+    </div>
+    <p class="text-sm text-ink-500 mt-1">
+      {{ r.organization.name }} · required by {{ r.required_by|date:"Y-m-d H:i" }}
+      · patient ref {{ r.patient_reference|default:"—" }}
+      {% if r.approved_at %}· approved by {{ r.approved_by.get_username }} on {{ r.approved_at|date:"Y-m-d" }}{% endif %}
+      {% if r.assigned_staff %}· assigned: {{ r.assigned_staff.get_username }}{% endif %}
+    </p>
+    {% if r.clinical_indication %}<p class="text-sm text-ink-600 mt-1 max-w-2xl">{{ r.clinical_indication }}</p>{% endif %}
+    {% if r.rejection_reason %}<p class="text-sm text-brand-700 mt-1 bg-brand-50 rounded-xl px-3 py-2 inline-block">Rejected: {{ r.rejection_reason }}</p>{% endif %}
+    {% if r.supporting_document %}<p class="text-sm mt-1"><a class="text-brand-600 hover:text-brand-700 font-medium" href="{{ r.supporting_document.url }}">Supporting document ↗</a></p>{% endif %}
+  </div>
+  {% if layout %}
+  <button type="button" @click="bbCloseModal()" class="text-sm font-medium text-brand-600 hover:text-brand-700">Close</button>
+  {% else %}
+  <a href="{% url 'requests:list' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">← All requests</a>
+  {% endif %}
+</div>
+
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+  <div class="xl:col-span-2 space-y-4">
+
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+        <h2 class="font-semibold text-ink-900">Requested Items</h2>
+        <span class="text-xs text-ink-500">fulfilled {{ r.total_fulfilled }} / {{ r.total_quantity }} units</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead><tr>
+            <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Blood Type</th>
+            <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Component</th>
+            <th class="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Qty</th>
+            <th class="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Fulfilled</th>
+            <th class="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Outstanding</th>
+            {% if is_staff_view %}<th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Allocate</th>{% endif %}
+          </tr></thead>
+          <tbody>
+            {% for item in items %}
+            <tr class="border-t border-ink-100 align-top">
+              <td class="px-4 py-3 font-bold text-brand-700">{{ item.blood_type.code }}</td>
+              <td class="px-4 py-3 text-ink-600">{{ item.component.name }}</td>
+              <td class="px-4 py-3 text-right tabular-nums">{{ item.quantity }}</td>
+              <td class="px-4 py-3 text-right tabular-nums text-emerald-600">{{ item.fulfilled_quantity }}</td>
+              <td class="px-4 py-3 text-right tabular-nums {% if item.outstanding %}text-amber-600 font-semibold{% else %}text-ink-400{% endif %}">{{ item.outstanding }}</td>
+              {% if is_staff_view %}
+              <td class="px-4 py-3 min-w-[260px]">
+                {% if item.outstanding and is_staff_view %}
+                  {% if r.status == "APPROVED" or r.status == "PARTIALLY_FULFILLED" %}
+                  <form method="post" action="{% url 'requests:action' r.pk %}" {% if layout %}hx-post="{% url 'requests:action' r.pk %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %} class="flex flex-col gap-1.5 items-start">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="allocate">
+                    <input type="hidden" name="item" value="{{ item.pk }}">
+                    {{ item.allocate_form.bag }}
+                    <button type="submit" class="rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-1.5 shadow-sm">Reserve Bag</button>
+                  </form>
+                  {% else %}<span class="text-xs text-ink-400">approve request first</span>{% endif %}
+                {% else %}<span class="text-xs text-emerald-600">complete</span>{% endif %}
+              </td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-ink-100"><h2 class="font-semibold text-ink-900">Allocations / Issue</h2></div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead><tr>
+            <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Bag</th>
+            <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Item</th>
+            <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+            <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">By / When</th>
+            <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Actions</th>
+          </tr></thead>
+          <tbody>
+            {% for a in allocations %}
+            <tr class="border-t border-ink-100">
+              <td class="px-4 py-3">
+                {% if is_staff_view %}<a class="font-semibold text-ink-900 hover:text-brand-600" href="{% url 'inventory:bag_detail' a.bag.pk %}" hx-get="{% url 'inventory:bag_detail' a.bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ a.bag.bag_code }}</a>{% else %}{{ a.bag.bag_code }}{% endif %}
+                <span class="block text-[11px] text-ink-400">{{ a.bag.blood_type.code }} · expires {{ a.bag.expires_at|date:"Y-m-d" }}</span>
+              </td>
+              <td class="px-4 py-3 text-ink-600">{{ a.item.blood_type.code }} {{ a.item.component.code|upper }}</td>
+              <td class="px-4 py-3">{% include "components/status_badge.html" with status=a.status %}</td>
+              <td class="px-4 py-3 text-xs text-ink-500">{{ a.allocated_by.get_username|default:"—" }} · {{ a.allocated_at|date:"Y-m-d H:i" }}{% if a.issued_at %}<span class="block">issued {{ a.issued_by.get_username }} · {{ a.issued_at|date:"Y-m-d H:i" }}</span>{% endif %}</td>
+              <td class="px-4 py-3">
+                <div class="flex flex-wrap gap-1.5">
+                  {% if is_staff_view and a.status == "RESERVED" %}
+                  <form method="post" action="{% url 'requests:action' a.request.pk %}"
+                {% if layout %}hx-post="{% url 'requests:action' a.request.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-trigger="bb:form-submit"{% endif %} x-data="{ confirmOpen: false }" @submit.prevent="confirmOpen = true" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="issue">
+                    <input type="hidden" name="allocation" value="{{ a.pk }}">
+                    <input type="hidden" name="confirm" value="ISSUE">
+                    <button type="submit" class="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 shadow-sm">Issue Bag…</button>
+                    {% include "components/confirmation.html" with confirm_title="Issue blood bag?" confirm_text=a.bag.bag_code|add:" will move to ISSUED against this request. Confirm patient/type checks per institutional procedure." confirm_button="Confirm Issue" %}
+                  </form>
+                  <form method="post" action="{% url 'requests:action' a.request.pk %}"
+                {% if layout %}hx-post="{% url 'requests:action' a.request.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-trigger="bb:form-submit"{% endif %} x-data="{ confirmOpen: false }" @submit.prevent="confirmOpen = true" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="cancel_allocation">
+                    <input type="hidden" name="allocation" value="{{ a.pk }}">
+                    <input type="text" name="reason" placeholder="reason" maxlength="255" class="rounded-lg border border-ink-200 px-2 py-1 text-xs w-28">
+                    <button type="submit" class="rounded-lg border border-ink-200 bg-white hover:bg-ink-50 text-ink-600 text-xs font-semibold px-3 py-1.5">Cancel…</button>
+                    {% include "components/confirmation.html" with confirm_title="Cancel reservation?" confirm_text="The bag returns to AVAILABLE stock." confirm_button="Confirm" %}
+                  </form>
+                  {% endif %}
+                  {% if not is_staff_view and a.status == "ISSUED" %}
+                  <form method="post" action="{% url 'requests:allocation_feedback' a.request.pk a.pk %}" {% if layout %}hx-post="{% url 'requests:allocation_feedback' a.request.pk a.pk %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %} class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="transfused">
+                    <button type="submit" class="rounded-lg bg-ink-900 hover:bg-ink-800 text-white text-xs font-semibold px-3 py-1.5">Mark Transfused</button>
+                  </form>
+                  <form method="post" action="{% url 'requests:allocation_feedback' a.request.pk a.pk %}" {% if layout %}hx-post="{% url 'requests:allocation_feedback' a.request.pk a.pk %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %} class="inline flex items-center gap-1.5">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="return">
+                    <input type="text" name="reason" placeholder="return reason" maxlength="255" class="rounded-lg border border-ink-200 px-2 py-1 text-xs w-32">
+                    <button type="submit" class="rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1.5">Return Unused</button>
+                  </form>
+                  {% endif %}
+                  {% if a.status == "CANCELLED" or a.status == "RETURNED" or a.status == "TRANSFUSED" %}<span class="text-xs text-ink-400">closed</span>{% endif %}
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="px-4 py-6 text-center text-sm text-ink-500">No bags allocated yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if is_staff_view and compat_report %}
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-ink-100">
+        <h2 class="font-semibold text-ink-900">Compatibility Report</h2>
+        <p class="text-xs text-ink-500 mt-0.5">Evaluated against the configured compatibility rule set. Suggestions only — final release is an authorized staff decision.</p>
+      </div>
+      <div class="divide-y divide-ink-100">
+        {% for entry in compat_report %}
+        <div class="px-5 py-4">
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <p class="text-sm font-semibold text-ink-800">{{ entry.item.blood_type.code }} {{ entry.item.component.name }} × {{ entry.item.outstanding }} outstanding</p>
+            {% if not entry.rules_configured %}
+              <span class="text-xs font-semibold text-brand-700 bg-brand-50 border border-brand-200 rounded-full px-2.5 py-0.5">No compatibility rules configured</span>
+            {% elif entry.shortage %}
+              <span class="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-0.5">Shortage: {{ entry.shortage }} unit(s)</span>
+            {% else %}
+              <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5">Sufficient stock ({{ entry.bags|length }} compatible)</span>
+            {% endif %}
+          </div>
+          {% if not entry.rules_configured %}
+            <p class="text-xs text-brand-700 mt-2">Compatibility cannot be determined — configure and approve rules under Settings → Blood Bank (institutional validation required). Nothing is assumed compatible.</p>
+          {% elif entry.bags %}
+            <ul class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              {% for bag in entry.bags %}
+              <li class="text-xs border border-ink-100 rounded-xl px-3 py-2 flex items-center justify-between">
+                <a class="font-semibold text-ink-800 hover:text-brand-600" href="{% url 'inventory:bag_detail' bag.pk %}" hx-get="{% url 'inventory:bag_detail' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ bag.bag_code }}</a>
+                <span class="text-ink-500">{{ bag.blood_type.code }} · exp {{ bag.expires_at|date:"m-d" }} ({{ bag.days_until_expiry }}d)</span>
+              </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-xs text-ink-500 mt-2">No compatible AVAILABLE bags found for this item.</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if is_staff_view and r.is_emergency and donor_pool is not None %}
+    <div class="bg-white rounded-2xl border border-brand-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-brand-100 bg-brand-50/60 rounded-t-2xl">
+        <h2 class="font-semibold text-brand-900">Emergency Donor Pool</h2>
+        <p class="text-xs text-brand-700 mt-0.5">
+          Candidates are matched by configured compatibility rules and ACTIVE donor status only —
+          <strong>not medical clearance</strong>. Every responder still undergoes the full institutional screening process.
+        </p>
+      </div>
+      <div class="px-5 py-4">
+        {% if pool_shortage %}<p class="text-sm font-semibold text-brand-700 mb-2">Inventory shortage of {{ pool_shortage }} unit(s) and pool may be insufficient — escalate per institutional procedure.</p>{% endif %}
+        <div class="overflow-x-auto max-h-72 overflow-y-auto">
+          <table class="min-w-full text-sm">
+            <thead><tr>
+              <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Donor</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Type</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">System Eligibility</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Contact</th>
+            </tr></thead>
+            <tbody>
+              {% for entry in donor_pool %}
+              <tr class="border-t border-ink-100">
+                <td class="px-4 py-2">{% if is_staff_view %}<a class="font-medium text-ink-900 hover:text-brand-600" href="{% url 'donors:detail' entry.donor.pk %}" hx-get="{% url 'donors:detail' entry.donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ entry.donor.donor_code }}</a> {{ entry.donor.full_name }}{% else %}{{ entry.donor.full_name }}{% endif %}</td>
+                <td class="px-4 py-2 font-bold text-brand-700">{{ entry.donor.blood_type.code }}</td>
+                <td class="px-4 py-2 text-xs">{% include "components/status_badge.html" with status=entry.eligibility.status %}</td>
+                <td class="px-4 py-2 text-xs text-ink-500">{{ entry.donor.contact_number }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" class="px-4 py-4 text-sm text-ink-500">No compatible active donors found.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if donor_pool %}
+        <form method="post" action="{% url 'requests:action' r.pk %}"
+                {% if layout %}hx-post="{% url 'requests:action' r.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-trigger="bb:form-submit"{% endif %} x-data="{ confirmOpen: false }" @submit.prevent="confirmOpen = true" class="mt-4">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="emergency_notify">
+          <button type="submit" class="rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-4 py-2 shadow-sm">Send Emergency Notification to {{ donor_pool|length }} Donor(s)…</button>
+          {% include "components/confirmation.html" with confirm_title="Notify emergency donors?" confirm_text="In-app and (if configured) SMS/email alerts will be sent to the listed donors. SMS delivery is a MOCK in development — check the delivery log." confirm_button="Send Notifications" %}
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="space-y-4">
+    {% if is_staff_view %}
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-ink-100"><h2 class="font-semibold text-ink-900">Workflow Actions</h2></div>
+      <div class="p-5 space-y-3">
+        {% if r.status == "DRAFT" %}
+        <form method="post" action="{% url 'requests:action' r.pk %}" {% if layout %}hx-post="{% url 'requests:action' r.pk %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %}>
+          {% csrf_token %}<input type="hidden" name="action" value="submit">
+          <button class="w-full rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2 hover:bg-ink-800">Submit Request</button>
+        </form>
+        {% endif %}
+        {% if r.status == "SUBMITTED" %}
+        <form method="post" action="{% url 'requests:action' r.pk %}" {% if layout %}hx-post="{% url 'requests:action' r.pk %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %}>
+          {% csrf_token %}<input type="hidden" name="action" value="review">
+          <button class="w-full rounded-xl bg-sky-600 text-white text-sm font-semibold px-4 py-2 hover:bg-sky-700">Start Review</button>
+        </form>
+        {% endif %}
+        {% if r.status == "SUBMITTED" or r.status == "UNDER_REVIEW" %}
+        <form method="post" action="{% url 'requests:action' r.pk %}"
+                {% if layout %}hx-post="{% url 'requests:action' r.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-trigger="bb:form-submit"{% endif %} x-data="{ confirmOpen: false }" @submit.prevent="confirmOpen = true">
+          {% csrf_token %}<input type="hidden" name="action" value="approve">
+          <button class="w-full rounded-xl bg-emerald-600 text-white text-sm font-semibold px-4 py-2 hover:bg-emerald-700">Approve Request…</button>
+          {% include "components/confirmation.html" with confirm_title="Approve blood request?" confirm_text="Approval allows reserving compatible bags. It does not issue blood — issuing is a separate authorized step." confirm_button="Confirm Approval" %}
+        </form>
+        <form method="post" action="{% url 'requests:action' r.pk %}" {% if layout %}hx-post="{% url 'requests:action' r.pk %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %} class="space-y-2">
+          {% csrf_token %}<input type="hidden" name="action" value="reject">
+          <label class="block text-sm font-medium text-ink-700">Reject (reason required)</label>
+          {{ reject_form.reason }}
+          <button class="w-full rounded-xl border border-brand-300 bg-brand-50 text-brand-700 text-sm font-semibold px-4 py-2 hover:bg-brand-100">Reject Request</button>
+        </form>
+        {% endif %}
+        {% if r.is_emergency and r.status != "FULFILLED" and r.status != "REJECTED" and r.status != "CANCELLED" %}
+        <p class="text-xs text-ink-500">Emergency notifications are sent from the donor pool panel.</p>
+        {% endif %}
+        {% if r.status != "FULFILLED" and r.status != "REJECTED" and r.status != "CANCELLED" and r.status != "EXPIRED" %}
+        <form method="post" action="{% url 'requests:action' r.pk %}" {% if layout %}hx-post="{% url 'requests:action' r.pk %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %} class="space-y-2 pt-2 border-t border-ink-100">
+          {% csrf_token %}<input type="hidden" name="action" value="cancel">
+          <label class="block text-sm font-medium text-ink-700">Cancel (reason)</label>
+          <input type="text" name="reason" maxlength="255" class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+          <button class="w-full rounded-xl border border-ink-200 text-ink-600 text-sm font-semibold px-4 py-2 hover:bg-ink-50">Cancel Request</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if r.status == "APPROVED" or r.status == "PARTIALLY_FULFILLED" or r.status == "UNDER_REVIEW" or r.status == "SUBMITTED" %}
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-ink-100"><h2 class="font-semibold text-ink-900">Add Item</h2></div>
+      <form method="post" action="{% url 'requests:action' r.pk %}" {% if layout %}hx-post="{% url 'requests:action' r.pk %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %} class="p-5 space-y-3">
+        {% csrf_token %}<input type="hidden" name="action" value="add_item">
+        {% include "components/field.html" with field=item_form.blood_type %}
+        {% include "components/field.html" with field=item_form.component %}
+        {% include "components/field.html" with field=item_form.quantity %}
+        <button class="w-full rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2 hover:bg-ink-800">Add Item</button>
+      </form>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {% if is_staff_view and notifications %}
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-ink-100"><h2 class="font-semibold text-ink-900">Recent Notifications</h2></div>
+      <ul class="divide-y divide-ink-100 max-h-72 overflow-y-auto">
+        {% for n in notifications %}
+        <li class="px-5 py-3 text-sm">
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-medium text-ink-800">{{ n.subject|default:n.get_channel_display }}</span>
+            <span class="text-[11px] text-ink-400">{{ n.created_at|date:"m-d H:i" }}</span>
+          </div>
+          <p class="text-xs text-ink-500 mt-0.5">{{ n.donor.donor_code|default:n.user.get_username|default:"—" }} · {{ n.get_channel_display }} · {{ n.get_delivery_status_display }}
+          {% if n.donor_response %} · responded {{ n.get_donor_response_display }}{% endif %}</p>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endwith %}
+{% endblock %}
