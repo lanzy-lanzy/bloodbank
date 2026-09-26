@@ -1,11 +1,15 @@
 from django import forms
 
 from core.forms import StyledModelForm
+from core.validators import validate_ph_mobile
 from donors.models import Donor, DonorScreening, ScreeningQuestion
 
 
 class DonorForm(StyledModelForm):
     """Staff/admin donor registration & editing."""
+
+    contact_number = forms.CharField(max_length=30, label="Contact number (mobile)",
+                                     validators=[validate_ph_mobile])
 
     class Meta:
         model = Donor
@@ -19,6 +23,9 @@ class DonorForm(StyledModelForm):
 
 class DonorSelfProfileForm(StyledModelForm):
     """Donor self-service: only permitted personal information (no medical/status fields)."""
+
+    contact_number = forms.CharField(max_length=30, label="Contact number (mobile)",
+                                     validators=[validate_ph_mobile])
 
     class Meta:
         model = Donor

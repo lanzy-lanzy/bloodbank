@@ -20,6 +20,8 @@ urlpatterns = [
     path("users/create/", views.UserCreateView.as_view(), name="user_create"),
     path("users/<int:pk>/edit/", views.UserUpdateView.as_view(), name="user_update"),
     path("users/<int:pk>/toggle-lock/", views.UserLockToggleView.as_view(), name="user_toggle_lock"),
+    path("registrations/", views.RegistrationListView.as_view(), name="registration_list"),
+    path("registrations/<int:pk>/", views.RegistrationReviewView.as_view(), name="registration_review"),
 ]
 
 

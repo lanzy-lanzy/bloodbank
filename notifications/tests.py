@@ -1,15 +1,21 @@
 """Notifications: mock providers, token capability links, responses, retries."""
-from django.test import TestCase, override_settings
+import json
+from unittest import mock
+
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from core.testing import make_donor, make_user
 from notifications.models import Notification
+from notifications.providers import (MockSMSProvider, SemaphoreSMSProvider,
+                                      _normalize_ph_mobile, get_provider)
 from notifications.services import NotificationError, NotificationService
 
 LOCMEM = override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 
 
+@override_settings(SMS_PROVIDER="mock", SMS_API_KEY="")
 class DispatchTests(TestCase):
     def setUp(self):
         self.donor = make_donor(email="someone@example.test")
@@ -58,6 +64,101 @@ class DispatchTests(TestCase):
         self.assertEqual(n.retry_count, 1)
         with self.assertRaises(NotificationError):
             NotificationService.retry_failed(n)  # now SENT, not retryable
+
+
+@override_settings(SMS_PROVIDER="semaphore", SMS_API_KEY="test-key-not-secret",
+                   SMS_SENDER_NAME="BLOODBANK")
+class SemaphoreSMSProviderTests(TestCase):
+    def setUp(self):
+        self.donor = make_donor()  # contact_number 0900-000-0000
+        self.provider = SemaphoreSMSProvider()
+
+    def _notification(self, body="Your donation is confirmed"):
+        return Notification.objects.create(donor=self.donor, channel="sms", body=body)
+
+    def test_provider_selection_follows_setting(self):
+        self.assertIsInstance(get_provider("sms"), SemaphoreSMSProvider)
+        with override_settings(SMS_PROVIDER="mock"):
+            self.assertIsInstance(get_provider("sms"), MockSMSProvider)
+
+    def test_ph_mobile_normalization(self):
+        self.assertEqual(_normalize_ph_mobile("0900-000-0000"), "09000000000")
+        self.assertEqual(_normalize_ph_mobile("+63 900 000 0000"), "09000000000")
+        self.assertEqual(_normalize_ph_mobile("639000000000"), "09000000000")
+        self.assertIsNone(_normalize_ph_mobile("12345"))
+        self.assertIsNone(_normalize_ph_mobile(""))
+
+    def test_missing_api_key_fails_safe_without_http_call(self):
+        with override_settings(SMS_API_KEY=""):
+            with mock.patch.object(SemaphoreSMSProvider, "_post") as post:
+                success, error = self.provider.send(self._notification())
+        self.assertFalse(success)
+        self.assertIn("not configured", error)
+        post.assert_not_called()
+
+    def test_invalid_recipient_number_fails_without_http_call(self):
+        donor = make_donor()
+        donor.contact_number = "landline"
+        donor.save(update_fields=["contact_number"])
+        with mock.patch.object(SemaphoreSMSProvider, "_post") as post:
+            success, error = self.provider.send(
+                Notification.objects.create(donor=donor, channel="sms", body="x"))
+        self.assertFalse(success)
+        self.assertIn("Philippine mobile", error)
+        post.assert_not_called()
+
+    def test_send_posts_normalized_fields_and_marks_sent(self):
+        n = self._notification()
+        with mock.patch.object(SemaphoreSMSProvider, "_post",
+                               return_value=(200, json.dumps([{"message_id": 1, "status": "Queued"}]))) as post:
+            success, error = self.provider.send(n)
+            self.assertTrue(success, error)
+            fields = post.call_args.args[0]
+            self.assertEqual(fields["apikey"], "test-key-not-secret")
+            self.assertEqual(fields["number"], "09000000000")
+            self.assertEqual(fields["sendername"], "BLOODBANK")
+            self.assertEqual(fields["message"], "Your donation is confirmed")
+            NotificationService.dispatch(n)
+        n.refresh_from_db()
+        self.assertEqual(n.delivery_status, "SENT")
+        self.assertEqual(post.call_count, 2)  # direct send + dispatch
+
+    def test_http_error_records_failure(self):
+        n = self._notification()
+        with mock.patch.object(SemaphoreSMSProvider, "_post",
+                               return_value=(401, '{"message":"Invalid API key"}')):
+            success, error = self.provider.send(n)
+            self.assertFalse(success)
+            self.assertIn("401", error)
+            NotificationService.dispatch(n)
+        n.refresh_from_db()
+        self.assertEqual(n.delivery_status, "FAILED")
+        self.assertIn("401", n.error)
+
+    def test_failed_delivery_status_is_failure(self):
+        with mock.patch.object(SemaphoreSMSProvider, "_post",
+                               return_value=(200, json.dumps([{"status": "Failed"}]))):
+            success, error = self.provider.send(self._notification())
+        self.assertFalse(success)
+        self.assertIn("Failed", error)
+
+    def test_unparseable_response_fails(self):
+        with mock.patch.object(SemaphoreSMSProvider, "_post", return_value=(200, "<html>")):
+            success, error = self.provider.send(self._notification())
+        self.assertFalse(success)
+        self.assertIn("unparseable", error)
+
+    def test_network_error_never_raises(self):
+        import urllib.error
+        with mock.patch.object(SemaphoreSMSProvider, "_post", return_value=(0, "timed out")):
+            success, error = self.provider.send(self._notification())
+        self.assertFalse(success)
+        self.assertIn("timed out", error)
+        with mock.patch("urllib.request.urlopen",
+                        side_effect=urllib.error.URLError("dns failure")):
+            success, error = self.provider.send(self._notification())
+        self.assertFalse(success)
+        self.assertIn("dns failure", error)
 
 
 class TokenResponseTests(TestCase):

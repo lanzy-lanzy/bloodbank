@@ -6,7 +6,7 @@ development database.
 ## 1. Django test suite (authoritative)
 
 ```bash
-python manage.py test                 # 106 tests, ~2-3 min
+python manage.py test                 # 145 tests, ~2-3 min
 python manage.py test inventory       # one app
 python manage.py test audit.tests.AuditImmutabilityTests -v 2
 ```
@@ -19,7 +19,7 @@ Coverage by app (unit + integration + permission/security):
 | App | What is proven |
 |---|---|
 | core | Styled-form machinery, pagination component render (incl. the brace-in-comment regression guard + automated scan of all templates), **CSRF enforced on login POST**, anonymous login/reset pages reachable (middleware path-vs-name regression) |
-| accounts | Dashboard for each of the 4 roles, anonymous redirect, admin-only user list, admin role works without superuser, hashed passwords |
+| accounts | Dashboard for each of the 4 roles, anonymous redirect, admin-only user list, admin role works without superuser, hashed passwords; self-registration: inactive user + PENDING request + admin in-app alert created, ADMIN/STAFF role escalation refused at form AND service, duplicate username/email (case-insensitive) and non-PH mobile rejected, requester needs organization; review: approve activates + notifies (in-app+SMS channels), reject needs reason + REJECT token re-checked server-side, one-shot re-review refused, self-review refused, pending/rejected login messages only after password match (no status leak, wrong password stays generic), registration pages admin-only for staff/donor/requester/anonymous |
 | audit | Append-only: instance update refused, instance delete refused, **bulk queryset delete refused**, snapshot capture |
 | donors | Eligibility engine: configured-rules eligible, missing interval ⇒ REQUIRES_STAFF_REVIEW (fail-safe), interval deferral with next-eligible date, permanent-deferral state, active temp-deferral window, rolling-year cap, age bounds; soft deletion hides from default manager; donor cannot read other donors or the directory |
 | appointments | Slot conflict + DB-level unique open-slot constraint, past-date rejection (model + self-book form), self-book forced to REQUESTED, staff list blocked for donors |
@@ -34,9 +34,10 @@ Coverage by app (unit + integration + permission/security):
 ## 2. Template compile + GET walk
 
 ```bash
-python check_templates.py   # compiles all 80 templates (fail-fast syntax)
-python check_e2e.py         # 104 pages across admin/staff/donor/requester
+python check_templates.py   # compiles all 90 templates (fail-fast syntax)
+python check_e2e.py         # 116 pages across admin/staff/donor/requester
                             # sessions + negative-access checks + token links
+                            # + anonymous public/private walk
 ```
 
 `check_e2e.py` walks every role's actual pages (dashboards, every list with

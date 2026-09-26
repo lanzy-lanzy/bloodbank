@@ -42,6 +42,7 @@
     {% if request.user|has_role:'ADMIN' %}
       <p class="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-widest text-ink-500">Administration</p>
       {% nav_item 'accounts:user_list' 'Users' request 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm11 4h4m-2-2v4' %}
+      {% nav_item 'accounts:registration_list' 'Registrations' request 'M9 12l2 2 4-4m5 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' %}
       {% nav_item 'audit:list' 'Audit Logs' request 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z' %}
       {% nav_item 'settings_app:index' 'System Settings' request 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7.4-3a7.4 7.4 0 0 0-.1-1.2l2.1-1.6-2-3.5-2.5 1a7.5 7.5 0 0 0-2-1.2L14.5 2h-5l-.4 2.5a7.5 7.5 0 0 0-2 1.2l-2.5-1-2 3.5L4.7 10.8a7.6 7.6 0 0 0 0 2.4l-2.1 1.6 2 3.5 2.5-1c.6.5 1.3.9 2 1.2l.4 2.5h5l.4-2.5c.7-.3 1.4-.7 2-1.2l2.5 1 2-3.5-2.1-1.6c.1-.4.1-.8.1-1.2Z' %}
     {% endif %}

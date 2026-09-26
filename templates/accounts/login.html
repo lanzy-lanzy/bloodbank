@@ -20,7 +20,9 @@
     <svg class="w-4 h-4 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5-5 5M6 12h12"/></svg>
   </button>
 </form>
-<div class="mt-6 pt-5 border-t border-ink-100 text-center">
+<div class="mt-6 pt-5 border-t border-ink-100 flex items-center justify-center gap-2 text-center">
   <a href="{% url 'accounts:password_reset' %}" class="text-sm text-brand-600 hover:text-brand-700 font-medium">Forgot password?</a>
+  <span class="text-ink-300">·</span>
+  <a href="{% url 'public_registration:register' %}" class="text-sm text-brand-600 hover:text-brand-700 font-medium">Create account</a>
 </div>
 {% endblock %}

@@ -24,7 +24,7 @@
       <div>
         <dt class="text-xs text-ink-500">Donor</dt>
         <dd class="mt-0.5 font-medium text-ink-900">
-          <a href="{% url 'donors:detail' donation.donor_id %}" hx-get="{% url 'donors:detail' donation.donor_id %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'donors:detail' donation.donor_id %}" hx-target="#modal-root" hx-swap="innerHTML"
+          <a href="{% url 'donors:detail' donation.donor_id %}" hx-get="{% url 'donors:detail' donation.donor_id %}" hx-target="#modal-root" hx-swap="innerHTML"
              class="text-brand-600 hover:text-brand-700">{{ donation.donor.full_name }}</a>
           <span class="text-xs text-ink-400 block">{{ donation.donor.donor_code }}</span>
         </dd>
@@ -66,10 +66,10 @@
         <dt class="text-xs text-ink-500">Screening</dt>
         <dd class="mt-0.5 text-ink-800">
           {% if donation.screening %}
-            <a href="{% url 'donors:screening_detail' donation.screening.pk %}" hx-get="{% url 'donors:screening_detail' donation.screening.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'donors:screening_detail' donation.screening.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700 font-medium">View screening</a>
+            <a href="{% url 'donors:screening_detail' donation.screening.pk %}" hx-get="{% url 'donors:screening_detail' donation.screening.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700 font-medium">View screening</a>
             <span class="ml-1">{% include "components/status_badge.html" with status=donation.screening.result %}</span>
           {% else %}
-            <a href="{% url 'donors:screening_create' donation.donor_id %}" hx-get="{% url 'donors:screening_create' donation.donor_id %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'donors:screening_create' donation.donor_id %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700 font-medium">Start screening</a>
+            <a href="{% url 'donors:screening_create' donation.donor_id %}" hx-get="{% url 'donors:screening_create' donation.donor_id %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700 font-medium">Start screening</a>
           {% endif %}
         </dd>
       </div>
@@ -181,7 +181,7 @@
         {% for bag in bags %}
         <tr class="hover:bg-ink-50/60">
           <td class="px-4 py-3 border-t border-ink-100 font-medium">
-            <a href="{% url 'inventory:bag_detail' bag.pk %}" hx-get="{% url 'inventory:bag_detail' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'inventory:bag_detail' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700">{{ bag.bag_code }}</a>
+            <a href="{% url 'inventory:bag_detail' bag.pk %}" hx-get="{% url 'inventory:bag_detail' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700">{{ bag.bag_code }}</a>
           </td>
           <td class="px-4 py-3 border-t border-ink-100 text-ink-700">{{ bag.blood_type }}</td>
           <td class="px-4 py-3 border-t border-ink-100 text-ink-700">{{ bag.component }}</td>
@@ -225,7 +225,7 @@
         <tr class="hover:bg-ink-50/60">
           <td class="px-4 py-3 border-t border-ink-100 text-ink-500 whitespace-nowrap">{{ t.created_at|date:"M j, Y H:i" }}</td>
           <td class="px-4 py-3 border-t border-ink-100 font-medium">
-            <a href="{% url 'inventory:bag_detail' t.bag_id %}" hx-get="{% url 'inventory:bag_detail' t.bag_id %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'inventory:bag_detail' t.bag_id %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700">{{ t.bag.bag_code }}</a>
+            <a href="{% url 'inventory:bag_detail' t.bag_id %}" hx-get="{% url 'inventory:bag_detail' t.bag_id %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700">{{ t.bag.bag_code }}</a>
           </td>
           <td class="px-4 py-3 border-t border-ink-100 text-ink-700 whitespace-nowrap">
             {{ t.get_transaction_type_display }}

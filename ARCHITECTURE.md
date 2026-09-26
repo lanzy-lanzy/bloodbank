@@ -6,7 +6,7 @@
 |---|---|---|
 | Web framework | Django 5.2 (server-rendered templates) | Batteries included, mature auth/ORM, no SPA required |
 | Interactivity | HTMX 2.0.4 + Alpine.js 3.14 (CDN) | Server remains the source of truth; light JS |
-| Styling | Tailwind CSS 4 via `@tailwindcss/browser` CDN with `@theme` design tokens | Fast iteration, no node toolchain needed to run |
+| Styling | Tailwind CSS 4, built locally (`static/css/input.css` → `tailwind.css`, `npm run build:css`) | `@theme` brand/ink tokens; compiled CSS is committed and cache-busted via `static_v` |
 | Charts | Chart.js 4 (CDN), fed by JSON endpoints | Dashboard analytics without a build step |
 | DB | SQLite (dev) / PostgreSQL (prod, via `DATABASE_URL`) | Zero-setup dev, real concurrency in prod |
 
@@ -20,7 +20,10 @@ config          settings, root urlconf, wsgi/asgi
 core            public landing page at "/" (core:home), role dashboards at
                 /dashboard/ (per role), styled-form base, mixins, template
                 tags/filters, components, management commands
-accounts        custom User (AUTH_USER_MODEL) + roles, auth views, user admin
+accounts        custom User (AUTH_USER_MODEL) + roles, auth views, user admin,
+                public self-registration (RegistrationRequest +
+                RegistrationService: DONOR/REQUESTER only, admin-approval
+                gate, login-guard messaging)
 audit           append-only AuditLog (immutable model AND queryset)
 donors          Donor registry, ScreeningQuestion/DonorScreening/ScreeningResponse,
                 DonorEligibilityService (config-driven, fail-safe)
@@ -35,7 +38,7 @@ requests        Organization/RequesterProfile/BloodRequest/RequestItem/
                 Allocation; BloodRequestService (lifecycle, allocation,
                 issue, transfuse/return feedback)
 notifications   NotificationTemplate/Notification; provider interfaces
-                (NotificationProvider → InApp, Django email, MockSMS);
+                (NotificationProvider → InApp, Django email, Mock/Semaphore SMS);
                 NotificationService dispatch/retry; emergency alerts;
                 anonymous capability-token response links
 rewards         RewardRule/RewardTier/Reward/PointTransaction/DonorReward;
@@ -86,6 +89,12 @@ exits `REJECTED / CANCELLED / EXPIRED`.
 Appointment: `REQUESTED → CONFIRMED → CHECKED_IN → COMPLETED`, exits
 `CANCELLED / NO_SHOW` (partial unique constraint prevents double-booking a
 donor into an open slot).
+Registration (`accounts.models.RegistrationRequest.TRANSITIONS`, enforced by
+`RegistrationService.review`): `PENDING → APPROVED | REJECTED`, one-shot —
+a reviewed row can never transition again. Approval flips the linked (1:1)
+User's `is_active`; rejection requires a non-empty reason, is stored on the
+request, and is surfaced to the applicant at login and via in-app/SMS
+notification. Self-review of one's own registration is refused.
 
 ## Safety-critical guards
 
@@ -110,8 +119,17 @@ donor into an open slot).
 
 Provider interface `NotificationProvider.send(notification) -> (ok, error)`
 with implementations: `InAppProvider`, `DjangoEmailProvider` (Django mail),
-`MockSMSProvider` (**MOCK — DEVELOPMENT ONLY**, logs, optionally fails when
-`SMS_API_KEY` is empty — never silently claims a real send). Emergency donor
+`MockSMSProvider` (**MOCK — DEVELOPMENT ONLY**, logs, never silently claims a
+real send) and `SemaphoreSMSProvider` (live SMS via Semaphore API v4; selected
+only when `SMS_PROVIDER=semaphore`, credentials from `SMS_API_KEY` /
+`SMS_SENDER_NAME` env vars; fails safe with no HTTP call when unconfigured).
+Recipient numbers are normalized to Philippine mobile format `09XXXXXXXXX`.
+`core/validators.py` (`normalize_ph_mobile` / `validate_ph_mobile`) is the
+single source of truth for mobile format: donor `contact_number` forms and
+user `phone` (required on `ProfileForm`/`AdminUserForm`) validate at entry,
+and the SMS provider normalizes at dispatch. Existing records with
+unregistered/invalid numbers are never bulk-modified — they fail safe at send
+time until staff fix them. Emergency donor
 alerts include a public UUID capability link
 (`/notifications/respond/<token>/`) so anonymous donors can record a
 response; responses mean *availability only*, never medical clearance, and

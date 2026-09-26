@@ -34,9 +34,11 @@ commands in [README.md](README.md) and [TESTING.md](TESTING.md).
    organization; STAFF cannot touch critical configuration
    (`AdminRequiredMixin`); permission negatives stay tested (see TESTING.md
    matrix) whenever routes change.
-6. **External providers**: SMS stays `MockSMSProvider` (labelled
-   MOCK — DEVELOPMENT ONLY) until real credentials exist. Don't fake
-   delivery success in UI copy.
+6. **External providers**: default SMS provider stays `MockSMSProvider`
+   (labelled MOCK — DEVELOPMENT ONLY). `SemaphoreSMSProvider` is live-capable
+   but only when `SMS_PROVIDER=semaphore` + `SMS_API_KEY` are set in the
+   environment; it must fail safe (no HTTP call) when unconfigured. Don't
+   fake delivery success in UI copy.
 7. **Secrets** only via env / `.env` (git-ignored). `.env.example` documents
    every variable. Never commit credentials, never hard-code fallbacks that
    look production-safe.
@@ -72,6 +74,14 @@ commands in [README.md](README.md) and [TESTING.md](TESTING.md).
   button gets swallowed by that handler and the guarded action never posts.
 - Test `Client` used outside the runner needs `settings.ALLOWED_HOSTS +=
   ["testserver"]`.
+- **Auth shell must stay scroll-safe**: `base_auth.html` centres with a
+  `min-h-screen flex flex-col justify-center` wrapper and normal document
+  flow — NOT `body{flex items-center}` + `overflow-hidden` (that combination
+  clips tall cards such as `accounts/register.html` on desktop and cuts the
+  footer off on short viewports). Decorative orbs live in a
+  `fixed inset-0 overflow-hidden` layer so they can't create horizontal
+  scroll; card padding/type scale via `sm:` variants; width override uses the
+  `{% block auth_width %}` block (register uses `max-w-lg`).
 - **Tailwind CSS 4 is built locally, not via CDN.** Source:
   `static/css/input.css` (holds the `@theme` brand/ink tokens + base styles);
   output: `static/css/tailwind.css`, linked by `base.html`/`base_auth.html`/
@@ -90,9 +100,9 @@ commands in [README.md](README.md) and [TESTING.md](TESTING.md).
 ```
 npm run build:css                 # rebuild static/css/tailwind.css after class changes
 python manage.py check
-python manage.py test                 # 106 tests — must stay OK
+python manage.py test                 # 145 tests — must stay OK
 python check_templates.py             # all templates compile
-python check_e2e.py                   # 104-page × 4-role GET walk
+python check_e2e.py                   # 116-page GET walk (4 roles + anonymous)
 python check_e2e_post.py              # 69-assert POST workflows (rolls back)
 python modal_smoke.py                 # modal/HX-Request contract (rolls back)
 ```

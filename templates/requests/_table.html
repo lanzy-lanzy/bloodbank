@@ -15,7 +15,7 @@
       <tbody>
         {% for r in requests_list %}
         <tr class="hover:bg-ink-50/60 {% if r.is_emergency %}bg-brand-50/40{% endif %}">
-          <td class="px-4 py-3"><a class="font-semibold text-ink-900 hover:text-brand-600" href="{% url 'requests:detail' r.pk %}" hx-get="{% url 'requests:detail' r.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'requests:detail' r.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ r.request_code }}</a></td>
+          <td class="px-4 py-3"><a class="font-semibold text-ink-900 hover:text-brand-600" href="{% url 'requests:detail' r.pk %}" hx-get="{% url 'requests:detail' r.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ r.request_code }}</a></td>
           <td class="px-4 py-3 text-ink-600">{{ r.organization.name }}</td>
           <td class="px-4 py-3 text-xs text-ink-600">
             {% for item in r.items.all %}<span class="font-bold text-brand-700">{{ item.blood_type.code }}</span> {{ item.component.code|upper }} ×{{ item.quantity }}{% if not forloop.last %} · {% endif %}{% endfor %}

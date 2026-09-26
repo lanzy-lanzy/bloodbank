@@ -16,7 +16,7 @@
       <tbody>
         {% for bag in bags %}
         <tr class="hover:bg-ink-50/60">
-          <td class="px-4 py-3"><a class="font-semibold text-ink-900 hover:text-brand-600" href="{% url 'inventory:bag_detail' bag.pk %}" hx-get="{% url 'inventory:bag_detail' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'inventory:bag_detail' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ bag.bag_code }}</a>
+          <td class="px-4 py-3"><a class="font-semibold text-ink-900 hover:text-brand-600" href="{% url 'inventory:bag_detail' bag.pk %}" hx-get="{% url 'inventory:bag_detail' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ bag.bag_code }}</a>
             <span class="block text-xs text-ink-400">{{ bag.volume_ml }} mL</span></td>
           <td class="px-4 py-3"><span class="font-bold text-brand-700">{{ bag.blood_type.code }}</span> <span class="text-ink-600">{{ bag.component }}</span></td>
           <td class="px-4 py-3 text-xs">

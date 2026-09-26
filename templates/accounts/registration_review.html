@@ -1,0 +1,94 @@
+{% extends layout|default:"base.html" %}
+{% block title %}Review {{ registration.username }} — Registrations — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-5 flex flex-wrap items-start justify-between gap-3">
+  <div>
+    <div class="flex items-center gap-3 flex-wrap">
+      <h1 class="text-xl font-bold text-ink-900">{{ registration.full_name }}</h1>
+      {% if registration.status == "PENDING" %}
+        <span class="inline-flex items-center rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-700">Pending</span>
+      {% elif registration.status == "APPROVED" %}
+        <span class="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">Approved</span>
+      {% else %}
+        <span class="inline-flex items-center rounded-full bg-red-50 border border-red-200 px-2.5 py-0.5 text-xs font-semibold text-red-700">Rejected</span>
+      {% endif %}
+      <span class="inline-flex rounded-md bg-ink-100 px-2 py-0.5 text-xs font-semibold text-ink-700">{{ registration.get_role_display }}</span>
+    </div>
+    <p class="text-sm text-ink-500 mt-1">@{{ registration.username }} · submitted {{ registration.created_at|date:"M j, Y H:i" }}</p>
+  </div>
+  {% if layout %}
+  <button type="button" @click="bbCloseModal()" class="text-sm font-medium text-brand-600 hover:text-brand-700">Close</button>
+  {% else %}
+  <a href="{% url 'accounts:registration_list' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">← Back to registrations</a>
+  {% endif %}
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-ink-100"><h2 class="font-semibold text-ink-900">Applicant Details</h2></div>
+    <dl class="px-5 py-4 text-sm divide-y divide-ink-100">
+      <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Name</dt><dd class="text-right text-ink-800">{{ registration.full_name }}</dd></div>
+      <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Username</dt><dd class="text-right text-ink-800">@{{ registration.username }}</dd></div>
+      <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Email</dt><dd class="text-right text-ink-800">{{ registration.email|default:"—" }}</dd></div>
+      <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Mobile</dt><dd class="text-right text-ink-800">{{ registration.phone }}</dd></div>
+      <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Role requested</dt><dd class="text-right text-ink-800">{{ registration.get_role_display }}</dd></div>
+      {% if registration.role == "DONOR" %}
+      <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Blood type</dt><dd class="text-right text-ink-800">{{ registration.blood_type.code|default:"—" }}</dd></div>
+      <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Date of birth</dt><dd class="text-right text-ink-800">{{ registration.date_of_birth|date:"M j, Y"|default:"—" }}</dd></div>
+      <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Address</dt><dd class="text-right text-ink-800">{{ registration.address|default:"—" }}{% if registration.municipality %}, {{ registration.municipality }}{% endif %}{% if registration.province %}, {{ registration.province }}{% endif %}</dd></div>
+      {% else %}
+      <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Organization</dt><dd class="text-right text-ink-800">{{ registration.organization_name|default:"—" }}</dd></div>
+      {% endif %}
+      <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Linked account</dt><dd class="text-right">
+        {% if applicant %}
+          <span class="text-ink-700">@{{ applicant.username }}</span>
+          {% if applicant.is_active %}<span class="ml-1 text-xs font-semibold text-emerald-600">active</span>
+          {% else %}<span class="ml-1 text-xs font-semibold text-ink-400">inactive until approved</span>{% endif %}
+        {% else %}<span class="text-ink-400">—</span>{% endif %}
+      </dd></div>
+    </dl>
+  </div>
+
+  <div class="space-y-4">
+    {% if registration.status == "PENDING" %}
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-ink-100"><h2 class="font-semibold text-ink-900">Review Decision</h2></div>
+      <div class="p-5 space-y-5">
+        <p class="text-xs text-ink-500 -mt-2">Approving activates the account and notifies the applicant by in-app message and SMS. Rejection requires a reason and is sent to the applicant too.</p>
+        <form method="post" action="{% url 'accounts:registration_review' registration.pk %}"
+              {% if layout %}hx-post="{% url 'accounts:registration_review' registration.pk %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %}>
+          {% csrf_token %}
+          <input type="hidden" name="action" value="approve">
+          <button type="submit" class="w-full sm:w-auto rounded-xl bg-emerald-600 text-white text-sm font-semibold px-5 py-2 hover:bg-emerald-700 shadow-sm">Approve registration</button>
+        </form>
+        <div x-data="{ confirmOpen: false }" class="rounded-xl border border-red-200 bg-red-50/50 p-4">
+          <h3 class="text-sm font-semibold text-red-800">Reject</h3>
+          <p class="text-xs text-red-700 mt-1 mb-3">The applicant keeps no access and is told the reason you enter below.</p>
+          <form method="post" action="{% url 'accounts:registration_review' registration.pk %}" @submit.prevent="confirmOpen = true"
+                {% if layout %}hx-post="{% url 'accounts:registration_review' registration.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-trigger="bb:form-submit"{% endif %}>
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reject">
+            <input type="hidden" name="confirm" value="REJECT">
+            <input type="text" name="reason" maxlength="500" required placeholder="Rejection reason (shown to the applicant)"
+                   class="w-full rounded-xl border border-red-300 px-3 py-2 text-sm mb-2 focus:border-brand-500 focus:ring-brand-500">
+            <button type="submit" class="rounded-xl bg-red-600 text-white text-sm font-semibold px-4 py-2 hover:bg-red-700 shadow-sm">Reject…</button>
+            {% include "components/confirmation.html" with confirm_title="Reject this registration?" confirm_text="The applicant will be notified with the reason you provided and their account stays inactive. This decision cannot be undone." confirm_button="Confirm Reject" %}
+          </form>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-ink-100"><h2 class="font-semibold text-ink-900">Review Outcome</h2></div>
+      <dl class="px-5 py-4 text-sm divide-y divide-ink-100">
+        <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Decision</dt><dd class="text-right font-semibold {% if registration.status == 'APPROVED' %}text-emerald-700{% else %}text-red-700{% endif %}">{{ registration.get_status_display }}</dd></div>
+        <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Reviewed by</dt><dd class="text-right text-ink-800">{{ registration.reviewed_by.get_full_name|default:registration.reviewed_by.username|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Reviewed at</dt><dd class="text-right text-ink-700">{{ registration.reviewed_at|date:"M j, Y H:i"|default:"—" }}</dd></div>
+        {% if registration.rejection_reason %}<div class="py-2"><dt class="text-ink-500 mb-1">Rejection reason</dt><dd class="rounded-xl bg-red-50 border border-red-100 px-3 py-2 text-ink-800">{{ registration.rejection_reason }}</dd></div>{% endif %}
+      </dl>
+      <div class="px-5 pb-4 text-xs text-ink-400">Registrations are reviewed once; this decision is final and append-only.</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -177,7 +177,7 @@
                 {% else %}<span class="inline-flex rounded-full bg-ink-100 border border-ink-200 px-2.5 py-0.5 text-xs font-semibold text-ink-600">Inactive</span>{% endif %}
               </td>
               <td class="px-4 py-3 border-t border-ink-100 text-right">
-                <a href="{% url 'rewards:rule_edit' rule.pk %}" hx-get="{% url 'rewards:rule_edit' rule.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'rewards:rule_edit' rule.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700 font-medium text-xs">Edit</a>
+                <a href="{% url 'rewards:rule_edit' rule.pk %}" hx-get="{% url 'rewards:rule_edit' rule.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700 font-medium text-xs">Edit</a>
               </td>
             </tr>
             {% empty %}
@@ -216,7 +216,7 @@
               <td class="px-4 py-3 border-t border-ink-100 text-ink-500">{{ tier.description|default:"—"|truncatechars:80 }}</td>
               <td class="px-4 py-3 border-t border-ink-100 text-right tabular-nums text-ink-500">{{ tier.order }}</td>
               <td class="px-4 py-3 border-t border-ink-100 text-right">
-                <a href="{% url 'rewards:tier_edit' tier.pk %}" hx-get="{% url 'rewards:tier_edit' tier.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'rewards:tier_edit' tier.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700 font-medium text-xs">Edit</a>
+                <a href="{% url 'rewards:tier_edit' tier.pk %}" hx-get="{% url 'rewards:tier_edit' tier.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700 font-medium text-xs">Edit</a>
               </td>
             </tr>
             {% empty %}
@@ -261,7 +261,7 @@
                 {% else %}<span class="inline-flex rounded-full bg-ink-100 border border-ink-200 px-2.5 py-0.5 text-xs font-semibold text-ink-600">Inactive</span>{% endif %}
               </td>
               <td class="px-4 py-3 border-t border-ink-100 text-right">
-                <a href="{% url 'rewards:reward_edit' reward.pk %}" hx-get="{% url 'rewards:reward_edit' reward.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'rewards:reward_edit' reward.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700 font-medium text-xs">Edit</a>
+                <a href="{% url 'rewards:reward_edit' reward.pk %}" hx-get="{% url 'rewards:reward_edit' reward.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700 font-medium text-xs">Edit</a>
               </td>
             </tr>
             {% empty %}

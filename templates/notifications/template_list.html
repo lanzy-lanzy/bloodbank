@@ -42,7 +42,7 @@
             </td>
             <td class="px-4 py-3 text-xs text-ink-500">{{ t.updated_at|date:"M j, Y" }}</td>
             <td class="px-4 py-3 text-right">
-              <a href="{% url 'notifications:template_edit' pk=t.pk %}" hx-get="{% url 'notifications:template_edit' pk=t.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'notifications:template_edit' pk=t.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-ink-200 hover:bg-ink-50 text-ink-700">Edit</a>
+              <a href="{% url 'notifications:template_edit' pk=t.pk %}" hx-get="{% url 'notifications:template_edit' pk=t.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-ink-200 hover:bg-ink-50 text-ink-700">Edit</a>
             </td>
           </tr>
         {% empty %}

@@ -1,0 +1,49 @@
+{% load core_extras %}
+{# Registration results table fragment. Rendered standalone (HTMX filter) and inside registration_list.html #}
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-ink-200 text-sm">
+      <thead class="bg-ink-50 text-left text-xs font-semibold uppercase tracking-wide text-ink-500">
+        <tr>
+          <th class="px-4 py-3">Applicant</th>
+          <th class="px-4 py-3">Role</th>
+          <th class="px-4 py-3">Contact</th>
+          <th class="px-4 py-3">Status</th>
+          <th class="px-4 py-3">Submitted</th>
+          <th class="px-4 py-3 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-ink-100">
+        {% for reg in registrations %}
+        <tr class="hover:bg-ink-50/60">
+          <td class="px-4 py-3">
+            <div class="font-medium text-ink-900">{{ reg.full_name }}</div>
+            <div class="text-xs text-ink-500">@{{ reg.username }}</div>
+          </td>
+          <td class="px-4 py-3"><span class="inline-flex rounded-md bg-ink-100 px-2 py-0.5 text-xs font-semibold text-ink-700">{{ reg.get_role_display }}</span></td>
+          <td class="px-4 py-3 text-ink-600">
+            <div>{{ reg.email }}</div>
+            <div class="text-xs text-ink-400">{{ reg.phone }}</div>
+          </td>
+          <td class="px-4 py-3">
+            {% if reg.status == "PENDING" %}<span class="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-700">Pending</span>
+            {% elif reg.status == "APPROVED" %}<span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">Approved</span>
+            {% else %}<span class="inline-flex items-center gap-1 rounded-full bg-red-50 border border-red-200 px-2.5 py-0.5 text-xs font-semibold text-red-700">Rejected</span>{% endif %}
+          </td>
+          <td class="px-4 py-3 text-ink-500 whitespace-nowrap">{{ reg.created_at|date:"M j, Y H:i" }}</td>
+          <td class="px-4 py-3 text-right whitespace-nowrap">
+            <a href="{% url 'accounts:registration_review' reg.pk %}"
+               hx-get="{% url 'accounts:registration_review' reg.pk %}" hx-target="#modal-root" hx-swap="innerHTML"
+               class="text-brand-600 hover:text-brand-700 font-medium text-xs">
+              {% if reg.status == "PENDING" %}Review{% else %}View{% endif %}
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">{% include "components/empty_state.html" with empty_title="No registrations found" %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/pagination.html" %}
+</div>

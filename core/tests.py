@@ -1,10 +1,12 @@
 """Core: styled form classes, template components, and CSRF enforcement."""
 from django import forms
+from django.core.exceptions import ValidationError
 from django.test import Client, TestCase
 from django.urls import reverse
 
 from core.forms import StyledFormMixin
 from core.testing import make_user
+from core.validators import normalize_ph_mobile, validate_ph_mobile
 
 
 class StyledFormTests(TestCase):
@@ -71,3 +73,18 @@ class PublicPathsTests(TestCase):
 
     def test_password_reset_pages_visible_to_anonymous(self):
         self.assertEqual(self.client.get("/accounts/password-reset/").status_code, 200)
+
+
+class MobileValidatorTests(TestCase):
+    def test_normalizes_valid_ph_mobiles(self):
+        for raw in ("09171234567", "0917-123-4567", "+639171234567", "63 917 123 4567"):
+            self.assertEqual(normalize_ph_mobile(raw), "09171234567", raw)
+
+    def test_rejects_non_mobile_values(self):
+        for bad in ("", None, "12345", "(02) 8123 4567", "89171234567", "0917123"):
+            self.assertIsNone(normalize_ph_mobile(bad), repr(bad))
+
+    def test_validator_raises_on_invalid(self):
+        with self.assertRaises(ValidationError):
+            validate_ph_mobile("not-a-number")
+        validate_ph_mobile("09171234567")  # does not raise

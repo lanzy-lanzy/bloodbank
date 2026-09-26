@@ -13,6 +13,7 @@ KNOWN_VARIABLES = [
     "appointment_date", "appointment_time", "location", "quantity",
     "component", "required_by", "urgency", "points", "reward_name",
     "tier_name", "response_url", "donation_code", "bag_code",
+    "full_name", "role", "rejection_reason",
 ]
 
 

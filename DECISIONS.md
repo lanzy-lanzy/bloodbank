@@ -99,9 +99,22 @@ Rather than expose thin endpoints, API_ROADMAP.md defines phased,
 service-bound designs (read-only first; LIS ingestion must never be able to
 self-verify results).
 
+## D-016 — Semaphore is the real SMS provider (opt-in, env-only creds)
+`SemaphoreSMSProvider` (API v4, `POST https://semaphore.co/api/v4/messages`,
+form fields `apikey`/`number`/`message`/`sendername`) implements the same
+`NotificationProvider.send() -> (ok, error)` contract, so `NotificationService`
+dispatch/retry/audit paths are unchanged. Selected only by
+`SMS_PROVIDER=semaphore`; default stays `mock`. Missing `SMS_API_KEY` fails
+safe — no HTTP call, FAILED + reason on the row (hard rule 6 posture kept:
+never fake delivery). Recipient numbers are normalized to Philippine local
+form `09XXXXXXXXX` (`+63`/`63` prefixes accepted); an unnormalizable number
+fails rather than being guessed. Credentials come from env only. Live delivery
+is NOT claimed operational until real credentials are configured and verified.
+
 ## Open decisions (need the operator)
 - Approval/replacement of every seeded clinical placeholder (D-003 follow-up).
-- Real SMS provider + credentials.
+- Semaphore API key + registered sender name; live-send verification with the
+  provider once credentials exist (D-016).
 - Label/QR hardware & format (constraint: encode only public `BB-` codes).
 - Appointment day capacity rules (model exposes day_capacity_used; not yet
   enforced against a configured limit — REQUIRES CLARIFICATION).

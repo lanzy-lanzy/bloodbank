@@ -16,9 +16,11 @@ from accounts.forms import (
     AdminUserForm,
     BloodBankAuthenticationForm,
     ProfileForm,
+    RegistrationForm,
     StyledPasswordChangeForm,
 )
-from accounts.models import User
+from accounts.models import RegistrationRequest, User
+from accounts.services import RegistrationError, RegistrationService
 from audit import services as audit
 from core.mixins import AdminRequiredMixin, is_htmx
 from core.modals import MODAL_LAYOUT, modal_success, render_any
@@ -244,3 +246,110 @@ class UserLockToggleView(AdminRequiredMixin, View):
                   description=f"{'Locked' if user.is_locked else 'Unlocked'} user {user.username}")
         messages.success(request, f"User {user.username} {'locked' if user.is_locked else 'unlocked'}.")
         return modal_success(request, fallback_redirect=reverse("accounts:user_list"))
+
+
+# --- Public self-registration --------------------------------------------------
+class RegisterView(View):
+    """Public donor/requester signup. Creates an inactive account + PENDING
+    registration; an administrator must approve before login is possible."""
+
+    template_name = "accounts/register.html"
+
+    def get(self, request):
+        if request.user.is_authenticated:
+            return redirect("core:dashboard")
+        return render(request, self.template_name, {"form": RegistrationForm()})
+
+    def post(self, request):
+        if request.user.is_authenticated:
+            return redirect("core:dashboard")
+        form = RegistrationForm(request.POST)
+        if form.is_valid():
+            registration = form.save(commit=False)
+            try:
+                RegistrationService.submit(
+                    registration=registration,
+                    raw_password=form.cleaned_data["password1"],
+                    request=request,
+                )
+            except RegistrationError as exc:
+                messages.error(request, str(exc))
+                return render(request, self.template_name, {"form": form})
+            return redirect("public_registration:register_done")
+        return render(request, self.template_name, {"form": form})
+
+
+def register_done(request):
+    return render(request, "accounts/register_done.html")
+
+
+# --- Admin registration review (modal CRUD) ------------------------------------
+class RegistrationListView(AdminRequiredMixin, ListView):
+    template_name = "accounts/registration_list.html"
+    context_object_name = "registrations"
+    paginate_by = 20
+
+    def get_queryset(self):
+        qs = RegistrationRequest.objects.select_related("user", "blood_type")
+        status = self.request.GET.get("status", "")
+        role = self.request.GET.get("role", "")
+        q = self.request.GET.get("q", "").strip()
+        if status:
+            qs = qs.filter(status=status)
+        if role:
+            qs = qs.filter(role=role)
+        if q:
+            qs = qs.filter(Q(username__icontains=q) | Q(first_name__icontains=q)
+                           | Q(last_name__icontains=q) | Q(email__icontains=q))
+        return qs.order_by("-created_at")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["status_filter"] = self.request.GET.get("status", "")
+        ctx["role_filter"] = self.request.GET.get("role", "")
+        ctx["q"] = self.request.GET.get("q", "")
+        ctx["statuses"] = RegistrationRequest.Status.choices
+        ctx["roles"] = RegistrationRequest.EligibleRole.choices
+        return ctx
+
+    def render_to_response(self, context, **kwargs):
+        if is_htmx(self.request):
+            return render(self.request, "accounts/_registration_table.html", context)
+        return super().render_to_response(context, **kwargs)
+
+
+class RegistrationReviewView(AdminRequiredMixin, View):
+    """Detail + approve/reject. Guarded actions require the REJECT token word
+    re-checked server-side (business rules live in RegistrationService)."""
+
+    template_name = "accounts/registration_review.html"
+
+    def _ctx(self, registration):
+        return {"registration": registration,
+                "applicant": registration.user}
+
+    def get(self, request, pk):
+        registration = get_object_or_404(RegistrationRequest, pk=pk)
+        return render_any(request, self.template_name, self._ctx(registration),
+                          modal_title=f"Review — {registration.username}")
+
+    def post(self, request, pk):
+        registration = get_object_or_404(RegistrationRequest, pk=pk)
+        action = request.POST.get("action", "")
+        try:
+            if action == "approve":
+                RegistrationService.review(registration, decision=RegistrationRequest.Status.APPROVED,
+                                           actor=request.user, request=request)
+                messages.success(request, f"Approved {registration.username}. They can now sign in.")
+            elif action == "reject":
+                if request.POST.get("confirm") != "REJECT":
+                    raise RegistrationError("Type REJECT in the confirmation dialog to reject.")
+                RegistrationService.review(registration, decision=RegistrationRequest.Status.REJECTED,
+                                           actor=request.user, reason=request.POST.get("reason", ""),
+                                           request=request)
+                messages.success(request, f"Rejected registration for {registration.username}.")
+            else:
+                messages.error(request, "Unknown action.")
+        except RegistrationError as exc:
+            messages.error(request, str(exc))
+        return modal_success(request, fallback_redirect="accounts:registration_list")

@@ -29,7 +29,7 @@ from notifications.models import Notification, NotificationTemplate  # noqa: E40
 from reports.engine import REPORTS  # noqa: E402
 from requests.models import Allocation, BloodRequest, Organization  # noqa: E402
 from rewards.models import Reward  # noqa: E402
-from accounts.models import User  # noqa: E402
+from accounts.models import RegistrationRequest, User  # noqa: E402
 
 PASSWORD = "Demo12345!"
 
@@ -126,7 +126,14 @@ def main():
         ("settings index", reverse("settings_app:index"), {200}),
         ("settings blood bank", reverse("settings_app:blood_bank"), {200}),
         ("audit list", reverse("audit:list"), {200}),
+        ("registrations list", reverse("accounts:registration_list"), {200}),
+        ("registrations list filtered", reverse("accounts:registration_list") + "?status=PENDING", {200}),
     ]
+    sample_registration = RegistrationRequest.objects.first()
+    if sample_registration:
+        admin_pages.append(("registration review",
+                            reverse("accounts:registration_review",
+                                    kwargs={"pk": sample_registration.pk}), {200}))
     for key in REPORTS:
         admin_pages.append((f"report {key}", reverse("reports:run", kwargs={"key": key}), {200}))
         admin_pages.append((f"export {key}", reverse("reports:export", kwargs={"key": key}), {200}))
@@ -148,6 +155,7 @@ def main():
         ("settings index (deny)", reverse("settings_app:index"), {302, 403}),
         ("blood bank config (deny)", reverse("settings_app:blood_bank"), {302, 403}),
         ("template list (deny)", reverse("notifications:template_list"), {302, 403}),
+        ("registrations list (deny)", reverse("accounts:registration_list"), {302, 403}),
         ("organization edit (deny)", reverse("requests:organization_edit", kwargs={"pk": sample_org.pk}), {200, 302, 403}),
     ]
     for key, report in REPORTS.items():
@@ -172,6 +180,7 @@ def main():
             check(donor_user, "other donor detail (deny)", reverse("donors:detail", kwargs={"pk": other.pk}), {403})
         check(donor_user, "inventory (deny)", reverse("inventory:dashboard"), {302, 403})
         check(donor_user, "requests (deny)", reverse("requests:list"), {403})
+        check(donor_user, "registrations (deny)", reverse("accounts:registration_list"), {302, 403})
         check(donor_user, "bag detail (deny)", reverse("inventory:bag_detail", kwargs={"pk": sample_bag.pk}), {302, 403})
         # token respond must work even for donor (their own) — use any donor notification
         dn = Notification.objects.filter(donor=donor).first()
@@ -210,6 +219,26 @@ def main():
     check(requester, "inventory (deny)", reverse("inventory:dashboard"), {302, 403})
     check(requester, "donors (deny)", reverse("donors:list"), {403})
     check(requester, "reports (deny)", reverse("reports:center"), {302, 403})
+    check(requester, "registrations (deny)", reverse("accounts:registration_list"), {302, 403})
+
+    # ---------- ANONYMOUS: public pages open, private pages bounce to login ----------
+    anon = Client()
+    for name, url, expected in [
+        ("public landing", reverse("core:home"), {200}),
+        ("public login", reverse("accounts:login"), {200}),
+        ("public register", reverse("public_registration:register"), {200}),
+        ("register done", reverse("public_registration:register_done"), {200}),
+        ("dashboard (redirect)", reverse("core:dashboard"), {302}),
+        ("registrations (redirect)", reverse("accounts:registration_list"), {302}),
+    ]:
+        checks += 1
+        try:
+            code = anon.get(url).status_code
+        except Exception as exc:  # noqa: BLE001
+            failures.append(f"anon {name}: EXCEPTION {type(exc).__name__}: {exc}")
+            continue
+        if code not in expected:
+            failures.append(f"anon {name}: {code} (expected {expected}) {url}")
 
     print(f"walked {checks} pages across 4 roles")
     if failures:

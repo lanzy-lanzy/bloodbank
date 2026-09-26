@@ -162,11 +162,14 @@ EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@bloodbank.local")
 
 # --- Notification providers ----------------------------------------------------
-# SMS_PROVIDER: "mock" (development only, clearly labelled) or a future real
-# provider name. No real SMS provider is configured or claimed operational.
+# SMS_PROVIDER: "mock" (development only, clearly labelled) | "semaphore".
+# "semaphore" is a live gateway: it needs SMS_API_KEY (never committed) and
+# optionally SMS_SENDER_NAME. With no key every send fails safe.
 SMS_PROVIDER = os.environ.get("SMS_PROVIDER", "mock")
 SMS_API_KEY = os.environ.get("SMS_API_KEY", "")
 SMS_SENDER_NAME = os.environ.get("SMS_SENDER_NAME", "BLOODBANK")
+SMS_API_URL = os.environ.get("SMS_API_URL", "https://semaphore.co/api/v4/messages")
+SMS_TIMEOUT_SECONDS = int(os.environ.get("SMS_TIMEOUT_SECONDS", "10"))
 EMAIL_PROVIDER = os.environ.get("EMAIL_PROVIDER", "django")  # uses EMAIL_* above
 
 # --- Security (production hardening; controlled by env) -------------------------

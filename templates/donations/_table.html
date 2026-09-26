@@ -16,7 +16,7 @@
       {% for donation in donations %}
       <tr class="hover:bg-ink-50/60">
         <td class="px-4 py-3 border-t border-ink-100 font-medium text-ink-900 whitespace-nowrap">
-          <a href="{% url 'donations:detail' donation.pk %}" hx-get="{% url 'donations:detail' donation.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'donations:detail' donation.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="hover:text-brand-700">{{ donation.donation_code }}</a>
+          <a href="{% url 'donations:detail' donation.pk %}" hx-get="{% url 'donations:detail' donation.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="hover:text-brand-700">{{ donation.donation_code }}</a>
         </td>
         <td class="px-4 py-3 border-t border-ink-100">
           <a href="{% url 'donors:detail' donation.donor_id %}" hx-get="{% url 'donors:detail' donation.donor_id %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-ink-800 hover:text-brand-700 font-medium">{{ donation.donor.full_name }}</a>
@@ -29,7 +29,7 @@
         <td class="px-4 py-3 border-t border-ink-100 text-ink-600">{{ donation.blood_type|default:"—" }}</td>
         <td class="px-4 py-3 border-t border-ink-100">{% include "components/status_badge.html" with status=donation.status %}</td>
         <td class="px-4 py-3 border-t border-ink-100 text-right whitespace-nowrap">
-          <a href="{% url 'donations:detail' donation.pk %}" hx-get="{% url 'donations:detail' donation.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'donations:detail' donation.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700 font-medium text-xs">View</a>
+          <a href="{% url 'donations:detail' donation.pk %}" hx-get="{% url 'donations:detail' donation.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700 font-medium text-xs">View</a>
         </td>
       </tr>
       {% empty %}

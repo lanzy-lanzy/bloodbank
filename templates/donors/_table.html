@@ -18,7 +18,7 @@
         {% for d in donors %}
         <tr class="hover:bg-ink-50/60">
           <td class="px-4 py-3 border-t border-ink-100">
-            <a href="{% url 'donors:detail' d.pk %}" hx-get="{% url 'donors:detail' d.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'donors:detail' d.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="font-medium text-ink-900 hover:text-brand-600">{{ d.full_name }}</a>
+            <a href="{% url 'donors:detail' d.pk %}" hx-get="{% url 'donors:detail' d.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="font-medium text-ink-900 hover:text-brand-600">{{ d.full_name }}</a>
             <div class="text-xs text-ink-500">{{ d.donor_code }}</div>
           </td>
           <td class="px-4 py-3 border-t border-ink-100 text-ink-600">

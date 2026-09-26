@@ -24,7 +24,7 @@
         <div class="flex justify-between"><dt class="text-ink-500">Role</dt><dd class="font-medium">{{ user.get_role_display }}</dd></div>
         <div class="flex justify-between"><dt class="text-ink-500">Last login</dt><dd class="font-medium">{{ user.last_login|date:"M j, Y H:i"|default:"—" }}</dd></div>
       </dl>
-      <a href="{% url 'accounts:password_change' %}" hx-get="{% url 'accounts:password_change' %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'accounts:password_change' %}" hx-target="#modal-root" hx-swap="innerHTML"
+      <a href="{% url 'accounts:password_change' %}" hx-get="{% url 'accounts:password_change' %}" hx-target="#modal-root" hx-swap="innerHTML"
          class="mt-4 block text-center rounded-xl border border-ink-200 hover:bg-ink-50 text-sm font-medium py-2">Change password</a>
     </div>
     {% if donor %}

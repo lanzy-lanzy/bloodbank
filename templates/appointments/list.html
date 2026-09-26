@@ -86,7 +86,7 @@
                 <span class="block text-xs text-ink-400">{{ a.time|time:"g:i A" }}</span>
               </td>
               <td class="px-4 py-3">
-                <a href="{% url 'donors:detail' pk=a.donor.pk %}" hx-get="{% url 'donors:detail' pk=a.donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'donors:detail' pk=a.donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML"
+                <a href="{% url 'donors:detail' pk=a.donor.pk %}" hx-get="{% url 'donors:detail' pk=a.donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML"
                    class="font-medium text-brand-700 hover:underline">{{ a.donor.donor_code }}</a>
                 <span class="block text-xs text-ink-400">{{ a.donor.full_name }}</span>
               </td>
@@ -118,7 +118,7 @@
                           class="text-xs px-2.5 py-1.5 rounded-lg border border-ink-200 hover:bg-ink-50 text-ink-500">No-show</button>
                   <button type="button" hx-get="{% url 'appointments:status' pk=a.pk %}?to=CANCELLED" hx-target="#modal-root" hx-swap="innerHTML"
                           class="text-xs px-2.5 py-1.5 rounded-lg border border-ink-200 hover:bg-ink-50 text-ink-500">Cancel</button>
-                  <a href="{% url 'appointments:edit' pk=a.pk %}" hx-get="{% url 'appointments:edit' pk=a.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'appointments:edit' pk=a.pk %}" hx-target="#modal-root" hx-swap="innerHTML"
+                  <a href="{% url 'appointments:edit' pk=a.pk %}" hx-get="{% url 'appointments:edit' pk=a.pk %}" hx-target="#modal-root" hx-swap="innerHTML"
                      class="text-xs px-2.5 py-1.5 rounded-lg border border-ink-200 hover:bg-ink-50 text-ink-600">Edit</a>
                 {% endif %}
               </td>

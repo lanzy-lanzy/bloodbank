@@ -4,8 +4,18 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
+from accounts import views as accounts_views
+
+# Public self-registration lives at the root path /register/ (allow-listed
+# exactly in core/middleware.py) but is implemented in the accounts app.
+public_registration_patterns = ([
+    path("", accounts_views.RegisterView.as_view(), name="register"),
+    path("done/", accounts_views.register_done, name="register_done"),
+], "public_registration")
+
 urlpatterns = [
     path("django-admin/", admin.site.urls),
+    path("register/", include(public_registration_patterns)),
     path("", include("core.urls")),
     path("accounts/", include("accounts.urls")),
     path("audit/", include("audit.urls")),

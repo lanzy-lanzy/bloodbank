@@ -45,9 +45,11 @@ administrator; the app already fails safe until then).
    current logic), how many donors per urgency level, retry cadence, and
    quiet hours are policy choices; provider selection for SMS depends on 9.
 9. **Real SMS/email provider — REQUIRES CLARIFICATION + credentials.**
-   SMS is a labelled MOCK provider; email defaults to console. Choose a
-   gateway (e.g. Semaphore/Twilio; SMTP relay), then implement the provider
-   class and add credentials via env only.
+   SMS now has a live `SemaphoreSMSProvider` (Semaphore API v4) — inactive
+   until `SMS_PROVIDER=semaphore` + `SMS_API_KEY` are set; default remains
+   the labelled MOCK. Email defaults to console. Choose an SMTP relay and
+   verify a live Semaphore send with operator-supplied credentials + test
+   number before claiming operational delivery.
 10. **Reward program values — REQUIRES CONFIGURATION.** Point values,
     milestone intervals, tier thresholds and redemption catalogue are demo
     data pending institutional approval; rules gate everything (unconfigured

@@ -111,14 +111,14 @@ walk verification.
 | Secrets via env only | ✅ settings + `.env` (git-ignored); demo keys clearly named insecure defaults |
 | SQLite dev / PostgreSQL prod | ✅ dj-database_url |
 | No destructive migrations/data loss | ✅ additive-only; seed command is idempotent and never deletes |
-| Tests per module | ✅ 106 tests + E2E walkers |
+| Tests per module | ✅ 145 tests + E2E walkers |
 | No placeholder claimed as complete | ✅ MOCK providers labelled; unconfigured states surfaced in UI |
 | Configurable business rules — nothing clinical hard-coded | ✅ rule tables + settings; compatibility/eligibility/rewards/tests all DB-driven |
 | Donor privacy | ✅ donors see only own data (tested) |
 | Requester scoping | ✅ own organization only (tested) |
 | Staff cannot change critical config | ✅ AdminRequiredMixin (tested) |
 | QR/barcode without confidential info | 🟡 not implemented; constraint documented (bag_code only) |
-| E2E verification per role | ✅ GET walk (104 pages × 4 roles) + POST workflow smoke |
+| E2E verification per role | ✅ GET walk (116 pages × 4 roles + anonymous) + POST workflow smoke |
 
 ## 5. Explicit open questions
 

@@ -71,6 +71,10 @@ Open <http://127.0.0.1:8000/> and log in. Each role lands on its own dashboard.
 
 - **Role-based dashboards** for ADMIN / STAFF / DONOR / REQUESTER, each scoped
   to only the data that role may see.
+- **Public self-registration** for donors/requesters at `/register/` with an
+  admin approval gate: accounts stay inactive until reviewed, and applicants
+  are told pending/rejected status (plus the reason) at login and by
+  in-app/SMS notification.
 - **Full donation lifecycle** as an enforced state machine: registration →
   screening → collection → testing → release.
 - **Blood-bag inventory** with a safety-testing ledger, expiry jobs and a
@@ -121,9 +125,10 @@ Open <http://127.0.0.1:8000/> and log in. Each role lands on its own dashboard.
 
 ## Verification status
 
-- `python manage.py test` — 106 tests, all passing (services, state machines,
+- `python manage.py test` — 145 tests, all passing (services, state machines,
   permissions, security guards).
-- Template compile check + a 104-page GET walk across all four roles + a
+- Template compile check + a 116-page GET walk across all four roles plus an
+  anonymous public/private walk + a
   69-assertion POST workflow smoke (runs inside a transaction that is always
   rolled back). See [TESTING.md](TESTING.md).
 

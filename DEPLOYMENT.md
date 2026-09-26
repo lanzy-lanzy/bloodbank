@@ -25,7 +25,9 @@ PostgreSQL behind Gunicorn/Uvicorn + a reverse proxy (HTTPS).
    SESSION_TIMEOUT_SECONDS=1800
    EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
    EMAIL_HOST=... EMAIL_HOST_USER=... EMAIL_HOST_PASSWORD=... EMAIL_USE_TLS=True
-   SMS_PROVIDER=mock                           # until a real gateway + creds are procured
+   SMS_PROVIDER=semaphore                     # or "mock" for development only
+   SMS_API_KEY=                               # Semaphore key — env only, never commit
+   SMS_SENDER_NAME=                           # registered sender name/number
    ```
 
    (`MEDIA_ROOT` is fixed at `<project>/media` in settings — place the whole

@@ -85,46 +85,69 @@ class Command(BaseCommand):
     def _seed_users(self):
         from accounts.models import User
 
+        # Valid-format demo mobiles: ProfileForm requires a reachable PH
+        # mobile number so SMS notification flows can be exercised.
+        # Backfill only — an existing non-blank phone is never overwritten.
+        demo_phones = {"admin": "09170000011", "staff": "09170000012",
+                       "donor": "09170000013", "requester": "09170000014"}
+
+        def backfill_phone(user):
+            if not user.phone:
+                user.phone = demo_phones[user.username]
+                user.save(update_fields=["phone"])
+                self.stdout.write(f"Filled demo phone for user '{user.username}'.")
+
         admin, created = User.objects.get_or_create(
             username="admin",
             defaults={"role": "ADMIN", "email": "admin@example.test",
                       "first_name": "Ada", "last_name": "Admin", "is_staff": True,
-                      "is_superuser": True},
+                      "is_superuser": True, "phone": demo_phones["admin"]},
         )
         if created:
             admin.set_password(self.password)
             admin.save()
             self.stdout.write("Created admin user 'admin'.")
+        else:
+            backfill_phone(admin)
 
         staff, created = User.objects.get_or_create(
             username="staff",
             defaults={"role": "STAFF", "email": "staff@example.test",
-                      "first_name": "Sam", "last_name": "Staff", "is_staff": True},
+                      "first_name": "Sam", "last_name": "Staff", "is_staff": True,
+                      "phone": demo_phones["staff"]},
         )
         if created:
             staff.set_password(self.password)
             staff.save()
             self.stdout.write("Created staff user 'staff'.")
+        else:
+            backfill_phone(staff)
 
         donor_user, created = User.objects.get_or_create(
             username="donor",
             defaults={"role": "DONOR", "email": "donor@example.test",
-                      "first_name": "Diana", "last_name": "Donor"},
+                      "first_name": "Diana", "last_name": "Donor",
+                      "phone": demo_phones["donor"]},
         )
         if created:
             donor_user.set_password(self.password)
             donor_user.save()
             self.stdout.write("Created donor user 'donor'.")
+        else:
+            backfill_phone(donor_user)
 
         requester_user, created = User.objects.get_or_create(
             username="requester",
             defaults={"role": "REQUESTER", "email": "requester@example.test",
-                      "first_name": "Rhea", "last_name": "Requester"},
+                      "first_name": "Rhea", "last_name": "Requester",
+                      "phone": demo_phones["requester"]},
         )
         if created:
             requester_user.set_password(self.password)
             requester_user.save()
             self.stdout.write("Created requester user 'requester'.")
+        else:
+            backfill_phone(requester_user)
 
         return {"admin": admin, "staff": staff, "donor": donor_user, "requester": requester_user}
 
@@ -291,6 +314,18 @@ class Command(BaseCommand):
              "Dear {{ donor_name }}, congratulations — you reached tier {{ tier_name }} "
              "with {{ points }} points.",
              "in_app"),
+            ("registration_submitted", "New {{ role }} registration — {{ full_name }}",
+             "A new {{ role }} registration from {{ full_name }} is awaiting review. "
+             "Open Registrations to approve or reject it.",
+             "in_app,sms"),
+            ("registration_approved", "Registration approved",
+             "Dear {{ full_name }}, your registration has been approved — you can now "
+             "sign in to the blood bank system.",
+             "in_app,sms"),
+            ("registration_rejected", "Registration not approved",
+             "Dear {{ full_name }}, your registration was not approved. "
+             "Reason: {{ rejection_reason }} You may contact the blood bank for details.",
+             "in_app,sms"),
         ]
         for code, subject, body, channels in defs:
             NotificationTemplate.objects.get_or_create(
@@ -572,3 +607,20 @@ class Command(BaseCommand):
                 self.stdout.write(f"Reserved {candidate.bag_code} for {req.request_code}.")
 
         self.stdout.write(f"Blood requests present: {BloodRequest.objects.count()}")
+
+        # --- one pending self-registration for the review queue -------------
+        from accounts.models import RegistrationRequest
+
+        if not RegistrationRequest.objects.filter(username="pending.donor").exists():
+            pending_user = User.objects.create_user(
+                username="pending.donor", password=self.password,
+                email="pending.donor@example.test", first_name="Nena", last_name="Nakasalin",
+                role="DONOR", phone="09170000009", is_active=False)
+            RegistrationRequest.objects.create(
+                first_name="Nena", last_name="Nakasalin", username="pending.donor",
+                email="pending.donor@example.test", phone="09170000009", role="DONOR",
+                date_of_birth=today - timedelta(days=365 * 26),
+                address="Demo Street, Zamboanga City", municipality="Zamboanga City",
+                province="Zamboanga del Sur", user=pending_user)
+            self.stdout.write("Created pending demo registration 'pending.donor' "
+                              "(inactive user — approve/reject under Registrations).")

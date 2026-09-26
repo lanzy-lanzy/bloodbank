@@ -6,8 +6,27 @@ from django.utils import timezone
 
 from core.testing import (make_blood_type, make_component, make_donor, make_donation,
                           make_bag, make_user, set_rules)
+from donors.forms import DonorSelfProfileForm
 from donors.models import Donor
 from donors.services import DonorEligibilityService
+
+
+class DonorContactValidationTests(TestCase):
+    """contact_number is required and must be a valid Philippine mobile so SMS reaches the donor."""
+
+    def test_missing_contact_rejected(self):
+        form = DonorSelfProfileForm(data={"email": "", "address": "", "municipality": "",
+                                          "province": "", "emergency_contact_name": "",
+                                          "emergency_contact_phone": "", "contact_number": ""})
+        self.assertIn("contact_number", form.errors)
+
+    def test_invalid_mobile_rejected(self):
+        form = DonorSelfProfileForm(data={"contact_number": "12345"})
+        self.assertIn("contact_number", form.errors)
+
+    def test_valid_mobile_with_dashes_accepted(self):
+        form = DonorSelfProfileForm(data={"contact_number": "0917-123-4567"})
+        self.assertTrue(form.is_valid(), form.errors)
 
 
 class EligibilityRuleTests(TestCase):

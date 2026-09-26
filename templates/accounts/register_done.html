@@ -1,0 +1,18 @@
+{% extends "base_auth.html" %}
+{% load core_extras %}
+{% block title %}Registration submitted — {{ ORG_NAME }}{% endblock %}
+{% block auth_content %}
+<div class="text-center">
+  <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 text-amber-600">
+    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+  </div>
+  <h2 class="text-xl font-bold text-ink-900 mb-2 tracking-tight">Registration submitted</h2>
+  <p class="text-sm text-ink-500 mb-1">Your account is now <strong>pending administrator approval</strong>.
+    Signing in is not possible until an administrator reviews your registration.</p>
+  <p class="text-sm text-ink-500 mb-6">You will receive a notification (in-app and by SMS, as
+    configured) once a decision has been made.</p>
+  <a href="{% url 'accounts:login' %}" class="inline-flex rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-5 py-2.5 shadow-sm">Back to sign in</a>
+</div>
+{% endblock %}

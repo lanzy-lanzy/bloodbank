@@ -96,9 +96,12 @@ mass-deletes records.
 
 - Email: Django mail framework; default backend is **console** (dev).
   Nothing claims real delivery in dev.
-- SMS: `MockSMSProvider` — **MOCK — DEVELOPMENT ONLY**, logs to the audit
-  log/server log and clearly labelled in UI. No real SMS gateway is
-  configured or implied.
+- SMS: `MockSMSProvider` by default — **MOCK — DEVELOPMENT ONLY**, logs to the
+  audit log/server log and clearly labelled in UI. `SemaphoreSMSProvider`
+  (live gateway, Semaphore API v4) is opt-in via `SMS_PROVIDER=semaphore` and
+  env-only credentials (`SMS_API_KEY`); with missing credentials every send
+  fails safe. No real SMS delivery is claimed until credentials are
+  configured and verified.
 - Secrets (API keys, DB URLs, SECRET_KEY) come only from environment /
   `.env`; none are hard-coded. `.env.example` documents every variable;
   `.env` itself is git-ignored.

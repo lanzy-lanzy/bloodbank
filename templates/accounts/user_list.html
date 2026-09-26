@@ -60,7 +60,7 @@
           </td>
           <td class="px-4 py-3 text-ink-500 whitespace-nowrap">{{ u.last_login|date:"M j, Y H:i"|default:"Never" }}</td>
           <td class="px-4 py-3 text-right whitespace-nowrap">
-            <a href="{% url 'accounts:user_update' u.pk %}" hx-get="{% url 'accounts:user_update' u.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-get="{% url 'accounts:user_update' u.pk %}" hx-target="#modal-root" hx-swap="innerHTML"
+            <a href="{% url 'accounts:user_update' u.pk %}" hx-get="{% url 'accounts:user_update' u.pk %}" hx-target="#modal-root" hx-swap="innerHTML"
                class="text-brand-600 hover:text-brand-700 font-medium text-xs">Edit</a>
             {% if u != request.user %}
             <button type="button" hx-get="{% url 'accounts:user_toggle_lock' u.pk %}" hx-target="#modal-root" hx-swap="innerHTML"

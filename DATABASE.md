@@ -1,8 +1,8 @@
 # Database
 
 SQLite in development (`db.sqlite3`, created by `manage.py migrate`);
-PostgreSQL in production via `DATABASE_URL`. 28 models across 11 apps;
-31 migrations applied. Migrations are additive — nothing in this codebase
+PostgreSQL in production via `DATABASE_URL`. 29 models across 11 apps;
+32 migrations applied. Migrations are additive — nothing in this codebase
 drops or truncates tables, and destructive changes must be reviewed manually.
 
 ## Entity overview
@@ -14,6 +14,7 @@ accounts.User (AUTH_USER_MODEL) ── role: ADMIN | STAFF | DONOR | REQUESTER
                                           │ 1:N
                                         requests.BloodRequest ──1:N→ requests.RequestItem
                                                               ──1:N→ requests.Allocation ──→ inventory.BloodBag
+accounts.RegistrationRequest ──1:1→ accounts.User (inactive until APPROVED)
 
 donors.Donor ──1:N→ donations.Donation ──1:1→ appointments.Appointment
            │        Donation.blood_type → inventory.BloodType
@@ -30,6 +31,20 @@ settings_app.SystemSetting · inventory.BloodType/BloodComponent/TestType/Compat
 ```
 
 ## Key fields and constraints
+
+### accounts.RegistrationRequest
+Public self-registration awaiting admin review. Identity fields
+(`first/middle/last_name`, `username`, `email`, `phone`, `role` limited to
+DONOR / REQUESTER), donor extras (`blood_type` FK null, `date_of_birth`,
+address fields) and `organization_name` for requesters. 1:1 `user` FK to the
+**inactive** `accounts.User` created at submit time (password hashed then;
+never stored in this row). `status` state machine PENDING → APPROVED |
+REJECTED is one-shot (`TRANSITIONS` dict + `RegistrationService.review`
+guards, incl. self-review block and mandatory rejection reason);
+`reviewed_by` / `reviewed_at` / `rejection_reason` are append-only review
+columns. Approving flips `user.is_active`; rejecting leaves the account
+blocked. Duplicate username/email are rejected case-insensitively at form
+level; `phone` must be a valid Philippine mobile (SMS reachability).
 
 ### donors.Donor
 `donor_code` (auto `DON-000001`), optional 1:1 `user` link, `blood_type` FK,
