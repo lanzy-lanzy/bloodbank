@@ -6,6 +6,7 @@ app_name = "inventory"
 
 urlpatterns = [
     path("", views.InventoryDashboardView.as_view(), name="dashboard"),
+    path("badge/", views.InventoryBadgeView.as_view(), name="badge"),
     path("bags/", views.BagListView.as_view(), name="bag_list"),
     path("bags/register/", views.BagRegisterView.as_view(), name="bag_register"),
     path("bags/<int:pk>/", views.BagDetailView.as_view(), name="bag_detail"),

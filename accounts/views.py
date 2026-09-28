@@ -318,6 +318,14 @@ class RegistrationListView(AdminRequiredMixin, ListView):
         return super().render_to_response(context, **kwargs)
 
 
+class RegistrationBadgeView(AdminRequiredMixin, View):
+    """Sidebar pill: registrations awaiting admin review."""
+
+    def get(self, request):
+        return render(request, "components/nav_badge.html",
+                      {"count": RegistrationService.pending_count()})
+
+
 class RegistrationReviewView(AdminRequiredMixin, View):
     """Detail + approve/reject. Guarded actions require the REJECT token word
     re-checked server-side (business rules live in RegistrationService)."""

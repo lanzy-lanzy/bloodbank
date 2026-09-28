@@ -58,6 +58,29 @@ class RegistrationService:
         return registration
 
     @staticmethod
+    def _link_requester_organization(registration, user):
+        """Attach an approved requester to the organization they named.
+
+        The name came from the applicant and is shown on the review screen, so
+        approval is the authorization gate. A case-insensitive match reuses the
+        existing Organization; an unknown name creates one (org_type OTHER —
+        descriptive only, staff can correct it in the org form). Returns None
+        when the registration carries no organization or the user already has a
+        profile, leaving the dashboard's "contact staff" banner as the
+        fail-safe path.
+        """
+        from requests.models import Organization, RequesterProfile
+
+        name = (registration.organization_name or "").strip()
+        if not name or getattr(user, "requester_profile", None) is not None:
+            return None
+        organization = Organization.objects.filter(name__iexact=name).first()
+        if organization is None:
+            organization = Organization.objects.create(
+                name=name, org_type=Organization.OrgType.OTHER)
+        return RequesterProfile.objects.create(user=user, organization=organization)
+
+    @staticmethod
     def review(registration, *, decision, actor, reason="", request=None):
         """Approve or reject a PENDING registration. One-shot; audited; notifies applicant."""
         from notifications.services import NotificationError, NotificationService
@@ -76,6 +99,7 @@ class RegistrationService:
 
         user = registration.user
         before = {"status": registration.status, "is_active": user.is_active}
+        linked_organization = ""
         with transaction.atomic():
             registration.status = decision
             registration.reviewed_by = actor
@@ -86,6 +110,11 @@ class RegistrationService:
             if decision == RegistrationRequest.Status.APPROVED:
                 user.is_active = True
                 user.save(update_fields=["is_active"])
+                if registration.role == User.Role.REQUESTER:
+                    profile = RegistrationService._link_requester_organization(
+                        registration, user)
+                    if profile is not None:
+                        linked_organization = profile.organization.name
             audit.log(request, user=actor,
                       action="REGISTRATION_APPROVED" if decision == RegistrationRequest.Status.APPROVED
                       else "REGISTRATION_REJECTED",
@@ -94,7 +123,9 @@ class RegistrationService:
                       description=f"{registration.get_role_display()} registration of "
                                   f"{registration.username} "
                                   f"{'approved' if decision == RegistrationRequest.Status.APPROVED else 'rejected'}"
-                                  + (f" — reason: {reason.strip()}" if reason else ""))
+                                  + (f" — reason: {reason.strip()}" if reason else "")
+                                  + (f" — linked to organization {linked_organization}."
+                                     if linked_organization else ""))
         context = {"full_name": registration.full_name,
                    "role": registration.get_role_display(),
                    "rejection_reason": registration.rejection_reason}
@@ -107,3 +138,9 @@ class RegistrationService:
             logger.warning("Applicant review notification failed for %s: %s",
                            registration.username, exc)
         return registration
+
+    @staticmethod
+    def pending_count():
+        """Registrations still awaiting review — drives the sidebar badge."""
+        return RegistrationRequest.objects.filter(
+            status=RegistrationRequest.Status.PENDING).count()

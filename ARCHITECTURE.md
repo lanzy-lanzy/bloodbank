@@ -36,7 +36,7 @@ inventory       BloodType/BloodComponent/TestType/BloodBag/TestResult/
                 CompatibilityService (rule-table-driven, never hard-coded)
 requests        Organization/RequesterProfile/BloodRequest/RequestItem/
                 Allocation; BloodRequestService (lifecycle, allocation,
-                issue, transfuse/return feedback)
+                issue, transfuse/return feedback, walk-in desk resolution)
 notifications   NotificationTemplate/Notification; provider interfaces
                 (NotificationProvider → InApp, Django email, Mock/Semaphore SMS);
                 NotificationService dispatch/retry; emergency alerts;
@@ -95,6 +95,13 @@ a reviewed row can never transition again. Approval flips the linked (1:1)
 User's `is_active`; rejection requires a non-empty reason, is stored on the
 request, and is surfaced to the applicant at login and via in-app/SMS
 notification. Self-review of one's own registration is refused.
+Approving a REQUESTER additionally links the account to an organization
+(`RegistrationService._link_requester_organization`): the submitted
+`organization_name` is matched case-insensitively against `Organization`, or
+created (`org_type=OTHER`, correctable under Organizations) when unknown, and
+a `RequesterProfile` is attached — otherwise the new user would sign in to a
+dead-end dashboard. A blank name or a pre-existing profile is left alone, so
+the "contact staff" banner stays the fail-safe.
 
 ## Safety-critical guards
 
@@ -135,16 +142,151 @@ alerts include a public UUID capability link
 response; responses mean *availability only*, never medical clearance, and
 are first-write-wins idempotent.
 
+Request lifecycle decisions are pushed back to the requesting organization as
+in-app notifications from the service layer (`BloodRequestService._notify_requester`
+on `approve` → `request_approved`, `reject` → `request_rejected` with the reason,
+and on the transition to `FULFILLED` → `request_fulfilled`). The recipient is
+`created_by`, so a request saved as a draft by staff notifies nobody. Notification
+failure is logged and swallowed: a missing template must never roll back or block
+the clinical decision itself.
+
+## Request → inventory bridge
+
+A request consumes stock only through `Allocation`. `AllocateForm` (requests/forms.py)
+offers `AVAILABLE` bags of the requested component whose blood type is compatible per
+`CompatibilityService`, restricted to unexpired bags (`expires_at__gt now`) so the
+dropdown can never list a bag the Compatibility Report counts as unavailable — the
+report, the dropdown and the reservation guard all read the same rule set. The detail
+page renders one of four explicit states per outstanding item: a bag selector plus
+"N compatible bag(s) on hand · M unit(s) open to reserve", **All requested units are
+reserved** (nothing left to reserve), **No compatible bag in stock** with the shortfall
+(and a pointer to the Emergency Donor Pool for emergency requests), or "approve request
+first". A rejected POST says which of those it is rather than echoing a generic "select a bag".
+
+**Reservation quota.** Three counters, deliberately distinct:
+`outstanding` (`quantity - fulfilled_quantity`, what is still owed), `units_reserved`
+(bags held `RESERVED` but not yet issued) and `reservable_units` (`outstanding` minus
+`units_reserved`, what may still be reserved). `allocate_bag()` refuses once
+`reservable_units` hits 0, re-checking on a `select_for_update()` copy of the item row
+inside its transaction — checking only `outstanding` let two staff reserve stock for the
+same unit. `reconcile_inventory` reports the fallout it used to be able to create
+(`[OVER-RESERVATION]`, `[FULFILLMENT]`, `[ORPHAN]` reservations on closed requests).
+
+## Walk-in intake (patients at the counter)
+
+Not every request arrives through a requester account: a patient can walk up to
+the blood bank directly. `BloodRequest.channel` records which it was —
+`ORGANIZATION` (default, requester self-service) or `WALK_IN` (staff-logged).
+Only ADMIN/STAFF see the channel control: `BloodRequestForm(staff=…)` pops the
+channel and contact fields for everyone else, and `RequestCreateView` derives
+the owning organization server-side, so a forged `channel=WALK_IN` POST from a
+requester is simply absent from its form and the record stays an
+organization-channel row for their own organization.
+
+Walk-in rows still need an owning `Organization` (the model, reports and audit
+trail all key on it), so they are booked against the desk named by the
+`walk_in_organization_id` setting — `BloodRequestService.walk_in_organization()`
+resolves it and returns `None` when unset or inactive, in which case the create
+form refuses with a **REQUIRES CONFIGURATION** error rather than guessing an
+organization. The desk is excluded from the ordinary organization dropdown and
+from being picked on the organization channel, so a record can never be
+mislabelled in either direction.
+
+**No approval queue.** A walk-in is a direct clinic request, so the staff member
+at the counter *is* the authority — there is nobody to wait for.
+`BloodRequestService.validate_walk_in()` marks the new row `APPROVED` immediately
+(`approved_by` = the creating staff user) and writes its own append-only audit
+action, `REQUEST_VALIDATED_AT_COUNTER`. This removes a form, not a guard: bags
+still only reserve against `APPROVED` status and issuing stays a separate
+confirmed step, so walk-in and organization requests share identical inventory
+guarantees. `approve()` and `reject()` raise `RequestError` for a walk-in row
+(the UI hides those actions; the service refuses a forged POST anyway), and
+`submit()` routes a walk-in draft through `validate_walk_in()` so a walk-in can
+never land in `SUBMITTED` by any path. `_notify_requester()` returns early for
+walk-ins — there is no requester account to notify, and the desk organization
+owns no requester logins. Closing an unservable walk-in uses **cancel**, which
+exists for every channel.
+
+**Scoping invariant:** `channel=WALK_IN` is a staff-side record. It is excluded
+from `_visible_requests`, `_get_request_or_403` (403 even for a member of the
+desk organization), `awaiting_action_count` and the requester dashboard — a
+requester must never read a walk-in patient's row. Because there is no
+requester account, staff also close the loop: the detail page shows *Mark
+Transfused* / *Return Unused* for an issued walk-in allocation, and
+`mark_transfused`/`return_allocation` accept the staff actor. Inventory effects
+are identical to any other request — reservations, issues and the
+open-demand panel do not branch on channel.
+
+**Walk-in Desk workspace** (`/requests/walk-ins/`, `requests:walk_in_desk`;
+badge at `requests:walk_in_badge`): the counter's own page, so staff do not have
+to find walk-ins in the general request list. `WalkInDeskView` is
+`StaffRequiredMixin`-only and renders `BloodRequestService.walk_in_queue()`
+(channel-filtered, ordered by `required_by` then newest) through the shared
+`requests/_table.html` — one table shape, with the counter contact shown under
+the organization. Scope tabs (Open / Closed / All) swap `#results` over HTMX and
+fall back to a plain GET; the stat cards read `walk_in_action_count()` (drafts
+plus approved records still owing units) and the open/closed splits.
+*Log Walk-in Request* opens the existing create modal with
+`?channel=WALK_IN`, which preselects the walk-in card server-side through the
+form's `initial` — the channel decision stays in the service/form, and the JS
+only toggles visibility. With no desk configured the page states **REQUIRES
+CONFIGURATION** and links to System Settings instead of refusing silently.
+
+## Inventory awareness (dashboard + badge)
+
+`BloodRequestService.open_demand()` is the read-only demand side of that bridge: one row
+per outstanding item on an `APPROVED`/`PARTIALLY_FULFILLED` request, with free compatible
+stock and shortage measured against `reservable_units` (a reservation has already left the
+`AVAILABLE` pool, so a half-reserved item must not read as a hard shortage). The inventory
+dashboard renders it as "Open Demand vs Stock on Hand"; `inventory:badge` counts
+`InventoryService.attention_count()` = in-date stock expiring inside the alert window +
+usable-status bags past their date + items in shortage.
+
+One definition per number, everywhere: `expiring_window_days()` is the only reader of
+`expiring_soon_days` (dashboard header, matrix column, bag-list filter, alert window), and
+"available" always means `status=AVAILABLE and expires_at > now` on the inventory dashboard,
+the staff/admin dashboards (`core/views.py`) and the badge. Date-stale bags are listed by
+`InventoryService.usable_past_expiry()` and surfaced as a banner pointing at
+`manage.py expire_blood_bags` rather than being silently dropped, since the expiration rule
+is a scheduled command. Bag-list deep links use comma-separated `status` values (validated
+against `BloodBag.Status`) plus `expiry=active|soon|expired`, so a tile always links to
+exactly what it counted. `_bag_table.html` names the owning request for reserved/issued
+bags via a `Prefetch(..., to_attr="open_allocations")`.
+
 ## Frontend conventions
 
 - Single base layout (`templates/base.html`) with role-aware topbar; centered
   card layout (`base_auth.html`) for login/anonymous token pages.
+- The public landing page (`templates/core/home.html`) is a **standalone**
+  shell (no `base.html`): fixed WebGL canvas (`static/js/landing-scene.js`,
+  Three.js ES module — drifting blood cells reacting to cursor/scroll) plus
+  GSAP choreography (`static/js/landing-anim.js`, CDN GSAP + ScrollTrigger).
+  The layer is strictly decorative: content renders fully without JS (all
+  animations are `gsap.from`), counters start at their server-rendered
+  values, `prefers-reduced-motion` renders one static frame, and any
+  CDN/WebGL failure falls back to the CSS gradient backdrop.
 - Shared components in `templates/components/`: `field.html`,
   `form_errors.html`, `pagination.html`, `status_badge.html`, `card.html`,
-  `confirmation.html` (Alpine confirm dialog). **Caution:** `{# … #}` template
+  `confirmation.html` (Alpine confirm dialog), `nav_badge.html` (sidebar
+  count pill). **Caution:** `{# … #}` template
   comments must never contain `{`/`%` — Django's comment regex `[^{}]+?`
   leaks such tags as live nodes (this once compiled a self-include into
   `pagination.html`). A test enforces this (`core.tests`).
+- Sidebar live counts: `{% nav_item %}` takes an optional `badge_url` that
+  htmx polls (`load, every 60s`) into the link, rendering
+  `components/nav_badge.html`. `requests:badge` counts what awaits the viewer
+  (`BloodRequestService.awaiting_action_count` — staff: undecided plus
+  approved requests still owing units; requester: own open requests),
+  `inventory:badge` counts stock work for staff
+  (`InventoryService.attention_count` — in-date bags expiring inside the
+  configured window, usable-status bags already past their date, and approved
+  items with a compatibility-checked shortage), `accounts:registration_badge`
+  counts PENDING registrations and `requests:walk_in_badge` counts counter
+  records the desk still owes bags for (`walk_in_action_count`, staff-side
+  only). The pill is
+  polled rather than context-processed because the sidebar is outside
+  `#page-content`, so modal-success refreshes would leave a server-rendered
+  count stale.
 - Filter/search forms use `hx-get` + `hx-target="#results"` + `hx-push-url`
   with a plain-GET fallback; pagination preserves query strings via the
   `{% querystring %}` tag.

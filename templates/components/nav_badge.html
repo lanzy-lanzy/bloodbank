@@ -1,0 +1,4 @@
+{# Sidebar pill showing how many items await the current user. Rendered by the badge endpoints into the hx-get slot core_extras.nav_item emits; no count means no pill. #}
+{% if count %}
+<span class="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-brand-500 text-white text-[10px] font-bold flex items-center justify-center">{% if count > 99 %}99+{% else %}{{ count }}{% endif %}</span>
+{% endif %}

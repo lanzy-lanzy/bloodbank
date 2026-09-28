@@ -21,6 +21,7 @@ urlpatterns = [
     path("users/<int:pk>/edit/", views.UserUpdateView.as_view(), name="user_update"),
     path("users/<int:pk>/toggle-lock/", views.UserLockToggleView.as_view(), name="user_toggle_lock"),
     path("registrations/", views.RegistrationListView.as_view(), name="registration_list"),
+    path("registrations/badge/", views.RegistrationBadgeView.as_view(), name="registration_badge"),
     path("registrations/<int:pk>/", views.RegistrationReviewView.as_view(), name="registration_review"),
 ]
 

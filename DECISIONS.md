@@ -111,6 +111,60 @@ form `09XXXXXXXXX` (`+63`/`63` prefixes accepted); an unnormalizable number
 fails rather than being guessed. Credentials come from env only. Live delivery
 is NOT claimed operational until real credentials are configured and verified.
 
+## D-017 — Reservation quota: in-flight `RESERVED` allocations count against the item
+`RequestItem` had only `quantity` / `fulfilled_quantity`, so the allocate guard
+checked `outstanding` (issued blood only) and two staff could each reserve stock
+for the same requested unit — proven on the dev DB (a 1-unit FULFILLED request
+carrying 2 active allocations). The item now exposes three counters —
+`outstanding`, `units_reserved`, `reservable_units` — the guard refuses at
+`reservable_units == 0` and re-reads the item under `select_for_update()` inside
+its transaction. Demand-style screens (the inventory dashboard's open-demand
+panel, shortage counts, the allocate dropdown messaging) measure against
+`reservable_units` too, because a reserved bag has already left `AVAILABLE` and
+must not read as a hard shortage; `fulfilled_quantity` still counts issued blood
+only, so fulfillment accounting is unchanged. `reconcile_inventory` gained
+`[OVER-RESERVATION]` and `[ORPHAN]` checks as the read-only net.
+
+## D-018 — Walk-in requests keep an owning organization (configured desk), not a nullable FK
+A patient can request blood at the counter with no requester account. Making
+`BloodRequest.organization` nullable was rejected: ~15 call sites
+(reports/CSV, dashboards, notifications, audit descriptions, the open-demand
+panel) read `organization.name`, and organization membership is what the
+requester-scoping checks compare against — a null would be both a crash source
+and an authorization question mark. Instead `channel=WALK_IN` marks the record
+and it is booked against the organization named by the new
+`walk_in_organization_id` setting (seed_demo provides "Walk-in Desk (Blood
+Bank)"; institutions repoint it). Unconfigured ⇒ intake is refused with
+REQUIRES CONFIGURATION rather than an arbitrary organization being guessed
+(hard rule 1 posture). Consequences held by tests: the desk is not selectable
+on the organization channel, walk-in rows never appear for any requester
+(list, detail 403, sidebar count, requester dashboard) even if they belong to
+that organization, and staff — not a requester — record transfusion/return on
+walk-in allocations.
+
+## D-019 — Walk-in requests are validated at the counter, not approved
+The approval queue exists because a hospital's requester account is not trusted
+to self-authorize blood. A walk-in has no such party: a staff member at the
+counter took the request in person, so an Approve/Reject step would be staff
+approving their own form — and it is what the user asked to drop ("walk in is
+direct request on clinic"). Chosen: `validate_walk_in()` stores the row
+APPROVED at creation with `approved_by`/`approved_at` = that staff member, under
+its own audit action `REQUEST_VALIDATED_AT_COUNTER`.
+
+Rejected alternative: let walk-ins allocate straight from SUBMITTED. Every guard
+that matters keys on APPROVED status (`allocate_bag`, `open_demand`,
+`awaiting_action_count`, the shortage panel, reports), so a second "eligible for
+allocation" state would fork each of them for no operational gain — and would
+erase who authorized the demand.
+
+Consequences held by tests: `approve()` and `reject()` raise on a walk-in row
+(UI hides the buttons; the service refuses a forged POST), `submit()` routes a
+walk-in draft to validation so `SUBMITTED` never occurs on that channel, no
+requester notification is sent (there is no requester account, and the desk owns
+no logins), and an unservable walk-in is closed with **cancel** like any other
+request. Traceability is unchanged: the counter staff member is recorded, so the
+release chain still reads staff → issue (token-confirmed) → transfuse/return.
+
 ## Open decisions (need the operator)
 - Approval/replacement of every seeded clinical placeholder (D-003 follow-up).
 - Semaphore API key + registered sender name; live-send verification with the

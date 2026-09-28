@@ -266,6 +266,19 @@ class Command(BaseCommand):
         only_if_missing("expiring_soon_days", 7, "inventory", "int",
                         "Bags expiring within this many days are listed as 'expiring soon'.")
 
+        # Walk-in intake needs an owning organization (records are staff-side,
+        # but the data model and reports key requests on one). Institutions
+        # normally designate their own counter desk; admins can repoint it.
+        from requests.models import Organization
+        desk, _ = Organization.objects.get_or_create(
+            name="Walk-in Desk (Blood Bank)",
+            defaults={"org_type": "OTHER", "address": "123 Demo Street, Zamboanga City",
+                      "contact_number": "+63 62 000 0000"},
+        )
+        only_if_missing("walk_in_organization_id", desk.pk, "general", "int",
+                        "Organization that walk-in requests (patients at the counter, logged by "
+                        "staff) are booked against. Empty/invalid disables walk-in intake.")
+
         if self.clinical:
             only_if_missing("min_donation_interval_days", 90, "eligibility", "int",
                             f"{DEMO_NOTE} Must be set/approved by institutional medical authority.")
@@ -297,6 +310,14 @@ class Command(BaseCommand):
              "in_app"),
             ("request_fulfilled", "Request {{ request_id }} fulfilled",
              "Blood request {{ request_id }} for {{ organization }} has been fulfilled.",
+             "in_app"),
+            ("request_approved", "Request {{ request_id }} approved",
+             "Blood request {{ request_id }} for {{ organization }} has been approved. "
+             "The blood bank is now reserving compatible bags for it.",
+             "in_app"),
+            ("request_rejected", "Request {{ request_id }} not approved",
+             "Blood request {{ request_id }} for {{ organization }} was not approved. "
+             "Reason: {{ rejection_reason }}. Please contact the blood bank for details.",
              "in_app"),
             ("appointment_reminder", "Donation appointment reminder",
              "Dear {{ donor_name }}, this is a reminder of your donation appointment on "
@@ -605,6 +626,23 @@ class Command(BaseCommand):
             if candidate:
                 BloodRequestService.allocate_bag(item, candidate, actor=staff)
                 self.stdout.write(f"Reserved {candidate.bag_code} for {req.request_code}.")
+
+        # 4) walk-in at the counter, logged by staff — only once a walk-in desk
+        # organization is configured (see walk_in_organization_id).
+        from requests.services import BloodRequestService as _BRS
+        desk = _BRS.walk_in_organization()
+        if desk and not BloodRequest.objects.filter(
+                channel=BloodRequest.Channel.WALK_IN).exists():
+            req = BloodRequest.objects.create(
+                organization=desk, created_by=staff,
+                channel=BloodRequest.Channel.WALK_IN,
+                walk_in_contact="Demo walk-in patient (relative)", walk_in_phone="09170000009",
+                patient_reference="DEMO-PT-004", required_by=now + timedelta(days=2),
+                urgency="URGENT", clinical_indication="Demo: walk-in request at the counter",
+                status="APPROVED", approved_by=staff, approved_at=now,
+            )
+            RequestItem.objects.create(request=req, blood_type=bt["O+"], component=wb, quantity=1)
+            self.stdout.write(f"Walk-in request {req.request_code} present.")
 
         self.stdout.write(f"Blood requests present: {BloodRequest.objects.count()}")
 

@@ -5,19 +5,49 @@
   <div class="mb-6">
     <h1 class="text-xl font-bold text-ink-900">New Blood Request</h1>
     <p class="text-sm text-ink-500 mt-0.5">
-      Submit on behalf of your organization. Patient identifiers should follow the minimum-necessary principle —
+      {% if form.channel %}Log a request from a hospital/organization, or record one from a patient who came to the blood bank directly.{% else %}Submit on behalf of your organization.{% endif %}
+      Patient identifiers should follow the minimum-necessary principle —
       use the reference code your institution agreed with the blood bank.
     </p>
   </div>
 
-  <form method="post" action="{% url 'requests:create' %}" enctype="multipart/form-data" {% if layout %}hx-post="{% url 'requests:create' %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %} class="bg-white rounded-2xl border border-ink-200 shadow-sm p-6 space-y-4">
+  <form method="post" action="{% url 'requests:create' %}" enctype="multipart/form-data" {% if layout %}hx-post="{% url 'requests:create' %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %}
+        {% if form.channel %}x-data="{ channel: '{{ form.channel.value|default:"ORGANIZATION" }}' }"{% endif %}
+        class="bg-white rounded-2xl border border-ink-200 shadow-sm p-6 space-y-4">
     {% csrf_token %}
     {% include "components/form_errors.html" with form=form %}
 
+    {% if form.channel %}
+    <fieldset>
+      <legend class="block text-sm font-medium text-ink-700 mb-1.5">Who is requesting?</legend>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <label class="flex items-start gap-2.5 rounded-xl border border-ink-200 bg-ink-50/50 px-4 py-3 text-sm cursor-pointer hover:border-brand-300">
+          <input type="radio" name="channel" value="ORGANIZATION" x-model="channel"
+                 {% if form.channel.value != "WALK_IN" %}checked{% endif %}
+                 class="mt-0.5 rounded border-ink-300 text-brand-600 focus:ring-brand-500">
+          <span>
+            <span class="block font-semibold text-ink-800">On behalf of an organization</span>
+            <span class="block text-xs text-ink-500 mt-0.5">A hospital, clinic or RHU that has authorized requester accounts.</span>
+          </span>
+        </label>
+        <label class="flex items-start gap-2.5 rounded-xl border border-ink-200 bg-ink-50/50 px-4 py-3 text-sm cursor-pointer hover:border-brand-300">
+          <input type="radio" name="channel" value="WALK_IN" x-model="channel"
+                 {% if form.channel.value == "WALK_IN" %}checked{% endif %}
+                 class="mt-0.5 rounded border-ink-300 text-brand-600 focus:ring-brand-500">
+          <span>
+            <span class="block font-semibold text-ink-800">Walk-in patient at the counter</span>
+            <span class="block text-xs text-ink-500 mt-0.5">Direct clinic request logged by staff — no approval queue, filled from bags on hand. Staff-only record.</span>
+          </span>
+        </label>
+      </div>
+    </fieldset>
+    {% endif %}
+
     {% if organizations %}
-    <div>
+    <div x-show="{% if form.channel %}channel !== 'WALK_IN'{% else %}true{% endif %}">
       <label class="block text-sm font-medium text-ink-700 mb-1.5">Requesting organization <span class="text-brand-600">*</span></label>
-      <select name="organization" required class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+      <select name="organization" {% if form.channel %}:required="channel !== 'WALK_IN'"{% else %}required{% endif %}
+              class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
         <option value="">Select…</option>
         {% for org in organizations %}
           <option value="{{ org.pk }}" {% if organization.pk == org.pk %}selected{% endif %}>{{ org.name }} ({{ org.get_org_type_display }})</option>
@@ -27,6 +57,31 @@
     {% elif organization %}
     <div class="rounded-xl border border-ink-200 bg-ink-50 px-4 py-3 text-sm">
       <span class="text-ink-500">Organization:</span> <span class="font-semibold text-ink-800">{{ organization.name }}</span>
+    </div>
+    {% endif %}
+
+    {% if walk_in_org %}
+    <div x-show="{% if form.channel %}channel === 'WALK_IN'{% else %}false{% endif %}"
+         class="rounded-xl border border-ink-200 bg-ink-50 px-4 py-3 text-sm">
+      <span class="text-ink-500">Walk-in desk:</span>
+      <span class="font-semibold text-ink-800">{{ walk_in_org.name }}</span>
+      <span class="block text-xs text-ink-500 mt-0.5">Walk-in records are booked against this organization, are visible to staff only, and go straight to bag allocation — no approval step.</span>
+    </div>
+    {% elif form.channel %}
+    <div x-show="channel === 'WALK_IN'"
+         class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+      <span class="font-semibold">REQUIRES CONFIGURATION</span> — no walk-in desk organization is set,
+      so walk-in requests cannot be logged yet. An administrator must point the
+      <code class="text-xs">walk_in_organization_id</code> setting (System Settings) at the organization
+      that owns counter requests.
+    </div>
+    {% endif %}
+
+    {% if form.walk_in_contact %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4"
+         x-show="{% if form.channel %}channel === 'WALK_IN'{% else %}true{% endif %}">
+      {% include "components/field.html" with field=form.walk_in_contact %}
+      {% include "components/field.html" with field=form.walk_in_phone %}
     </div>
     {% endif %}
 
@@ -52,7 +107,12 @@
       <a href="{% url 'requests:list' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Cancel</a>
       {% endif %}
       <button type="submit" name="save_draft" value="1" class="rounded-xl border border-ink-300 bg-white text-sm font-semibold px-4 py-2 text-ink-700 hover:bg-ink-50">Save Draft</button>
+      {% if form.channel %}
+      <button type="submit" class="rounded-xl bg-brand-600 text-white text-sm font-semibold px-4 py-2 hover:bg-brand-700 shadow-sm"
+              x-text="channel === 'WALK_IN' ? 'Log Walk-in Request' : 'Submit Request'">Submit Request</button>
+      {% else %}
       <button type="submit" class="rounded-xl bg-brand-600 text-white text-sm font-semibold px-4 py-2 hover:bg-brand-700 shadow-sm">Submit Request</button>
+      {% endif %}
     </div>
   </form>
 </div>

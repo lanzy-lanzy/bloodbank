@@ -82,12 +82,25 @@ Absence of a rule is treated as NOT compatible (fail-safe). Demo seed loads
 the standard ABO/Rh red-cell matrix UNAPPROVED for institutional review.
 
 ### requests.BloodRequest / RequestItem / Allocation
-Request has `request_code` auto, organization, urgency
+Request has `request_code` auto, organization, `channel`
+(ORGANIZATION = submitted by a requester account / WALK_IN = logged by staff
+for a patient at the counter, with `walk_in_contact` + optional
+`walk_in_phone`), urgency
 (ROUTINE/URGENT/EMERGENCY/CRITICAL), `patient_reference` (minimum necessary
 identifier — no clinical free text), status machine, approval columns.
-Item: blood_type + component + `quantity` / `fulfilled_quantity`
-(`outstanding` property). Allocation: request + item + bag, status
-(RESERVED/ISSUED/RETURNED/CANCELLED), **unique partial constraint: one
+Walk-in rows are booked against the organization named by the
+`walk_in_organization_id` setting and are excluded from every requester-facing
+query. A walk-in skips the approval queue: `validate_walk_in()` stores it as
+APPROVED with `approved_by`/`approved_at` set to the counter staff member,
+auditing `REQUEST_VALIDATED_AT_COUNTER`, so `SUBMITTED`/`UNDER_REVIEW` never
+occur on `channel=WALK_IN` rows (enforced in `approve()`, `reject()` and
+`submit()`).
+Item: blood_type + component + `quantity` / `fulfilled_quantity`, plus the
+derived accounting trio `outstanding` (quantity − fulfilled),
+`units_reserved` (RESERVED allocations on the item) and `reservable_units`
+(outstanding − units_reserved) — reservation quota is enforced against
+`reservable_units` under `select_for_update()`. Allocation: request + item + bag, status
+(RESERVED/ISSUED/RETURNED/CANCELLED, `ACTIVE_STATUSES` = RESERVED|ISSUED), **unique partial constraint: one
 active (RESERVED|ISSUED) allocation per bag**.
 
 ### rewards.PointTransaction
@@ -108,6 +121,8 @@ Unique `key`, string `value` + `value_type` (str/int/bool) → `typed_value()`,
 (`min_age_years`, `max_age_years`, `min_donation_interval_days`,
 `min_weight_kg`, `max_donations_per_year`), inventory thresholds
 (`low_stock_threshold`, `expiring_soon_days`) live here — NOT in code.
+`walk_in_organization_id` names the organization that owns counter (walk-in)
+requests; unset or pointing at an inactive organization disables walk-in intake.
 
 ### audit.AuditLog
 Append-only: `user`, `action`, `module`, object reference, `ip_address`,

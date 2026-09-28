@@ -79,8 +79,13 @@ def has_any_role(user, roles_csv):
 
 # --- Navigation ------------------------------------------------------------------
 @register.simple_tag
-def nav_item(url_name, label, request, icon_path):
-    """Sidebar link with active-state highlighting."""
+def nav_item(url_name, label, request, icon_path, badge_url=""):
+    """Sidebar link with active-state highlighting.
+
+    ``badge_url`` is optional: a fragment endpoint that renders
+    ``components/nav_badge.html`` and is polled by htmx, so the count stays
+    live without a full navigation (the sidebar is not part of #page-content).
+    """
     try:
         url = reverse(url_name)
     except NoReverseMatch:
@@ -95,7 +100,12 @@ def nav_item(url_name, label, request, icon_path):
         'viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{}"/></svg>',
         icon_path,
     )
-    return format_html('<a href="{}" class="{}">{}<span>{}</span></a>', url, cls, mark_safe(icon), label)
+    badge = format_html(
+        '<span hx-get="{}" hx-trigger="load, every 60s" hx-swap="innerHTML"></span>',
+        badge_url,
+    ) if badge_url else ""
+    return format_html('<a href="{}" class="{}">{}<span>{}</span>{}</a>',
+                       url, cls, mark_safe(icon), label, mark_safe(badge))
 
 
 # --- Topbar section title --------------------------------------------------------

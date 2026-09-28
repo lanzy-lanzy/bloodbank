@@ -22,6 +22,9 @@
            class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500 lg:col-span-2">
     <select name="status" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
       <option value="">Any status</option>
+      {% if status_filter_labels %}
+        <option value="{{ status_filter }}" selected>{{ status_filter_labels }}</option>
+      {% endif %}
       {% for value, label in statuses %}
         <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
@@ -40,7 +43,8 @@
     </select>
     <select name="expiry" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
       <option value="">Any expiry</option>
-      <option value="soon" {% if expiry_filter == "soon" %}selected{% endif %}>Expiring within 7 days</option>
+      <option value="active" {% if expiry_filter == "active" %}selected{% endif %}>Still in date</option>
+      <option value="soon" {% if expiry_filter == "soon" %}selected{% endif %}>Expiring within {{ window_days }} days</option>
       <option value="expired" {% if expiry_filter == "expired" %}selected{% endif %}>Past expiry</option>
     </select>
     <select name="sort" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">

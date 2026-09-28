@@ -83,7 +83,11 @@ Open <http://127.0.0.1:8000/> and log in. Each role lands on its own dashboard.
   app fails safe (nothing compatible / `REQUIRES STAFF REVIEW`) when
   unconfigured.
 - **Blood requests** from hospitals/organizations with allocation and
-  fulfillment feedback.
+  fulfillment feedback, plus a **Walk-in Desk** for patients who come to the
+  blood bank directly (staff-only workspace at `/requests/walk-ins/`, booked
+  against a configured desk organization, invisible to requester accounts). A
+  walk-in is a direct clinic request — no approve/reject queue; it is validated
+  at the counter and filled from compatible bags on hand.
 - **Emergency donor notification** with token-based responses over in-app,
   email and a clearly-labelled **MOCK** SMS provider.
 - **Rewards program**: immutable point ledger, configurable rules, tiers and
@@ -125,11 +129,11 @@ Open <http://127.0.0.1:8000/> and log in. Each role lands on its own dashboard.
 
 ## Verification status
 
-- `python manage.py test` — 145 tests, all passing (services, state machines,
+- `python manage.py test` — 218 tests, all passing (services, state machines,
   permissions, security guards).
-- Template compile check + a 116-page GET walk across all four roles plus an
+- Template compile check + a 142-page GET walk across all four roles plus an
   anonymous public/private walk + a
-  69-assertion POST workflow smoke (runs inside a transaction that is always
+  75-assertion POST workflow smoke (runs inside a transaction that is always
   rolled back). See [TESTING.md](TESTING.md).
 
 ## Deliberately NOT claimed

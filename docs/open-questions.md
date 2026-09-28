@@ -62,16 +62,29 @@ administrator; the app already fails safe until then).
     `RequesterProfile.is_authorized` exists and admin can manage accounts,
     but the formal process (documented license verification, who signs off,
     re-certification period) is an institutional SOP to encode.
+13. **Walk-in counter policy — partly DECIDED, rest REQUIRES CLARIFICATION.**
+    Walk-in intake is implemented (staff log the request against the configured
+    `walk_in_organization_id` desk organization), and the operator has decided
+    the workflow question: a walk-in is a **direct clinic request with no
+    approve/reject step** — the counter staff member is the authority, so the
+    record is validated at the counter (D-019) and closed with cancel if it
+    cannot proceed. Still to be decided by the institution: what
+    identification/proof is required at the counter, whether a physician's
+    requisition must be attached (the document field exists but is optional),
+    whether blood may be released to an individual at all (vs. only to a
+    facility), and who may record transfusion/return afterwards. None of those
+    are enforced in code today — the record captures a contact name, and release
+    still requires the `ISSUE` confirmation token.
 
 ## Integration / infrastructure
 
-13. **HIS/LIS integration — REQUIRES CLARIFICATION.** See API_ROADMAP
+14. **HIS/LIS integration — REQUIRES CLARIFICATION.** See API_ROADMAP
     Phase 2/3; needs partner system identities and transport choice
     (HL7 v2 / FHIR / CSV drop).
-14. **Backup/retention policy — REQUIRES CLARIFICATION.** Audit trail is
+15. **Backup/retention policy — REQUIRES CLARIFICATION.** Audit trail is
     append-only forever today; a retention/archive policy (legal requirement
     period, cold storage) should be agreed with the institution.
-15. **Environment specifics — REQUIRES CONFIGURATION.** Production
+16. **Environment specifics — REQUIRES CONFIGURATION.** Production
     `SECRET_KEY`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `DATABASE_URL`,
     SMTP credentials per DEPLOYMENT.md; none are committed.
 

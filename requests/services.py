@@ -7,10 +7,12 @@ Every allocation/issue writes both the inventory ledger and the audit log.
 import logging
 
 from django.db import transaction
+from django.db.models import F, Q, Sum, Value
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from inventory.services import CompatibilityService, InventoryError, InventoryService
-from requests.models import Allocation, BloodRequest, RequestItem
+from requests.models import Allocation, BloodRequest, Organization, RequestItem
 
 logger = logging.getLogger("bloodbank.requests")
 
@@ -21,6 +23,24 @@ class RequestError(Exception):
 
 class BloodRequestService:
     @staticmethod
+    def walk_in_organization():
+        """The Organization walk-in requests are booked against, or None.
+
+        Walk-in requests still need an owning organization (it is what the
+        requester-facing scoping, reports and audit trail key on), so the
+        institution designates one — normally the blood bank's own counter —
+        via the ``walk_in_organization_id`` setting. Unset or inactive means
+        walk-in intake is not configured: callers must fail safe rather than
+        pick some organization for a patient.
+        """
+        from settings_app.services import get_int_setting
+
+        org_id = get_int_setting("walk_in_organization_id", None)
+        if not org_id:
+            return None
+        return Organization.objects.filter(pk=org_id, is_active=True).first()
+
+    @staticmethod
     def submit(blood_request, *, actor=None, request=None):
         from audit import services as audit
 
@@ -29,6 +49,9 @@ class BloodRequestService:
         if not blood_request.items.exists():
             raise RequestError("A request needs at least one blood item before submission.")
         blood_request.full_clean()
+        if blood_request.is_walk_in:
+            # A walk-in never queues for approval, whatever path submits it.
+            return BloodRequestService.validate_walk_in(blood_request, actor=actor, request=request)
         with transaction.atomic():
             blood_request.status = BloodRequest.Status.SUBMITTED
             blood_request.save(update_fields=["status", "updated_at"])
@@ -92,11 +115,89 @@ class BloodRequestService:
         return report
 
     @staticmethod
-    def approve(blood_request, *, actor=None, request=None):
-        """Move SUBMITTED/UNDER_REVIEW → APPROVED. Does NOT allocate bags —
-        allocation and issue are separate authorized steps."""
+    def open_demand():
+        """Demand lines the blood bank still owes: approved / partially fulfilled
+        requests with units outstanding, each matched against compatible stock.
+
+        Read-only aggregate for the inventory dashboard and its badge. Stock
+        comes only from CompatibilityService against the configured rule set, so
+        an unapproved rule set reports a shortage rather than inventing supply.
+        """
+        rows = []
+        items = (RequestItem.objects
+                 .filter(request__status__in=[BloodRequest.Status.APPROVED,
+                                              BloodRequest.Status.PARTIALLY_FULFILLED])
+                 .select_related("request__organization", "blood_type", "component")
+                 .order_by("request__required_by", "request__pk", "pk"))
+        for item in items:
+            if item.outstanding <= 0:
+                continue
+            # A reserved bag has already left the AVAILABLE pool, so free stock is
+            # measured against the units still open to reserve — otherwise an
+            # item half-covered by reservations would read as a hard shortage.
+            reservable = item.reservable_units
+            bags, _ = CompatibilityService.find_compatible_inventory(
+                item.blood_type, item.component, reservable)
+            rows.append({
+                "request": item.request,
+                "item": item,
+                "outstanding": item.outstanding,
+                "in_flight": item.units_reserved,
+                "reservable": reservable,
+                "compatible": len(bags),
+                "shortage": max(0, reservable - len(bags)),
+                "rules_configured": CompatibilityService.compatible_donor_types(
+                    item.blood_type, item.component)[1].exists(),
+            })
+        return rows
+
+    @staticmethod
+    def shortage_item_count():
+        """Open demand lines that cannot be filled from stock on hand."""
+        return sum(1 for row in BloodRequestService.open_demand() if row["shortage"])
+
+    @staticmethod
+    def validate_walk_in(blood_request, *, actor=None, request=None):
+        """A walk-in is a direct clinic request: the staff member at the counter
+        is the authority, so it never enters the approval queue.
+
+        This replaces a form, not a guard — bags still only reserve against
+        APPROVED status and issuing stays a separate authorized step, so walk-in
+        and organization requests keep identical inventory guarantees.
+        """
         from audit import services as audit
 
+        if not blood_request.is_walk_in:
+            raise RequestError("Only walk-in requests are validated at the counter.")
+        if blood_request.status not in (BloodRequest.Status.DRAFT, BloodRequest.Status.SUBMITTED):
+            raise RequestError(f"Cannot validate a walk-in in status {blood_request.status}.")
+        if not blood_request.items.exists():
+            raise RequestError("A request needs at least one blood item before it can be validated.")
+        with transaction.atomic():
+            blood_request.status = BloodRequest.Status.APPROVED
+            blood_request.approved_by = actor
+            blood_request.approved_at = timezone.now()
+            blood_request.save(update_fields=["status", "approved_by", "approved_at", "updated_at"])
+            audit.log(request, user=actor, action="REQUEST_VALIDATED_AT_COUNTER", module="requests",
+                      obj=blood_request,
+                      description=f"Walk-in {blood_request.request_code} validated at the counter by "
+                                  f"{getattr(actor, 'username', 'staff')} "
+                                  f"(with {blood_request.walk_in_contact})")
+            if blood_request.is_emergency:
+                # Nobody outside the counter saw the submission, so the alert
+                # still has to go out.
+                BloodRequestService._notify_staff_of_emergency(blood_request)
+        return blood_request
+
+    @staticmethod
+    def approve(blood_request, *, actor=None, request=None):
+        """Move SUBMITTED/UNDER_REVIEW → APPROVED. Does NOT allocate bags —
+        allocation and issue are separate authorized steps. Walk-ins never see
+        this: see validate_walk_in()."""
+        from audit import services as audit
+
+        if blood_request.is_walk_in:
+            raise RequestError("Walk-in requests are validated at the counter, not approved.")
         if blood_request.status not in (BloodRequest.Status.SUBMITTED, BloodRequest.Status.UNDER_REVIEW):
             raise RequestError(f"Cannot approve a request in status {blood_request.status}.")
         with transaction.atomic():
@@ -106,12 +207,16 @@ class BloodRequestService:
             blood_request.save(update_fields=["status", "approved_by", "approved_at", "updated_at"])
             audit.log(request, user=actor, action="REQUEST_APPROVED", module="requests", obj=blood_request,
                       description=f"Request {blood_request.request_code} approved")
+            BloodRequestService._notify_requester(blood_request, "request_approved")
         return blood_request
 
     @staticmethod
     def reject(blood_request, *, reason, actor=None, request=None):
         from audit import services as audit
 
+        if blood_request.is_walk_in:
+            raise RequestError("Walk-in requests are not approved or rejected — cancel one "
+                               "the counter cannot proceed with.")
         if blood_request.status in (BloodRequest.Status.FULFILLED, BloodRequest.Status.REJECTED,
                                     BloodRequest.Status.CANCELLED):
             raise RequestError(f"Cannot reject a request in status {blood_request.status}.")
@@ -127,6 +232,8 @@ class BloodRequestService:
             blood_request.save(update_fields=["status", "rejection_reason", "updated_at"])
             audit.log(request, user=actor, action="REQUEST_REJECTED", module="requests", obj=blood_request,
                       description=f"Request {blood_request.request_code} rejected: {reason}")
+            BloodRequestService._notify_requester(
+                blood_request, "request_rejected", {"rejection_reason": reason.strip()})
         return blood_request
 
     @staticmethod
@@ -157,8 +264,20 @@ class BloodRequestService:
             raise RequestError("Bags can only be allocated to APPROVED requests.")
         if item.outstanding <= 0:
             raise RequestError("This item is already fully allocated.")
+        if item.reservable_units <= 0:
+            raise RequestError(
+                f"All {item.quantity} requested unit(s) are already reserved or issued "
+                f"for this item ({item.units_reserved} still reserved).")
 
         with transaction.atomic():
+            # Re-read the item under a row lock: outstanding ignores in-flight
+            # reservations, so without this two staff could each reserve stock
+            # for the same unit.
+            locked_item = RequestItem.objects.select_for_update().get(pk=item.pk)
+            if locked_item.reservable_units <= 0:
+                raise RequestError(
+                    f"All {locked_item.quantity} requested unit(s) are already reserved or issued "
+                    f"for this item ({locked_item.units_reserved} still reserved).")
             locked_bag = type(bag).objects.select_for_update().get(pk=bag.pk)
             if locked_bag.status != "AVAILABLE":
                 raise RequestError(f"Bag {locked_bag.bag_code} is {locked_bag.status}, not AVAILABLE.")
@@ -236,7 +355,8 @@ class BloodRequestService:
 
     @staticmethod
     def mark_transfused(allocation, *, actor=None, request=None):
-        """Record that issued blood was transfused (feedback from requester)."""
+        """Record that issued blood was transfused (feedback from the requester,
+        or from staff for a walk-in record, which has no requester account)."""
         if allocation.status != Allocation.Status.ISSUED:
             raise RequestError("Only ISSUED allocations can be marked transfused.")
         InventoryService.transition(allocation.bag_id, "TRANSFUSED", actor=actor, request=request,
@@ -287,17 +407,20 @@ class BloodRequestService:
                 BloodRequestService._notify_requester(blood_request, "request_fulfilled")
 
     @staticmethod
-    def _notify_requester(blood_request, template_code):
+    def _notify_requester(blood_request, template_code, extra=None):
         from notifications.services import NotificationService
 
+        if blood_request.is_walk_in:
+            return  # no requester account behind a counter record — staff work it in-page
         if blood_request.created_by:
             try:
+                context = {
+                    "request_id": blood_request.request_code,
+                    "organization": blood_request.organization.name,
+                }
+                context.update(extra or {})
                 NotificationService.send_to_user(
-                    blood_request.created_by, template_code,
-                    {
-                        "request_id": blood_request.request_code,
-                        "organization": blood_request.organization.name,
-                    },
+                    blood_request.created_by, template_code, context,
                     channels=["in_app"],
                 )
             except Exception:  # noqa: BLE001
@@ -320,6 +443,72 @@ class BloodRequestService:
                       description=f"{br.request_code} expired (required-by date passed unfulfilled)")
             expired.append(br)
         return expired
+
+    # --- reporting helpers -------------------------------------------------------
+    @staticmethod
+    def _requests_owing_units():
+        """PKs of APPROVED/PARTIALLY_FULFILLED requests that still owe units.
+
+        Counted in SQL because total_quantity/total_fulfilled are Python
+        properties, so the ORM cannot filter on them directly.
+        """
+        return (
+            BloodRequest.objects.order_by()
+            .annotate(
+                units_requested=Coalesce(Sum("items__quantity"), Value(0)),
+                units_fulfilled=Coalesce(Sum("items__fulfilled_quantity"), Value(0)),
+            )
+            .filter(
+                status__in=[BloodRequest.Status.APPROVED,
+                            BloodRequest.Status.PARTIALLY_FULFILLED],
+                units_requested__gt=F("units_fulfilled"),
+            ).values("pk")
+        )
+
+    @staticmethod
+    def walk_in_queue():
+        """Counter records, newest demand first — the Walk-in Desk queue."""
+        return (BloodRequest.objects
+                .filter(channel=BloodRequest.Channel.WALK_IN)
+                .select_related("organization")
+                .prefetch_related("items__blood_type", "items__component")
+                .order_by(F("required_by").asc(nulls_last=True), "-pk"))
+
+    @staticmethod
+    def walk_in_action_count():
+        """Walk-ins the counter staff still have to act on: unvalidated drafts
+        plus approved ones owing bags. Nothing waiting on an approval decision —
+        a walk-in never enters that queue (D-019)."""
+        return (BloodRequest.objects
+                .filter(channel=BloodRequest.Channel.WALK_IN)
+                .filter(Q(status=BloodRequest.Status.DRAFT)
+                        | Q(pk__in=BloodRequestService._requests_owing_units()))
+                .count())
+
+    @staticmethod
+    def awaiting_action_count(user):
+        """How many requests are waiting on this user's side of the desk.
+
+        Drives the sidebar badge. Staff/admin see requests still needing a
+        decision (SUBMITTED / UNDER_REVIEW) plus approved ones that still owe
+        units; a requester sees their own organization's open requests.
+        Counted in SQL because total_quantity/total_fulfilled are Python
+        properties, so the ORM cannot filter on them directly.
+        """
+        if user.role in ("ADMIN", "STAFF"):
+            return BloodRequest.objects.filter(
+                Q(status__in=[BloodRequest.Status.SUBMITTED,
+                              BloodRequest.Status.UNDER_REVIEW])
+                | Q(pk__in=BloodRequestService._requests_owing_units())).count()
+        if user.role == "REQUESTER":
+            profile = getattr(user, "requester_profile", None)
+            if profile is None:
+                return 0
+            return BloodRequest.objects.filter(
+                organization=profile.organization,
+                status__in=BloodRequest.OPEN_STATUSES).exclude(
+                channel=BloodRequest.Channel.WALK_IN).count()
+        return 0
 
     # --- emergency workflow --------------------------------------------------------
     @staticmethod

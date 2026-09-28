@@ -31,9 +31,18 @@ commands in [README.md](README.md) and [TESTING.md](TESTING.md).
    migrations, no `--purge` behaviour in management commands without explicit
    operator opt-in. `seed_demo` is idempotent and only inserts.
 5. **Role boundaries.** DONOR sees only own data; REQUESTER only own
-   organization; STAFF cannot touch critical configuration
-   (`AdminRequiredMixin`); permission negatives stay tested (see TESTING.md
-   matrix) whenever routes change.
+   organization **and never `channel=WALK_IN` records** (staff-side counter
+   intake — excluded in `_visible_requests`, `_get_request_or_403`,
+   `awaiting_action_count` and the requester dashboard). A walk-in is a
+   **direct clinic request: no approve/reject step** — `validate_walk_in()`
+   stores it APPROVED at the counter (`REQUEST_VALIDATED_AT_COUNTER`), and
+   `approve()`/`reject()` refuse it. The staff-side **Walk-in Desk**
+   (`requests:walk_in_desk`, `requests:walk_in_badge`) is `StaffRequiredMixin` —
+   never widen it to REQUESTER/DONOR, and keep its queue on
+   `channel=WALK_IN` only. Never add a channel branch to the
+   allocation guards: bags still reserve only against APPROVED. STAFF cannot
+   touch critical configuration (`AdminRequiredMixin`); permission negatives
+   stay tested (see TESTING.md matrix) whenever routes change.
 6. **External providers**: default SMS provider stays `MockSMSProvider`
    (labelled MOCK — DEVELOPMENT ONLY). `SemaphoreSMSProvider` is live-capable
    but only when `SMS_PROVIDER=semaphore` + `SMS_API_KEY` are set in the
@@ -74,6 +83,14 @@ commands in [README.md](README.md) and [TESTING.md](TESTING.md).
   button gets swallowed by that handler and the guarded action never posts.
 - Test `Client` used outside the runner needs `settings.ALLOWED_HOSTS +=
   ["testserver"]`.
+- **The public landing page (`core/home.html`) is standalone** — it does NOT
+  extend `base.html`. Its GSAP/Three.js layer lives in
+  `static/js/landing-scene.js` (ES module, imports three from CDN) and
+  `static/js/landing-anim.js` (classic, window.gsap). Decorative only — no
+  business logic in JS. Invariants: every element visible without JS
+  (animations use `gsap.from` only), counters start server-rendered,
+  `prefers-reduced-motion` → single static frame, WebGL/CDN failure → CSS
+  gradient fallback (never a broken page).
 - **Auth shell must stay scroll-safe**: `base_auth.html` centres with a
   `min-h-screen flex flex-col justify-center` wrapper and normal document
   flow — NOT `body{flex items-center}` + `overflow-hidden` (that combination
@@ -100,10 +117,10 @@ commands in [README.md](README.md) and [TESTING.md](TESTING.md).
 ```
 npm run build:css                 # rebuild static/css/tailwind.css after class changes
 python manage.py check
-python manage.py test                 # 145 tests — must stay OK
+python manage.py test                 # 218 tests — must stay OK
 python check_templates.py             # all templates compile
-python check_e2e.py                   # 116-page GET walk (4 roles + anonymous)
-python check_e2e_post.py              # 69-assert POST workflows (rolls back)
+python check_e2e.py                   # 142-page GET walk (4 roles + anonymous)
+python check_e2e_post.py              # 75-assert POST workflows (rolls back)
 python modal_smoke.py                 # modal/HX-Request contract (rolls back)
 ```
 

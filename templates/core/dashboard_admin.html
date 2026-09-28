@@ -74,7 +74,10 @@
   <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
     <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
       <h2 class="font-semibold text-ink-900">Requests by Urgency</h2>
-      <a href="{% url 'requests:list' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">All requests</a>
+      <div class="flex items-center gap-4">
+        <a href="{% url 'requests:walk_in_desk' %}" class="text-sm font-medium text-ink-600 hover:text-ink-900">Walk-in Desk</a>
+        <a href="{% url 'requests:list' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">All requests</a>
+      </div>
     </div>
     <div class="p-5"><canvas id="urgencyChart" height="220" aria-label="Blood requests per urgency level" role="img"></canvas></div>
   </div>

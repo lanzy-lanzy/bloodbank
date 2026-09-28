@@ -10,6 +10,7 @@
           <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Collected</th>
           <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Expires</th>
           <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Location</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Allocated to</th>
           <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
         </tr>
       </thead>
@@ -29,10 +30,19 @@
             <span class="block text-[11px] font-normal text-ink-400">{% if bag.is_expired_by_date %}expired{% else %}{{ bag.days_until_expiry }} day{{ bag.days_until_expiry|pluralize }} left{% endif %}</span>
           </td>
           <td class="px-4 py-3 text-ink-600 text-xs">{{ bag.location|default:"—" }}{% if bag.storage_position %} · {{ bag.storage_position }}{% endif %}</td>
+          <td class="px-4 py-3 text-xs">
+            {% for alloc in bag.open_allocations %}
+              <a class="font-semibold text-ink-800 hover:text-brand-600" href="{% url 'requests:detail' alloc.request.pk %}"
+                 hx-get="{% url 'requests:detail' alloc.request.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ alloc.request.request_code }}</a>
+              <span class="block text-[11px] text-ink-400">{{ alloc.request.organization.name }} · {{ alloc.get_status_display|lower }}</span>
+            {% empty %}
+              <span class="text-ink-400">—</span>
+            {% endfor %}
+          </td>
           <td class="px-4 py-3">{% include "components/status_badge.html" with status=bag.status %}</td>
         </tr>
         {% empty %}
-        <tr><td colspan="7" class="px-4 py-10">
+        <tr><td colspan="8" class="px-4 py-10">
           {% include "components/empty_state.html" with empty_title="No blood bags found" empty_text="Adjust filters or register a bag." %}
         </td></tr>
         {% endfor %}

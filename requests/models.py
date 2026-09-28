@@ -56,6 +56,10 @@ class RequesterProfile(models.Model):
 
 
 class BloodRequest(models.Model):
+    class Channel(models.TextChoices):
+        ORGANIZATION = "ORGANIZATION", "Organization (requester account)"
+        WALK_IN = "WALK_IN", "Walk-in at the blood bank"
+
     class Urgency(models.TextChoices):
         ROUTINE = "ROUTINE", "Routine"
         URGENT = "URGENT", "Urgent"
@@ -79,6 +83,19 @@ class BloodRequest(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name="requests")
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
                                    related_name="requests_created")
+    channel = models.CharField(
+        max_length=12, choices=Channel.choices, default=Channel.ORGANIZATION, db_index=True,
+        help_text="WALK_IN: recorded by staff at the counter for a patient who came to the blood bank "
+                  "directly, with no requester account. A direct clinic request — validated at the "
+                  "counter, never queued for approval, and never visible to organization requesters.",
+    )
+    walk_in_contact = models.CharField(
+        max_length=120, blank=True,
+        help_text="Person at the counter to deal with on a walk-in request (name or role, e.g. "
+                  "patient, relative, referring midwife).",
+    )
+    walk_in_phone = models.CharField(max_length=30, blank=True,
+                                     help_text="Optional callback number for a walk-in request.")
     patient_reference = models.CharField(
         max_length=120, blank=True,
         help_text="Patient identifier/reference. Keep to the minimum necessary — no clinical details in free text.",
@@ -114,8 +131,15 @@ class BloodRequest(models.Model):
         super().save(*args, **kwargs)
 
     def clean(self):
+        if self.channel == self.Channel.WALK_IN and not self.walk_in_contact.strip():
+            raise ValidationError(
+                {"walk_in_contact": "Record who the walk-in request is with, so the counter can be reached."})
         if self.required_by and self.required_by <= timezone.now() and self.status in ("DRAFT", "SUBMITTED"):
             raise ValidationError({"required_by": "Required date/time must be in the future for new requests."})
+
+    @property
+    def is_walk_in(self):
+        return self.channel == self.Channel.WALK_IN
 
     @property
     def is_emergency(self):
@@ -149,7 +173,23 @@ class RequestItem(models.Model):
 
     @property
     def outstanding(self):
+        """Units still to be issued (issued blood is what fulfillment counts)."""
         return max(0, self.quantity - self.fulfilled_quantity)
+
+    @property
+    def units_reserved(self):
+        """Bags held RESERVED for this item but not yet issued.
+
+        A reservation consumes the item's quota: two staff who both see
+        ``outstanding`` units left must not both be able to reserve stock for
+        the same unit.
+        """
+        return self.allocations.filter(status=Allocation.Status.RESERVED).count()
+
+    @property
+    def reservable_units(self):
+        """Units still open to a new reservation: outstanding minus in-flight."""
+        return max(0, self.outstanding - self.units_reserved)
 
 
 class Allocation(models.Model):

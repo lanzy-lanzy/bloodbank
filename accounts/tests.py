@@ -281,6 +281,112 @@ class RegistrationReviewTests(TestCase):
 
 
 @override_settings(SMS_PROVIDER="mock", SMS_API_KEY="")
+class RequesterApprovalLinkTests(TestCase):
+    """Approving a REQUESTER must attach the organization profile.
+
+    Without it the account can sign in but is stuck on the dashboard's
+    "No organization linked" banner and blocked from creating requests."""
+
+    def setUp(self):
+        make_registration_templates()
+        self.admin = make_user("link-admin", role="ADMIN")
+        applicant = make_user("link-req", role="REQUESTER", is_active=False)
+        self.reg = RegistrationRequest.objects.create(
+            first_name="Req", last_name="Tester", username=applicant.username,
+            email="link@example.test", phone="09171234567", role="REQUESTER",
+            organization_name="Link Test Hospital", user=applicant)
+
+    def _approve(self):
+        from accounts.services import RegistrationService
+        RegistrationService.review(self.reg, decision=RegistrationRequest.Status.APPROVED,
+                                   actor=self.admin)
+
+    def test_approval_creates_organization_and_profile(self):
+        from requests.models import Organization, RequesterProfile
+        self._approve()
+        organization = Organization.objects.get(name="Link Test Hospital")
+        self.assertEqual(RequesterProfile.objects.get(user__username="link-req").organization,
+                         organization)
+        self.client.login(username="link-req", password=PASSWORD)
+        resp = self.client.get(reverse("core:dashboard"))
+        self.assertNotContains(resp, "No organization linked")
+        self.assertContains(resp, "Requests for Link Test Hospital.")
+
+    def test_approval_reuses_existing_organization_ignoring_case(self):
+        from requests.models import Organization, RequesterProfile
+        existing = Organization.objects.create(name="link test hospital", org_type="CLINIC")
+        self._approve()
+        self.assertEqual(Organization.objects.filter(name__iexact="link test hospital").count(), 1)
+        self.assertEqual(RequesterProfile.objects.get(user__username="link-req").organization,
+                         existing)
+
+    def test_blank_organization_name_leaves_account_unlinked(self):
+        from requests.models import RequesterProfile
+        self.reg.organization_name = "   "
+        self.reg.save(update_fields=["organization_name"])
+        self._approve()
+        self.reg.user.refresh_from_db()
+        self.assertTrue(self.reg.user.is_active)
+        self.assertFalse(RequesterProfile.objects.filter(user__username="link-req").exists())
+
+    def test_pre_existing_profile_is_not_repointed(self):
+        from requests.models import Organization, RequesterProfile
+        org = Organization.objects.create(name="Already On File", org_type="CLINIC")
+        RequesterProfile.objects.create(user=self.reg.user, organization=org)
+        self._approve()
+        self.assertEqual(RequesterProfile.objects.get(user__username="link-req").organization, org)
+
+    def test_donor_approval_does_not_create_requester_profile(self):
+        from requests.models import RequesterProfile
+        applicant = make_user("link-donor", role="DONOR", is_active=False)
+        reg = RegistrationRequest.objects.create(
+            first_name="Don", last_name="Or", username="link-donor",
+            email="link-donor@example.test", phone="09171234567", role="DONOR", user=applicant)
+        from accounts.services import RegistrationService
+        RegistrationService.review(reg, decision=RegistrationRequest.Status.APPROVED,
+                                   actor=self.admin)
+        self.assertFalse(RequesterProfile.objects.filter(user__username="link-donor").exists())
+
+
+@override_settings(SMS_PROVIDER="mock", SMS_API_KEY="")
+class RegistrationBadgeTests(TestCase):
+    """Sidebar pill: pending registrations, admin only."""
+
+    def setUp(self):
+        make_registration_templates()
+        self.admin = make_user("badge-admin", role="ADMIN")
+        self.staff = make_user("badge-staff", role="STAFF")
+
+    def _pending(self, username):
+        user = make_user(username, role="DONOR", is_active=False)
+        return RegistrationRequest.objects.create(
+            first_name="P", last_name="End", username=username,
+            email=f"{username}@example.test", phone="09171234567", role="DONOR", user=user)
+
+    def test_counts_only_pending(self):
+        from accounts.services import RegistrationService
+        self._pending("badge-p2")
+        self._pending("badge-p3")
+        self.assertEqual(RegistrationService.pending_count(), 2)
+        reviewed = self._pending("badge-p4")
+        RegistrationService.review(reviewed, decision=RegistrationRequest.Status.REJECTED,
+                                   actor=self.admin, reason="nope")
+        self.assertEqual(RegistrationService.pending_count(), 2)
+
+    def test_endpoint_renders_pill_for_admin(self):
+        self._pending("badge-p5")
+        self.client.login(username="badge-admin", password=PASSWORD)
+        resp = self.client.get(reverse("accounts:registration_badge"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, ">1<")
+
+    def test_endpoint_denies_non_admin(self):
+        self.client.login(username="badge-staff", password=PASSWORD)
+        resp = self.client.get(reverse("accounts:registration_badge"))
+        self.assertEqual(resp.status_code, 403)
+
+
+@override_settings(SMS_PROVIDER="mock", SMS_API_KEY="")
 class RegistrationAccessTests(TestCase):
     def setUp(self):
         self.donor = make_user("acc-donor2", role="DONOR")

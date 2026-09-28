@@ -169,6 +169,35 @@ def run_workflows():
     expect(breq is not None and breq.status == "SUBMITTED"
            and breq.organization_id == profile.organization_id,
            "B1b request SUBMITTED under requester's org")
+
+    # Walk-in intake: staff-only, booked against the configured desk organization.
+    desk = BloodRequestService.walk_in_organization()
+    expect(desk is not None, "B1c walk_in_organization_id is configured (re-run seed_demo)")
+    post_ok(staff, reverse("requests:create"),
+            {"organization": desk.pk if desk else "", "channel": "WALK_IN",
+             "walk_in_contact": "E2E walk-in (patient)", "walk_in_phone": "",
+             "patient_reference": "E2E PT-WALK", "urgency": "URGENT",
+             "required_by": (timezone.localtime() + timezone.timedelta(days=1)).strftime("%Y-%m-%dT%H:%M"),
+             "clinical_indication": "E2E walk-in smoke",
+             "blood_type": bt.pk, "component": prbc.pk, "quantity": 1},
+            "B1d walk-in create POST (staff)")
+    wreq = BloodRequest.objects.filter(patient_reference="E2E PT-WALK").first()
+    expect(wreq is not None and wreq.is_walk_in and desk is not None
+           and wreq.organization_id == desk.pk,
+           "B1e walk-in booked against the desk organization")
+    # A walk-in is a direct clinic request: validated at the counter, never queued.
+    expect(wreq is not None and wreq.status == BloodRequest.Status.APPROVED,
+           "B1e2 walk-in lands APPROVED straight away - no approval queue")
+    post_ok(requester, reverse("requests:create"),
+            {"channel": "WALK_IN", "walk_in_contact": "E2E forged walk-in",
+             "patient_reference": "E2E PT-WALK-X", "urgency": "ROUTINE",
+             "required_by": (timezone.localtime() + timezone.timedelta(days=1)).strftime("%Y-%m-%dT%H:%M"),
+             "blood_type": bt.pk, "component": prbc.pk, "quantity": 1},
+            "B1f requester POST with forged channel")
+    forged = BloodRequest.objects.filter(patient_reference="E2E PT-WALK-X").first()
+    expect(forged is not None and not forged.is_walk_in
+           and forged.organization_id == profile.organization_id,
+           "B1g forged channel ignored - requester record stays org-channel")
     if breq:
         post_ok(staff, reverse("requests:action", kwargs={"pk": breq.pk}),
                 {"action": "review"}, "B2 review POST")

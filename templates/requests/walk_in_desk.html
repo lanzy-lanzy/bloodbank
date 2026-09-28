@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Walk-in Desk — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+{% url 'requests:walk_in_desk' as desk_url %}
+{% url 'requests:create' as create_url %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-bold text-ink-900">Walk-in Desk</h1>
+    <p class="text-sm text-ink-500 mt-0.5 max-w-2xl">
+      Patients who come to the blood bank directly, with no requester account.
+      A walk-in is a <span class="font-semibold text-ink-700">direct clinic request</span>:
+      logged and validated by staff at the counter, with no approval or rejection
+      step — it is filled from compatible bags on hand.
+    </p>
+  </div>
+  {% include "components/modal_action.html" with ma_url=create_url|add:"?channel=WALK_IN" ma_label="Log Walk-in Request" ma_icon="M12 5v14M5 12h14" %}
+</div>
+
+{% if not desk %}
+<div class="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+  <span class="font-semibold">REQUIRES CONFIGURATION</span> — no walk-in desk organization is set,
+  so new counter requests cannot be logged. An administrator must point the
+  <code class="text-xs">walk_in_organization_id</code> setting
+  (<a href="{% url 'settings_app:index' %}" class="underline font-medium">System Settings</a>)
+  at the organization that owns walk-in records. Existing records below stay readable.
+</div>
+{% else %}
+<p class="-mt-3 mb-4 text-xs text-ink-500">Counter records are booked against
+  <span class="font-semibold text-ink-700">{{ desk.name }}</span> and are never visible to
+  requester accounts.</p>
+{% endif %}
+
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+  {% include "components/stat_card.html" with stat_label="Awaiting bags" stat_value=owed_count stat_sub="validated walk-ins still owing units" stat_href=desk_url %}
+  {% include "components/stat_card.html" with stat_label="Open at the counter" stat_value=open_count stat_color=sky stat_sub="not yet fulfilled or closed" stat_href=desk_url %}
+  {% include "components/stat_card.html" with stat_label="Closed" stat_value=closed_count stat_color=slate stat_sub="fulfilled, cancelled or expired" %}
+</div>
+
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4 flex flex-wrap items-center justify-between gap-3">
+  <div class="flex flex-wrap gap-2 text-sm">
+    <a href="{{ desk_url }}" hx-get="{{ desk_url }}" hx-target="#results" hx-push-url="true"
+       class="rounded-xl px-3 py-1.5 font-medium {% if scope == 'open' %}bg-ink-900 text-white{% else %}border border-ink-200 text-ink-600 hover:bg-ink-50{% endif %}">Open</a>
+    <a href="{{ desk_url }}?scope=closed" hx-get="{{ desk_url }}?scope=closed" hx-target="#results" hx-push-url="true"
+       class="rounded-xl px-3 py-1.5 font-medium {% if scope == 'closed' %}bg-ink-900 text-white{% else %}border border-ink-200 text-ink-600 hover:bg-ink-50{% endif %}">Closed</a>
+    <a href="{{ desk_url }}?scope=all" hx-get="{{ desk_url }}?scope=all" hx-target="#results" hx-push-url="true"
+       class="rounded-xl px-3 py-1.5 font-medium {% if scope == 'all' %}bg-ink-900 text-white{% else %}border border-ink-200 text-ink-600 hover:bg-ink-50{% endif %}">All</a>
+    <a href="{% url 'requests:list' %}?channel=WALK_IN"
+       class="rounded-xl px-3 py-1.5 font-medium text-brand-600 hover:bg-brand-50">Search all requests</a>
+  </div>
+  <p class="text-xs text-ink-500">Open a record to reserve compatible bags, issue them, then record transfusion or return.</p>
+</div>
+
+<div id="results">
+  {% include "requests/_table.html" with empty_title="No walk-in requests yet" empty_text="Use Log Walk-in Request when a patient comes to the counter directly." %}
+</div>
+{% endblock %}

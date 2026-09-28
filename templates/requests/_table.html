@@ -16,7 +16,13 @@
         {% for r in requests_list %}
         <tr class="hover:bg-ink-50/60 {% if r.is_emergency %}bg-brand-50/40{% endif %}">
           <td class="px-4 py-3"><a class="font-semibold text-ink-900 hover:text-brand-600" href="{% url 'requests:detail' r.pk %}" hx-get="{% url 'requests:detail' r.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ r.request_code }}</a></td>
-          <td class="px-4 py-3 text-ink-600">{{ r.organization.name }}</td>
+          <td class="px-4 py-3 text-ink-600">
+            {{ r.organization.name }}
+            {% if r.is_walk_in %}
+            <span class="block mt-0.5 inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700 ring-1 ring-sky-200">Walk-in</span>
+            <span class="block text-[11px] text-ink-500">counter contact: {{ r.walk_in_contact|default:"—" }}</span>
+            {% endif %}
+          </td>
           <td class="px-4 py-3 text-xs text-ink-600">
             {% for item in r.items.all %}<span class="font-bold text-brand-700">{{ item.blood_type.code }}</span> {{ item.component.code|upper }} ×{{ item.quantity }}{% if not forloop.last %} · {% endif %}{% endfor %}
           </td>
@@ -33,7 +39,7 @@
         </tr>
         {% empty %}
         <tr><td colspan="7" class="px-4 py-10">
-          {% include "components/empty_state.html" with empty_title="No blood requests found" empty_text="Requests created by your organization appear here." %}
+          {% include "components/empty_state.html" with empty_title=empty_title|default:"No blood requests found" empty_text=empty_text|default:"Requests created by your organization appear here." %}
         </td></tr>
         {% endfor %}
       </tbody>

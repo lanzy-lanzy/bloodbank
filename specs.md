@@ -19,9 +19,9 @@ institution-verified outcomes and enforces configured rules.
 | Actor | Capabilities |
 |---|---|
 | ADMIN | All operational + user management + system/blood-bank configuration (blood types, components, test types, compatibility rules, eligibility thresholds, reward values, templates) + audit viewing |
-| STAFF | Donor registry & screening, donation & collection workflow, testing entry/verification, inventory transitions, request review/approval, allocation & issue, notifications & retries, reward adjustments, reports (except admin-only) |
+| STAFF | Donor registry & screening, donation & collection workflow, testing entry/verification, inventory transitions, request review/approval, allocation & issue, **walk-in request intake + Walk-in Desk workspace (staff-side records, validated at the counter with no approval step)**, notifications & retries, reward adjustments, reports (except admin-only) |
 | DONOR | Own profile (contact fields only), self-book appointment (requested status only), own donation history, own rewards & redemption, own notifications & emergency-response replies |
-| REQUESTER | Create/manage blood requests for own organization only, view status & provide fulfillment feedback (transfused/returned) |
+| REQUESTER | Create/manage blood requests for own organization only (never the blood bank's walk-in records), view status & provide fulfillment feedback (transfused/returned) |
 
 ✅ RBAC via role mixins + per-view checks; ✅ negative-access tests + HTTP
 walk verification.
@@ -69,13 +69,27 @@ walk verification.
 - Request with items (type/component/quantity), urgency levels,
   required-by time, optional supporting document (validated extension) ✅.
 - Lifecycle DRAFT→SUBMITTED→REVIEW→APPROVED→FULFILLED with reject/cancel/
-  expire ✅.
+  expire ✅ (organization channel only — see walk-in below).
+- Walk-in intake: staff may log a request for a patient who came to the blood
+  bank (no requester account), captured with a counter contact; booked against
+  the configured walk-in desk organization, refused with REQUIRES CONFIGURATION
+  when unset ✅ (tested). **A walk-in is a direct clinic request: no approve or
+  reject step** — it is stored APPROVED on creation, validated by the counter
+  staff member and audited as `REQUEST_VALIDATED_AT_COUNTER`, while `approve()`
+  and `reject()` refuse a walk-in row ✅ (tested). Bags still reserve only
+  against APPROVED and issue stays a separate confirmed step, so inventory
+  guarantees do not branch on channel; an unservable walk-in is cancelled ✅.
+  Walk-in rows are staff-side only — never listed,
+  counted or opened for a requester account, even one on the desk
+  organization ✅ (tested), and staff record transfusion/return for them ✅.
 
 ### 3.7 Compatibility & allocation
 - Compatibility from approved rule rows only; absence ⇒ incompatible ✅
   (tested four rule-shape cases).
 - Allocate AVAILABLE compatible unexpired bag → RESERVED with per-bag
-  unique active allocation ✅; issue with confirmation token ✅;
+  unique active allocation ✅ and per-item quota (reserved + issued may never
+  exceed the requested quantity; the item row is re-checked under
+  `select_for_update`) ✅ (tested); issue with confirmation token ✅;
   transfuse/return feedback from requester ✅; cancel restores stock ✅.
 
 ### 3.8 Emergency donor notification
@@ -105,20 +119,20 @@ walk verification.
 | Req | Status |
 |---|---|
 | Server-side validation always | ✅ forms + services; client attrs only cosmetic |
-| Transactions + row locking on inventory/reward writes | ✅ select_for_update in services (PostgreSQL enforces truly; SQLite serializes writes at DB level) |
+| Transactions + row locking on inventory/request/reward writes | ✅ `transaction.atomic()` + `select_for_update()` on the bag and the request item in services (PostgreSQL enforces truly; SQLite serializes writes at DB level) |
 | Immutable audit | ✅ model+queryset level, tested |
 | Soft deletion for history | ✅ donors; ledgers never edited |
 | Secrets via env only | ✅ settings + `.env` (git-ignored); demo keys clearly named insecure defaults |
 | SQLite dev / PostgreSQL prod | ✅ dj-database_url |
 | No destructive migrations/data loss | ✅ additive-only; seed command is idempotent and never deletes |
-| Tests per module | ✅ 145 tests + E2E walkers |
+| Tests per module | ✅ 218 tests + E2E walkers |
 | No placeholder claimed as complete | ✅ MOCK providers labelled; unconfigured states surfaced in UI |
 | Configurable business rules — nothing clinical hard-coded | ✅ rule tables + settings; compatibility/eligibility/rewards/tests all DB-driven |
 | Donor privacy | ✅ donors see only own data (tested) |
 | Requester scoping | ✅ own organization only (tested) |
 | Staff cannot change critical config | ✅ AdminRequiredMixin (tested) |
 | QR/barcode without confidential info | 🟡 not implemented; constraint documented (bag_code only) |
-| E2E verification per role | ✅ GET walk (116 pages × 4 roles + anonymous) + POST workflow smoke |
+| E2E verification per role | ✅ GET walk (133 pages × 4 roles + anonymous) + POST workflow smoke |
 
 ## 5. Explicit open questions
 

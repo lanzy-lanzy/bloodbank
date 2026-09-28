@@ -112,6 +112,9 @@ def main():
         ("requests list", reverse("requests:list"), {200}),
         ("request detail", reverse("requests:detail", kwargs={"pk": sample_request.pk}), {200}),
         ("request create", reverse("requests:create"), {200}),
+        ("walk-in desk", reverse("requests:walk_in_desk"), {200}),
+        ("walk-in desk closed scope", reverse("requests:walk_in_desk") + "?scope=closed", {200}),
+        ("walk-in sidebar badge", reverse("requests:walk_in_badge"), {200}),
         ("organizations", reverse("requests:organization_list"), {200}),
         ("organization edit", reverse("requests:organization_edit", kwargs={"pk": sample_org.pk}), {200}),
         ("notifications inbox", reverse("notifications:inbox"), {200}),
@@ -128,6 +131,9 @@ def main():
         ("audit list", reverse("audit:list"), {200}),
         ("registrations list", reverse("accounts:registration_list"), {200}),
         ("registrations list filtered", reverse("accounts:registration_list") + "?status=PENDING", {200}),
+        ("requests sidebar badge", reverse("requests:badge"), {200}),
+        ("inventory sidebar badge", reverse("inventory:badge"), {200}),
+        ("registrations sidebar badge", reverse("accounts:registration_badge"), {200}),
     ]
     sample_registration = RegistrationRequest.objects.first()
     if sample_registration:
@@ -147,15 +153,20 @@ def main():
         ("inventory dashboard", reverse("inventory:dashboard"), {200}),
         ("bag detail", reverse("inventory:bag_detail", kwargs={"pk": sample_bag.pk}), {200}),
         ("request detail", reverse("requests:detail", kwargs={"pk": sample_request.pk}), {200}),
+        ("walk-in desk", reverse("requests:walk_in_desk"), {200}),
+        ("walk-in sidebar badge", reverse("requests:walk_in_badge"), {200}),
         ("appointments list", reverse("appointments:list"), {200}),
         ("delivery list", reverse("notifications:delivery_list"), {200}),
         ("reports center", reverse("reports:center"), {200}),
         ("audit list", reverse("audit:list"), {200, 403}),
+        ("requests sidebar badge", reverse("requests:badge"), {200}),
+        ("inventory sidebar badge", reverse("inventory:badge"), {200}),
         # staff must NOT manage critical configuration
         ("settings index (deny)", reverse("settings_app:index"), {302, 403}),
         ("blood bank config (deny)", reverse("settings_app:blood_bank"), {302, 403}),
         ("template list (deny)", reverse("notifications:template_list"), {302, 403}),
         ("registrations list (deny)", reverse("accounts:registration_list"), {302, 403}),
+        ("registrations sidebar badge (deny)", reverse("accounts:registration_badge"), {302, 403}),
         ("organization edit (deny)", reverse("requests:organization_edit", kwargs={"pk": sample_org.pk}), {200, 302, 403}),
     ]
     for key, report in REPORTS.items():
@@ -179,8 +190,13 @@ def main():
         if other:
             check(donor_user, "other donor detail (deny)", reverse("donors:detail", kwargs={"pk": other.pk}), {403})
         check(donor_user, "inventory (deny)", reverse("inventory:dashboard"), {302, 403})
+        check(donor_user, "inventory sidebar badge (deny)", reverse("inventory:badge"), {302, 403})
         check(donor_user, "requests (deny)", reverse("requests:list"), {403})
+        check(donor_user, "requests sidebar badge (deny)", reverse("requests:badge"), {403})
+        check(donor_user, "walk-in desk (deny)", reverse("requests:walk_in_desk"), {302, 403})
+        check(donor_user, "walk-in badge (deny)", reverse("requests:walk_in_badge"), {302, 403})
         check(donor_user, "registrations (deny)", reverse("accounts:registration_list"), {302, 403})
+        check(donor_user, "registrations sidebar badge (deny)", reverse("accounts:registration_badge"), {302, 403})
         check(donor_user, "bag detail (deny)", reverse("inventory:bag_detail", kwargs={"pk": sample_bag.pk}), {302, 403})
         # token respond must work even for donor (their own) — use any donor notification
         dn = Notification.objects.filter(donor=donor).first()
@@ -209,14 +225,36 @@ def main():
     check(requester, "requester dashboard", reverse("core:dashboard"), {200})
     check(requester, "requests list", reverse("requests:list"), {200})
     if my_profile and my_profile.organization:
-        own = BloodRequest.objects.filter(organization=my_profile.organization).first()
+        own = (BloodRequest.objects.filter(organization=my_profile.organization)
+               .exclude(channel="WALK_IN").first())
         if own:
             check(requester, "own request detail", reverse("requests:detail", kwargs={"pk": own.pk}), {200})
         other = BloodRequest.objects.exclude(organization=my_profile.organization).first()
         if other:
             check(requester, "other org request (deny)", reverse("requests:detail", kwargs={"pk": other.pk}), {403})
     check(requester, "request create", reverse("requests:create"), {200})
+    check(requester, "requests sidebar badge", reverse("requests:badge"), {200})
+    # The counter queue is staff-side: a requester must not even see the page.
+    check(requester, "walk-in desk (deny)", reverse("requests:walk_in_desk"), {302, 403})
+    check(requester, "walk-in badge (deny)", reverse("requests:walk_in_badge"), {302, 403})
+    # Walk-in records belong to the blood bank counter: no requester sees them,
+    # and the channel filter must not leak them to a requester.
+    walkin = BloodRequest.objects.filter(channel="WALK_IN").first()
+    if walkin:
+        check(requester, "walk-in request (deny)",
+              reverse("requests:detail", kwargs={"pk": walkin.pk}), {403})
+        req_filter_resp = check(requester, "walk-in channel filter (no leak)",
+                                reverse("requests:list") + "?channel=WALK_IN", {200})
+        if req_filter_resp and walkin.request_code in req_filter_resp.content.decode():
+            failures.append(f"walk-in leak: {requester.username} saw {walkin.request_code} in the list")
+        check(staff, "walk-in request detail",
+              reverse("requests:detail", kwargs={"pk": walkin.pk}), {200})
+        check(staff, "walk-in channel filter",
+              reverse("requests:list") + "?channel=WALK_IN", {200})
+        check(staff, "walk-in create form",
+              reverse("requests:create") + "?channel=WALK_IN", {200})
     check(requester, "inventory (deny)", reverse("inventory:dashboard"), {302, 403})
+    check(requester, "inventory sidebar badge (deny)", reverse("inventory:badge"), {302, 403})
     check(requester, "donors (deny)", reverse("donors:list"), {403})
     check(requester, "reports (deny)", reverse("reports:center"), {302, 403})
     check(requester, "registrations (deny)", reverse("accounts:registration_list"), {302, 403})

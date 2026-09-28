@@ -176,7 +176,10 @@ def _requester_dashboard(request):
     profile = getattr(request.user, "requester_profile", None)
     qs = BloodRequest.objects.none()
     if profile is not None:
-        qs = BloodRequest.objects.filter(organization=profile.organization)
+        # Blood bank walk-in records are staff-side even when the desk
+        # organization matches this requester's organization.
+        qs = BloodRequest.objects.filter(organization=profile.organization).exclude(
+            channel=BloodRequest.Channel.WALK_IN)
     elif request.user.role in ("ADMIN", "STAFF"):
         qs = BloodRequest.objects.all()
 
@@ -194,19 +197,26 @@ def _requester_dashboard(request):
 
 
 def _inventory_matrix(bags):
-    """Rows of {blood_type, available, reserved, expiring_soon} for the dashboard table."""
+    """Rows of {blood_type, available, reserved, expiring_soon} for the dashboard table.
+
+    Same definitions as the inventory dashboard: "available" is in-date stock,
+    and "expiring_soon" is the subset of it inside the configurable alert window.
+    """
     from inventory.models import BloodType
+    from inventory.services import expiring_window_days
 
     now = timezone.now()
-    soon = now + timedelta(days=7)
+    days = expiring_window_days()
+    soon = now + timedelta(days=days)
     rows = []
     for bt in BloodType.objects.filter(is_active=True).order_by("abo", "rh"):
         base = bags.filter(blood_type=bt)
+        in_date = base.filter(status="AVAILABLE", expires_at__gt=now)
         rows.append({
             "blood_type": bt,
-            "available": base.filter(status="AVAILABLE", expires_at__gt=soon).count(),
+            "available": in_date.count(),
             "reserved": base.filter(status="RESERVED").count(),
-            "expiring_soon": base.filter(status="AVAILABLE", expires_at__lte=soon, expires_at__gt=now).count(),
+            "expiring_soon": in_date.filter(expires_at__lte=soon).count(),
         })
     return rows
 

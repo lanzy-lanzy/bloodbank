@@ -1,6 +1,6 @@
 """Inventory views: dashboard, bag search, testing, guarded transitions, ledger."""
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.utils import timezone
 from django.views import View
@@ -11,7 +11,10 @@ from core.mixins import StaffRequiredMixin, is_htmx
 from core.modals import modal_success, render_any
 from inventory.forms import BagRegisterForm, TestResultForm, TransitionForm
 from inventory.models import BloodBag, BloodComponent, BloodType, InventoryTransaction, TestResult, TestType
-from inventory.services import CompatibilityService, InventoryError, InventoryService
+from inventory.services import (CompatibilityService, InventoryError, InventoryService,
+                                expiring_window_days)
+from requests.models import Allocation
+from requests.services import BloodRequestService
 
 SORT_OPTIONS = {
     "newest": "-collected_at",
@@ -27,29 +30,51 @@ class InventoryDashboardView(StaffRequiredMixin, View):
 
     def get(self, request):
         now = timezone.now()
-        soon = now + timezone.timedelta(days=7)
+        days = expiring_window_days()
+        soon = now + timezone.timedelta(days=days)
         bags = BloodBag.objects.select_related("blood_type", "component")
         matrix = []
         for bt in BloodType.objects.filter(is_active=True).order_by("abo", "rh"):
             base = bags.filter(blood_type=bt)
+            # "Available" means the same thing everywhere on this page: AVAILABLE
+            # and still in date. "Expiring" is a subset of it, not a separate pool.
+            in_date = base.filter(status="AVAILABLE", expires_at__gt=now)
             matrix.append({
                 "blood_type": bt,
-                "available": base.filter(status="AVAILABLE", expires_at__gt=soon).count(),
+                "available": in_date.count(),
+                "expiring_soon": in_date.filter(expires_at__lte=soon).count(),
                 "reserved": base.filter(status="RESERVED").count(),
-                "expiring_soon": base.filter(status="AVAILABLE", expires_at__lte=soon, expires_at__gt=now).count(),
                 "quarantined": base.filter(status__in=["QUARANTINED", "TESTING"]).count(),
             })
+        from settings_app.services import get_int_setting
+        threshold = get_int_setting("low_stock_threshold", 3)
+        demand = BloodRequestService.open_demand()
         return render(request, self.template_name, {
+            "window_days": days,
             "total_bags": bags.count(),
-            "available": bags.filter(status="AVAILABLE").count(),
+            "available": bags.filter(status="AVAILABLE", expires_at__gt=now).count(),
             "quarantined": bags.filter(status__in=["QUARANTINED", "TESTING"]).count(),
             "reserved": bags.filter(status="RESERVED").count(),
             "expiring_soon": InventoryService.expiring_soon(),
             "expired": bags.filter(status="EXPIRED").count(),
             "discarded": bags.filter(status="DISCARDED").count(),
             "matrix": matrix,
+            "low_stock": [row for row in matrix if row["available"] <= threshold],
+            "low_stock_threshold": threshold,
+            "demand": demand,
+            "demand_units": sum(row["outstanding"] for row in demand),
+            "shortage_units": sum(row["shortage"] for row in demand),
+            "past_expiry_usable": InventoryService.usable_past_expiry(),
             "components": BloodComponent.objects.filter(is_active=True),
         })
+
+
+class InventoryBadgeView(StaffRequiredMixin, View):
+    """Sidebar pill: stock work someone should look at."""
+
+    def get(self, request):
+        return render(request, "components/nav_badge.html",
+                      {"count": InventoryService.attention_count()})
 
 
 class BagListView(StaffRequiredMixin, ListView):
@@ -59,17 +84,30 @@ class BagListView(StaffRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = BloodBag.objects.select_related("blood_type", "component", "donor", "donation")
+        # The table names the owning request for reserved/issued bags; prefetch
+        # keeps that to one extra query for the page.
+        qs = qs.prefetch_related(Prefetch(
+            "allocations",
+            queryset=Allocation.objects.filter(status__in=Allocation.ACTIVE_STATUSES)
+                                       .select_related("request"),
+            to_attr="open_allocations"))
         q = self.request.GET.get("q", "").strip()
         if q:
             qs = qs.filter(
                 Q(bag_code__icontains=q) | Q(donation__donation_code__icontains=q)
                 | Q(donor__donor_code__icontains=q) | Q(location__icontains=q)
             )
-        for key, field in (("status", "status"), ("blood_type", "blood_type_id"),
-                           ("component", "component_id"), ("location", "location")):
+        for key, field in (("blood_type", "blood_type_id"), ("component", "component_id"),
+                           ("location", "location")):
             value = self.request.GET.get(key)
             if value:
                 qs = qs.filter(**{field: value})
+        # Comma-separated statuses are allowed so a dashboard tile can deep-link
+        # to exactly the set it counted (e.g. QUARANTINED,TESTING).
+        statuses = [s for s in (self.request.GET.get("status") or "").split(",")
+                    if s in BloodBag.Status.values]
+        if statuses:
+            qs = qs.filter(status__in=statuses)
         collected_from = self.request.GET.get("collected_from")
         collected_to = self.request.GET.get("collected_to")
         if collected_from:
@@ -80,8 +118,11 @@ class BagListView(StaffRequiredMixin, ListView):
         now = timezone.now()
         if expiry == "expired":
             qs = qs.filter(expires_at__lte=now)
+        elif expiry == "active":
+            qs = qs.filter(expires_at__gt=now)
         elif expiry == "soon":
-            qs = qs.filter(expires_at__gt=now, expires_at__lte=now + timezone.timedelta(days=7))
+            qs = qs.filter(expires_at__gt=now,
+                           expires_at__lte=now + timezone.timedelta(days=expiring_window_days()))
         sort = SORT_OPTIONS.get(self.request.GET.get("sort", ""), "-collected_at")
         self.filters = {"q": q, "sort": self.request.GET.get("sort", "")}
         return qs.order_by(sort)
@@ -89,14 +130,20 @@ class BagListView(StaffRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx.update(self.filters)
+        status_filter = self.request.GET.get("status", "")
         ctx.update({
             "statuses": BloodBag.Status.choices,
             "blood_types": BloodType.objects.filter(is_active=True),
             "components": BloodComponent.objects.filter(is_active=True),
-            "status_filter": self.request.GET.get("status", ""),
+            "status_filter": status_filter,
+            # A comma list can't match one <option>, so show what is applied.
+            "status_filter_labels": ", ".join(
+                dict(BloodBag.Status.choices)[s] for s in status_filter.split(",")
+                if s in dict(BloodBag.Status.choices)) or None,
             "blood_type_filter": self.request.GET.get("blood_type", ""),
             "component_filter": self.request.GET.get("component", ""),
             "expiry_filter": self.request.GET.get("expiry", ""),
+            "window_days": expiring_window_days(),
         })
         return ctx
 

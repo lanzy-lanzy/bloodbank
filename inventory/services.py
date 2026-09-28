@@ -44,6 +44,21 @@ class InventoryError(Exception):
     """Raised when a transition violates the state machine or a guard."""
 
 
+# Statuses in which a bag is still treated as usable stock (and must therefore
+# be watched for expiry). Mirrors the expiration rule's own scope.
+USABLE_STATUSES = ["QUARANTINED", "TESTING", "AVAILABLE", "RESERVED", "RETURNED"]
+
+
+def expiring_window_days():
+    """The single configurable expiring-soon window, in days.
+
+    Every count, banner and filter that says "expiring soon" reads this, so the
+    dashboard, the bag list and the alert window can never disagree.
+    """
+    from settings_app.services import get_int_setting
+    return get_int_setting("expiring_soon_days", 7)
+
+
 class InventoryService:
     @staticmethod
     def create_bag_from_donation(donation, *, component, volume_ml, collected_at,
@@ -211,14 +226,43 @@ class InventoryService:
 
     @staticmethod
     def expiring_soon(days=None):
-        from settings_app.services import get_int_setting
         if days is None:
-            days = get_int_setting("expiring_soon_days", 7)
+            days = expiring_window_days()
         now = timezone.now()
         return BloodBag.objects.filter(
             status__in=["AVAILABLE", "RESERVED"], expires_at__gt=now,
             expires_at__lte=now + timedelta(days=days),
         ).select_related("blood_type", "component", "donor").order_by("expires_at")
+
+    @staticmethod
+    def usable_past_expiry():
+        """Bags whose date has passed but whose status still reads as usable.
+
+        The expiration rule is a scheduled command, so between runs these bags
+        would otherwise be counted as stock. Every usable-status screen excludes
+        them by date; this queryset exists to surface them for the rule.
+        """
+        return BloodBag.objects.filter(
+            status__in=USABLE_STATUSES, expires_at__lte=timezone.now(),
+        ).select_related("blood_type", "component").order_by("expires_at")
+
+    @staticmethod
+    def attention_count():
+        """Stock-side work awaiting staff: expiring-soon stock, bags needing the
+        expiration rule, and request items that cannot be filled from stock.
+
+        Read-only dashboard/badge aggregate over demo-scale data; it walks open
+        demand lines rather than trying to be a reporting engine.
+        """
+        from requests.services import BloodRequestService
+
+        now = timezone.now()
+        days = expiring_window_days()
+        expiring = BloodBag.objects.filter(
+            status="AVAILABLE", expires_at__gt=now,
+            expires_at__lte=now + timedelta(days=days)).count()
+        overdue = InventoryService.usable_past_expiry().count()
+        return expiring + overdue + BloodRequestService.shortage_item_count()
 
 
 class CompatibilityService:

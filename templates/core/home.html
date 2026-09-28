@@ -1,154 +1,252 @@
-{# Public landing page at the root URL, visible without login. #}
-{% extends "base.html" %}
-{% load core_extras %}
-{% block title %}{{ ORG_NAME }} — Every Drop Counts{% endblock %}
+{# Public landing page at the root URL, visible without login. Standalone shell: no app chrome, GSAP + Three.js decorative layer. #}
+{% load static core_extras %}
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ ORG_NAME }} — Every Drop Counts</title>
+  <meta name="description" content="Blood bank management: donor registration, screening, testing, compatibility-checked release and a fully audited inventory.">
+  <link rel="stylesheet" href="{% static_v 'css/tailwind.css' %}">
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
+  <script src="{% static_v 'js/landing-anim.js' %}" defer></script>
+  <style>
+    @media (prefers-reduced-motion: reduce) { .scroll-cue { display: none; } }
+    @keyframes bb-cue-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(7px); } }
+    .scroll-cue-dot { animation: bb-cue-float 1.8s ease-in-out infinite; }
+  </style>
+</head>
+<body class="bg-ink-950 text-ink-200 antialiased overflow-x-hidden">
 
-{% block body %}
-<div class="min-h-screen flex flex-col bg-ink-50">
+  {# Decorative WebGL layer: drifting blood cells reacting to cursor, click and scroll. #}
+  <canvas id="hero-canvas" class="fixed inset-0 z-0 pointer-events-none" aria-hidden="true"></canvas>
+  {# Readability veil: keeps later sections legible over the fading canvas. #}
+  <div aria-hidden="true" class="fixed inset-0 z-[1] pointer-events-none"
+       style="background-image: linear-gradient(to bottom, rgba(11,17,32,0) 0%, rgba(11,17,32,0.55) 34%, rgba(11,17,32,0.9) 60%, #0b1120 82%);"></div>
 
-  {# ---------- Dark glass hero, same visual language as the auth pages ---------- #}
-  <div class="relative overflow-hidden bg-ink-950 text-white"
-       style="background-image: radial-gradient(ellipse 80% 60% at 15% -10%, rgba(225,29,72,0.22), transparent 60%), radial-gradient(ellipse 70% 55% at 110% 110%, rgba(56,89,199,0.25), transparent 60%), linear-gradient(160deg, #0b1120 0%, #0f172a 50%, #170a14 100%);">
-    <div aria-hidden="true" class="pointer-events-none absolute -top-24 -left-24 w-96 h-96 rounded-full bg-brand-600/20 blur-3xl"></div>
-    <div aria-hidden="true" class="pointer-events-none absolute -bottom-32 -right-16 w-[28rem] h-[28rem] rounded-full bg-sky-600/15 blur-3xl"></div>
-
-    {# Nav #}
-    <header class="relative max-w-6xl mx-auto px-4 sm:px-6 pt-6">
-      <nav class="flex items-center justify-between rounded-2xl bg-white/[0.06] ring-1 ring-white/10 backdrop-blur-md px-4 sm:px-6 py-3">
-        <a href="/" class="flex items-center gap-2.5 font-bold tracking-tight">
+  {# ---------- Nav ---------- #}
+  <header class="landing-nav fixed top-0 inset-x-0 z-50">
+    <nav class="max-w-6xl mx-auto px-4 sm:px-6 pt-4">
+      <div class="flex items-center justify-between rounded-2xl bg-white/[0.06] ring-1 ring-white/10 backdrop-blur-md px-4 sm:px-6 py-3">
+        <a href="/" class="flex items-center gap-2.5 font-bold tracking-tight text-white">
           <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 ring-1 ring-white/10 shadow-glow">
-            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2Z"/></svg>
+            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2Z"/></svg>
           </span>
           {{ ORG_NAME }}
         </a>
         <div class="flex items-center gap-2 sm:gap-3">
-          <a href="#about" class="hidden sm:inline-block text-sm text-ink-300 hover:text-white transition">About the registry</a>
-          <a href="#audiences" class="hidden sm:inline-block text-sm text-ink-300 hover:text-white transition">Who we serve</a>
+          <a href="#about" class="hidden md:inline-block text-sm text-ink-300 hover:text-white transition">How it works</a>
+          <a href="#audiences" class="hidden md:inline-block text-sm text-ink-300 hover:text-white transition">Who we serve</a>
           {% if user.is_authenticated %}
             <a href="{% url 'core:dashboard' %}" class="rounded-xl bg-white text-ink-900 text-sm font-semibold px-4 py-2 hover:bg-ink-100 transition">Go to dashboard</a>
           {% else %}
             <a href="{% url 'accounts:login' %}" class="text-sm font-medium text-ink-200 hover:text-white px-2 py-2 transition">Sign in</a>
-            <a href="#about" class="rounded-xl bg-gradient-to-r from-brand-500 to-brand-700 text-sm font-semibold px-4 py-2 hover:opacity-90 transition shadow-glow">How it works</a>
+            <a href="{% url 'public_registration:register' %}" class="rounded-xl bg-gradient-to-r from-brand-500 to-brand-700 text-sm font-semibold px-4 py-2 hover:opacity-90 transition shadow-glow">Create account</a>
           {% endif %}
         </div>
-      </nav>
+      </div>
+    </nav>
+  </header>
 
-      {# Hero copy #}
-      <div class="max-w-3xl mx-auto text-center pt-16 sm:pt-24 pb-14 sm:pb-20">
-        <p class="inline-block text-[11px] font-semibold tracking-[0.18em] uppercase text-brand-300 ring-1 ring-brand-500/30 bg-brand-500/10 rounded-full px-3.5 py-1.5">
+  <main class="relative z-10">
+
+    {# ---------- Hero ---------- #}
+    <section class="min-h-[100svh] flex items-center justify-center px-4 sm:px-6 pt-28 pb-16">
+      <div class="max-w-3xl mx-auto text-center">
+        <p class="hero-fade inline-block text-[11px] font-semibold tracking-[0.18em] uppercase text-brand-300 ring-1 ring-brand-500/30 bg-brand-500/10 rounded-full px-3.5 py-1.5">
           Blood Bank Management System
         </p>
-        <h1 class="mt-6 text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.05]">
+        <h1 class="hero-fade mt-6 text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.05] text-white">
           Every drop, <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 via-brand-300 to-sky-300">tracked with care.</span>
         </h1>
-        <p class="mt-5 text-ink-300 text-base sm:text-lg max-w-xl mx-auto">
+        <p class="hero-fade mt-5 text-ink-300 text-base sm:text-lg max-w-xl mx-auto">
           {{ ORG_NAME }} connects donors, hospitals and our blood bank team on one
           safe, fully audited registry — from donation to transfusion.
         </p>
-        <div class="mt-8 flex flex-wrap justify-center gap-3">
+        <div class="hero-fade mt-8 flex flex-wrap justify-center gap-3">
           {% if user.is_authenticated %}
-            <a href="{% url 'core:dashboard' %}" class="rounded-xl bg-white text-ink-900 font-semibold px-6 py-3 text-sm hover:bg-ink-100 transition">Open my dashboard</a>
+            <a href="{% url 'core:dashboard' %}" class="cta-lift rounded-xl bg-white text-ink-900 font-semibold px-6 py-3 text-sm hover:bg-ink-100 transition">Open my dashboard</a>
           {% else %}
-            <a href="{% url 'accounts:login' %}?next={% url 'core:dashboard' %}" class="rounded-xl bg-gradient-to-r from-brand-500 to-brand-700 font-semibold px-6 py-3 text-sm hover:opacity-90 transition shadow-glow">Sign in to your account</a>
-            <a href="#audiences" class="rounded-xl bg-white/[0.07] ring-1 ring-white/15 backdrop-blur-md font-semibold px-6 py-3 text-sm hover:bg-white/[0.12] transition">Explore how it works</a>
+            <a href="{% url 'public_registration:register' %}" class="cta-lift rounded-xl bg-gradient-to-r from-brand-500 to-brand-700 font-semibold px-6 py-3 text-sm hover:opacity-90 transition shadow-glow">Become a donor — create account</a>
+            <a href="{% url 'accounts:login' %}?next={% url 'core:dashboard' %}" class="cta-lift rounded-xl bg-white/[0.07] ring-1 ring-white/15 backdrop-blur-md font-semibold px-6 py-3 text-sm hover:bg-white/[0.12] transition">Sign in</a>
           {% endif %}
         </div>
+        <p class="hero-fade mt-4 text-xs text-ink-400">New accounts stay pending until a blood bank administrator approves them.</p>
 
-        {# Live aggregate stats — real queries only; tiles hide when DB is empty #}
+        {# Scroll cue ---------- #}
+        <div class="scroll-cue mt-14 flex flex-col items-center gap-1.5 text-ink-400" aria-hidden="true">
+          <span class="text-[10px] font-semibold uppercase tracking-widest">Scroll</span>
+          <span class="scroll-cue-dot inline-flex w-6 h-10 rounded-full ring-1 ring-white/20 items-start justify-center pt-2">
+            <span class="w-1 h-2.5 rounded-full bg-brand-400"></span>
+          </span>
+        </div>
+      </div>
+    </section>
+
+    {# ---------- Live stats band ---------- #}
+    <section class="max-w-5xl mx-auto px-4 sm:px-6 py-14 w-full scroll-mt-28">
+      <dl class="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {% if stats %}
-        <dl class="mt-14 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-2xl mx-auto">
           {% if stats.donors %}
-          <div class="rounded-2xl bg-white/[0.06] ring-1 ring-white/10 backdrop-blur-md px-5 py-4">
+          <div data-reveal class="rounded-2xl bg-white/[0.05] ring-1 ring-white/10 backdrop-blur-md px-5 py-4">
             <dt class="text-xs text-ink-400">Registered donors</dt>
-            <dd class="text-2xl font-bold text-white mt-0.5">{{ stats.donors }}</dd>
+            <dd class="text-3xl font-bold text-white mt-1"><span data-count="{{ stats.donors }}">{{ stats.donors }}</span></dd>
           </div>
           {% endif %}
           {% if stats.donations %}
-          <div class="rounded-2xl bg-white/[0.06] ring-1 ring-white/10 backdrop-blur-md px-5 py-4">
+          <div data-reveal data-delay="0.08" class="rounded-2xl bg-white/[0.05] ring-1 ring-white/10 backdrop-blur-md px-5 py-4">
             <dt class="text-xs text-ink-400">Donations recorded</dt>
-            <dd class="text-2xl font-bold text-white mt-0.5">{{ stats.donations }}</dd>
+            <dd class="text-3xl font-bold text-white mt-1"><span data-count="{{ stats.donations }}">{{ stats.donations }}</span></dd>
           </div>
           {% endif %}
-          <div class="rounded-2xl bg-white/[0.06] ring-1 ring-white/10 backdrop-blur-md px-5 py-4">
+          <div data-reveal data-delay="0.16" class="rounded-2xl bg-white/[0.05] ring-1 ring-white/10 backdrop-blur-md px-5 py-4">
             <dt class="text-xs text-ink-400">Bags currently available</dt>
-            <dd class="text-2xl font-bold text-white mt-0.5">
-              {% if stats.available_bags is not None %}{{ stats.available_bags }}{% else %}—{% endif %}
+            <dd class="text-3xl font-bold text-white mt-1">
+              {% if stats.available_bags is not None %}<span data-count="{{ stats.available_bags }}">{{ stats.available_bags }}</span>{% else %}—{% endif %}
             </dd>
           </div>
-        </dl>
         {% endif %}
+        <div data-reveal data-delay="0.24" class="rounded-2xl bg-brand-500/[0.08] ring-1 ring-brand-500/25 backdrop-blur-md px-5 py-4">
+          <dt class="text-xs text-ink-300">Protected actions audited</dt>
+          <dd class="text-3xl font-bold text-white mt-1"><span data-count="100" data-suffix="%">100%</span></dd>
+        </div>
+      </dl>
+      <p class="mt-3 text-center text-xs text-ink-500">Live registry figures — personal donor and requester data is never shown here.</p>
+    </section>
+
+    {# ---------- How it works ---------- #}
+    <section id="about" class="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20 w-full scroll-mt-28">
+      <div data-reveal>
+        <p class="text-[11px] font-semibold tracking-[0.18em] uppercase text-brand-400">The journey of a unit</p>
+        <h2 class="mt-2 text-2xl sm:text-4xl font-bold text-white tracking-tight">From donation to transfusion</h2>
+        <p class="text-ink-400 mt-3 max-w-2xl">Every stage is an enforced state machine — a unit cannot skip screening, testing or verification, and clinical rules are configured and approved by our medical administrators, never assumed.</p>
       </div>
-    </header>
-  </div>
-
-  {# ---------- Who we serve ---------- #}
-  <section id="audiences" class="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20 w-full">
-    <h2 class="text-2xl sm:text-3xl font-bold text-ink-900 tracking-tight">Built for everyone in the chain</h2>
-    <p class="text-ink-500 mt-2 max-w-2xl">One system, four connected perspectives. Clinical rules — compatibility,
-      eligibility, shelf life — are configured and approved by our medical administrators, never assumed.</p>
-    <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-      <article class="rounded-2xl bg-white ring-1 ring-ink-200 p-6 shadow-sm hover:shadow-md transition">
-        <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.3 12a7.7 7.7 0 0 1 15.4 0c0 4.2-7.7 9.5-7.7 9.5S4.3 16.2 4.3 12Z"/></svg>
-        </div>
-        <h3 class="mt-4 font-semibold text-ink-900">Donors</h3>
-        <p class="mt-1.5 text-sm text-ink-500">Book appointments, track screening results, see your donation history and the reward points every gift earns.</p>
-      </article>
-      <article class="rounded-2xl bg-white ring-1 ring-ink-200 p-6 shadow-sm hover:shadow-md transition">
-        <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12M6 12h12M4.5 4.5h15v15h-15z"/></svg>
-        </div>
-        <h3 class="mt-4 font-semibold text-ink-900">Hospitals &amp; blood banks</h3>
-        <p class="mt-1.5 text-sm text-ink-500">Request components, track approval and allocation status, and receive released units with full traceability.</p>
-      </article>
-      <article class="rounded-2xl bg-white ring-1 ring-ink-200 p-6 shadow-sm hover:shadow-md transition">
-        <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
-        </div>
-        <h3 class="mt-4 font-semibold text-ink-900">Safety &amp; audit</h3>
-        <p class="mt-1.5 text-sm text-ink-500">Testing state machines, admin-approved compatibility rules and an append-only audit trail behind every action.</p>
-      </article>
-    </div>
-  </section>
-
-  {# ---------- How it works ---------- #}
-  <section id="about" class="bg-white ring-1 ring-ink-200 border-y border-ink-200">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-16">
-      <h2 class="text-2xl sm:text-3xl font-bold text-ink-900 tracking-tight">From donation to transfusion</h2>
-      <ol class="mt-8 grid grid-cols-1 sm:grid-cols-4 gap-6">
-        <li class="relative pl-10">
-          <span class="absolute left-0 top-0 w-7 h-7 rounded-full bg-brand-600 text-white text-sm font-bold flex items-center justify-center">1</span>
-          <h3 class="font-semibold text-ink-900 text-sm">Donate</h3>
-          <p class="text-sm text-ink-500 mt-1">Screened, recorded and turned into traceable bags at collection.</p>
+      <ol class="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <li data-reveal class="relative rounded-2xl bg-white/[0.05] ring-1 ring-white/10 backdrop-blur-md p-6">
+          <span class="absolute -top-3 left-6 text-[11px] font-bold tracking-widest text-brand-300">STEP 01</span>
+          <span class="flex h-10 w-10 rounded-xl bg-brand-500/15 text-brand-300 items-center justify-center">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 0 0 9-9 9 9 0 0 0-9-9 9 9 0 0 0-9 9 9 9 0 0 0 9 9Zm0-13v4l2.5 2.5"/></svg>
+          </span>
+          <h3 class="mt-4 font-semibold text-white">Register &amp; screen</h3>
+          <p class="mt-1.5 text-sm text-ink-400">Donors register, book appointments and complete questionnaire-based screening with eligibility checks.</p>
         </li>
-        <li class="relative pl-10">
-          <span class="absolute left-0 top-0 w-7 h-7 rounded-full bg-brand-600 text-white text-sm font-bold flex items-center justify-center">2</span>
-          <h3 class="font-semibold text-ink-900 text-sm">Test</h3>
-          <p class="text-sm text-ink-500 mt-1">Required tests verified by staff before any bag can go available.</p>
+        <li data-reveal data-delay="0.08" class="relative rounded-2xl bg-white/[0.05] ring-1 ring-white/10 backdrop-blur-md p-6">
+          <span class="absolute -top-3 left-6 text-[11px] font-bold tracking-widest text-brand-300">STEP 02</span>
+          <span class="flex h-10 w-10 rounded-xl bg-brand-500/15 text-brand-300 items-center justify-center">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2Z"/></svg>
+          </span>
+          <h3 class="mt-4 font-semibold text-white">Donate</h3>
+          <p class="mt-1.5 text-sm text-ink-400">Collection is recorded and each donation becomes a quarantined, traceable blood bag.</p>
         </li>
-        <li class="relative pl-10">
-          <span class="absolute left-0 top-0 w-7 h-7 rounded-full bg-brand-600 text-white text-sm font-bold flex items-center justify-center">3</span>
-          <h3 class="font-semibold text-ink-900 text-sm">Request &amp; match</h3>
-          <p class="text-sm text-ink-500 mt-1">Hospitals request components; allocation uses the approved compatibility matrix.</p>
+        <li data-reveal data-delay="0.16" class="relative rounded-2xl bg-white/[0.05] ring-1 ring-white/10 backdrop-blur-md p-6">
+          <span class="absolute -top-3 left-6 text-[11px] font-bold tracking-widest text-brand-300">STEP 03</span>
+          <span class="flex h-10 w-10 rounded-xl bg-brand-500/15 text-brand-300 items-center justify-center">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m-2.5-6.5a9 9 0 1 0 5 5"/></svg>
+          </span>
+          <h3 class="mt-4 font-semibold text-white">Test &amp; verify</h3>
+          <p class="mt-1.5 text-sm text-ink-400">Required tests must be non-reactive and verified before any bag can enter available stock.</p>
         </li>
-        <li class="relative pl-10">
-          <span class="absolute left-0 top-0 w-7 h-7 rounded-full bg-brand-600 text-white text-sm font-bold flex items-center justify-center">4</span>
-          <h3 class="font-semibold text-ink-900 text-sm">Release</h3>
-          <p class="text-sm text-ink-500 mt-1">Double-checked release with a full ledger trail, right through to transfusion.</p>
+        <li data-reveal data-delay="0.24" class="relative rounded-2xl bg-white/[0.05] ring-1 ring-white/10 backdrop-blur-md p-6">
+          <span class="absolute -top-3 left-6 text-[11px] font-bold tracking-widest text-brand-300">STEP 04</span>
+          <span class="flex h-10 w-10 rounded-xl bg-brand-500/15 text-brand-300 items-center justify-center">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0-4 2.5-6 5-6s4 2 4 5c0 4-3.5 8-9 9m0-8c0-4-2.5-6-5-6s-4 2-4 5c0 4 3.5 8 9 9m9-2.5c0 4-4 6.5-9 6.5S3 17.5 3 13.5"/></svg>
+          </span>
+          <h3 class="mt-4 font-semibold text-white">Match &amp; release</h3>
+          <p class="mt-1.5 text-sm text-ink-400">Hospitals request components; allocation follows the approved compatibility matrix with a full ledger trail.</p>
         </li>
       </ol>
-    </div>
-  </section>
+    </section>
 
-  {# ---------- Footer / CTA ---------- #}
-  <footer class="mt-auto bg-ink-950 text-ink-400">
+    {# ---------- Who we serve ---------- #}
+    <section id="audiences" class="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20 w-full scroll-mt-28">
+      <div data-reveal>
+        <p class="text-[11px] font-semibold tracking-[0.18em] uppercase text-brand-400">Who we serve</p>
+        <h2 class="mt-2 text-2xl sm:text-4xl font-bold text-white tracking-tight">Built for everyone in the chain</h2>
+      </div>
+      <div class="mt-10 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <article data-reveal class="rounded-2xl bg-white/[0.05] ring-1 ring-white/10 backdrop-blur-md p-6 hover:ring-brand-500/40 transition">
+          <div class="w-10 h-10 rounded-xl bg-brand-500/15 text-brand-300 flex items-center justify-center">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.3 12a7.7 7.7 0 0 1 15.4 0c0 4.2-7.7 9.5-7.7 9.5S4.3 16.2 4.3 12Z"/></svg>
+          </div>
+          <h3 class="mt-4 font-semibold text-white">Donors</h3>
+          <p class="mt-1.5 text-sm text-ink-400">Book appointments, track screening results, see your donation history and the reward points every gift earns.</p>
+        </article>
+        <article data-reveal data-delay="0.08" class="rounded-2xl bg-white/[0.05] ring-1 ring-white/10 backdrop-blur-md p-6 hover:ring-brand-500/40 transition">
+          <div class="w-10 h-10 rounded-xl bg-brand-500/15 text-brand-300 flex items-center justify-center">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12M6 12h12M4.5 4.5h15v15h-15z"/></svg>
+          </div>
+          <h3 class="mt-4 font-semibold text-white">Hospitals &amp; clinics</h3>
+          <p class="mt-1.5 text-sm text-ink-400">Request components, track approval and allocation status, and receive released units with full traceability.</p>
+        </article>
+        <article data-reveal data-delay="0.16" class="rounded-2xl bg-white/[0.05] ring-1 ring-white/10 backdrop-blur-md p-6 hover:ring-brand-500/40 transition">
+          <div class="w-10 h-10 rounded-xl bg-brand-500/15 text-brand-300 flex items-center justify-center">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+          </div>
+          <h3 class="mt-4 font-semibold text-white">Blood bank team</h3>
+          <p class="mt-1.5 text-sm text-ink-400">Testing state machines, admin-approved compatibility rules and an append-only audit trail behind every action.</p>
+        </article>
+      </div>
+    </section>
+
+    {# ---------- Safety strip ---------- #}
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20 w-full">
+      <div data-reveal class="rounded-3xl ring-1 ring-white/10 bg-gradient-to-br from-white/[0.06] to-transparent p-6 sm:p-10">
+        <p class="text-[11px] font-semibold tracking-[0.18em] uppercase text-brand-400">Safety by construction</p>
+        <h2 class="mt-2 text-2xl sm:text-3xl font-bold text-white tracking-tight">The system refuses to guess</h2>
+        <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+          <div>
+            <h3 class="font-semibold text-white flex items-center gap-2">
+              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+              Release guard</h3>
+            <p class="mt-1.5 text-ink-400">A unit without complete, verified, non-reactive required tests simply cannot be released.</p>
+          </div>
+          <div>
+            <h3 class="font-semibold text-white flex items-center gap-2">
+              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+              Compatibility engine</h3>
+            <p class="mt-1.5 text-ink-400">Transfusion matches come only from approved rule tables — no rule, no match.</p>
+          </div>
+          <div>
+            <h3 class="font-semibold text-white flex items-center gap-2">
+              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+              Append-only audit</h3>
+            <p class="mt-1.5 text-ink-400">Every protected action is logged immutably — history can be reviewed, never rewritten.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {# ---------- CTA ---------- #}
+    <section class="max-w-3xl mx-auto px-4 sm:px-6 py-16 sm:py-24 text-center w-full">
+      <div data-reveal>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Ready to lend an arm?</h2>
+        <p class="mt-3 text-ink-300">Create your donor or requester account in under a minute. An administrator reviews every registration before it goes live.</p>
+        <div class="mt-8 flex flex-wrap justify-center gap-3">
+          {% if user.is_authenticated %}
+            <a href="{% url 'core:dashboard' %}" class="cta-lift rounded-xl bg-gradient-to-r from-brand-500 to-brand-700 font-semibold px-6 py-3 text-sm hover:opacity-90 transition shadow-glow">Open my dashboard</a>
+          {% else %}
+            <a href="{% url 'public_registration:register' %}" class="cta-lift rounded-xl bg-gradient-to-r from-brand-500 to-brand-700 font-semibold px-6 py-3 text-sm hover:opacity-90 transition shadow-glow">Create account</a>
+            <a href="{% url 'accounts:login' %}" class="cta-lift rounded-xl bg-white/[0.07] ring-1 ring-white/15 backdrop-blur-md font-semibold px-6 py-3 text-sm hover:bg-white/[0.12] transition">Sign in</a>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+  </main>
+
+  {# ---------- Footer ---------- #}
+  <footer class="relative z-10 border-t border-white/10">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
-      <p class="text-sm">&copy; {% now "Y" %} {{ ORG_NAME }} · Blood Bank Management System</p>
+      <p class="text-sm text-ink-400">&copy; {% now "Y" %} {{ ORG_NAME }} · Blood Bank Management System</p>
       <div class="flex items-center gap-4 text-sm">
-        <a href="{% url 'accounts:login' %}" class="hover:text-white transition">Staff &amp; donor sign in</a>
-        <a href="{% url 'accounts:password_reset' %}" class="hover:text-white transition">Forgot password</a>
+        <a href="{% url 'accounts:login' %}" class="text-ink-400 hover:text-white transition">Sign in</a>
+        <a href="{% url 'public_registration:register' %}" class="text-ink-400 hover:text-white transition">Create account</a>
+        <a href="{% url 'accounts:password_reset' %}" class="text-ink-400 hover:text-white transition">Forgot password</a>
       </div>
     </div>
   </footer>
-</div>
-{% endblock body %}
+
+  {# Three.js scene (module import; failure leaves the gradient backdrop). #}
+  <script type="module" src="{% static_v 'js/landing-scene.js' %}"></script>
+</body>
+</html>

@@ -19,7 +19,7 @@
   <form method="get" action="{% url 'requests:list' %}"
         hx-get="{% url 'requests:list' %}" hx-target="#results" hx-push-url="true"
         hx-trigger="change, keyup changed delay:300ms from:input[name=q]"
-        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        class="grid grid-cols-1 sm:grid-cols-2 gap-3 {% if is_staff_view %}lg:grid-cols-5{% else %}lg:grid-cols-4{% endif %}">
     <input type="search" name="q" value="{{ q }}" placeholder="Request code, organization, patient ref…"
            class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500 lg:col-span-2">
     <select name="status" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
@@ -34,6 +34,14 @@
         <option value="{{ value }}" {% if urgency_filter == value %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
     </select>
+    {% if is_staff_view %}
+    <select name="channel" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+      <option value="">Any requester</option>
+      {% for value, label in channels %}
+        <option value="{{ value }}" {% if channel_filter == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    {% endif %}
     <div class="flex justify-end gap-2 sm:col-span-2 lg:col-span-4">
       <a href="{% url 'requests:list' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Reset</a>
       <button type="submit" class="rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2">Filter</button>
