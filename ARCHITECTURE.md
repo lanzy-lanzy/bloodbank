@@ -44,7 +44,10 @@ notifications   NotificationTemplate/Notification; provider interfaces
 rewards         RewardRule/RewardTier/Reward/PointTransaction/DonorReward;
                 RewardService ledger (select_for_update), tiers, redemption
 reports         config-driven REPORTS registry (~20 reports) + CSV export,
-                role-gated
+                print preview and server-rendered PDF, role-gated
+core            shared shell: role mixins, modal CRUD, template tags,
+                and `documents.py` — the formal printable-document engine
+                (DocumentSpec → HTML print preview / PDF via xhtml2pdf)
 settings_app    SystemSetting + typed accessors; admin-only configuration UI
                 (general settings + blood types/components/tests/compatibility)
 templates/      all templates (per-app dirs + shared components/)
@@ -293,6 +296,60 @@ bags via a `Prefetch(..., to_attr="open_allocations")`.
 - All form styling applied server-side (`StyledModelForm`/`StyledFormMixin`),
   so non-HTMX rendering looks identical.
 
+## Printable documents (print preview + PDF)
+
+Every formal document — all ~20 reports and the Inventory Statement — is
+produced from **one** template, `templates/documents/document.html`, driven by a
+`core.documents.DocumentSpec`. That is the whole point: a printed page, a print
+preview and a downloaded PDF are three renderings of one object, so they cannot
+drift apart.
+
+```
+DocumentSpec  ──►  render_document(chrome=True)   → print preview page (HTML)
+             └─►  render_document(chrome=False)  → xhtml2pdf  → .pdf download
+```
+
+- **One template, two audiences.** It is written in the intersection of
+  browser-print CSS and the subset xhtml2pdf implements: table-based layout, no
+  flexbox/grid, no CSS variables, explicit colours. Anything outside that subset
+  would either be dropped by the PDF engine or shift the print layout, so it does
+  not belong in this template. The on-screen "desk" chrome and the action
+  toolbar live behind `{% if chrome %}` and are therefore **structurally**
+  impossible to reach a printed page — not merely hidden with CSS.
+- **Views are thin.** `core.mixins.PrintableDocumentMixin` gives a view a
+  `document()` (preview) and a `pdf()` action from one
+  `build_document_spec()` implementation. `reports/views.py` and
+  `inventory/views.py` only describe *what* the document says; `core/documents.py`
+  decides how it is typeset.
+- **Role gates are not bypassable.** Each document view keeps the same
+  `StaffRequiredMixin`/`AdminRequiredMixin` as the page it belongs to, and both
+  actions re-run the report's own `roles` check before touching data — printing
+  and exporting are not a way around the registry.
+- **Filtering carries over, pagination does not.** Export links preserve the
+  active filters but strip `?page=` (`reports.views._url_with_query`): a printed
+  document is the whole result set, so inheriting a page cursor would print a
+  misleading slice.
+- **Automatic landscape.** Tables of eight or more columns print landscape
+  (`LANDSCAPE_FROM_COLUMNS`), plus a per-report opt-in table (`is_landscape`).
+  Paper size comes from `settings.REPORT_PAPER`.
+- **Text safety.** reportlab's built-in fonts are WinAnsi-only, so `→`, `≤`, curly
+  quotes and accented input would render as blank boxes. `pdf_safe_text()` folds
+  them for the PDF only (the preview keeps the nicer glyphs); these are
+  presentation characters, so nothing meaningful is lost.
+- **Fail safe, never fail silently.** A missing or failing PDF backend raises
+  `DocumentRenderError`, and `PrintableDocumentMixin.pdf()` turns that into a
+  message plus a redirect to the print preview (which always works) — it never
+  returns a file that is not a valid PDF.
+- **Honest truncation.** The Inventory Statement caps its bag listing at
+  `STATEMENT_LIST_LIMIT`; if a filter matches more, the document *says so* in its
+  notes. Silently truncating a stock count would be the dangerous option.
+
+Global `@media print` rules in `static/css/input.css` (built into
+`static/css/tailwind.css`) make **any** page printable, not just the documents:
+chrome and filter bars drop out, content expands to full width, `thead` repeats
+on every page, rows never split, and `print-color-adjust: exact` keeps status
+colours meaningful on paper.
+
 ## Modal CRUD architecture (dual rendering)
 
 Every Create/Update/Detail/confirm screen renders **two ways from one URL**:
@@ -324,3 +381,19 @@ user stays on the current page.
 - `modal_smoke.py` (repo root) verifies this contract: fragment-vs-page
   rendering, `bb:modal-success` on hx-post, error re-render, plain-POST 302
   fallback, and role negatives. Rolled back like the other smoke scripts.
+- **Exception — heavy detail screens are pages, not modals.** A screen whose job
+  is *working*, not *previewing*, stays a full page no matter what the other
+  screens do. Today that is the **blood bag record** (`inventory:bag_detail`):
+  it carries the record-test-result form, second-person verification and the
+  guarded release/transition actions, so `BagDetailView` uses plain `render()`
+  (not `render_any`) and its template extends `base.html` with no `{% if layout %}`
+  branches. Bag links are plain anchors everywhere — bag list, movement ledger,
+  inventory dashboard, compatibility check, request detail, donation detail and
+  the staff dashboard.
+  Why it is also the *guard*: a `{% if layout %}` fragment would half-render
+  silently if some link regressed. Rendering the full document unconditionally
+  means a reintroduced `hx-get` injects a whole `<html>` into `#modal-root` and
+  breaks loudly. `inventory.tests.BagDetailIsAPageTests` pins this, including a
+  scan that fails if any template binds a `bag_detail` link to `hx-get` again.
+  The test to copy: if a screen has **forms plus more than one action**, it is a
+  page. Reserve modals for short read-and-dismiss views and small forms.

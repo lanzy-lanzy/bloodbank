@@ -1,0 +1,21 @@
+{% comment %}
+Formal KPI tile. Pass: stat_label, stat_value, stat_color
+(rose|emerald|amber|sky|violet|slate), stat_href, stat_sub.
+Unlike stat_card.html this one is print-friendly: the number is the loudest
+element and the accent is a top rule, not a floating icon bubble, so the row
+still reads as a table of figures on paper.
+{% endcomment %}
+<a href="{{ stat_href|default:'#' }}" {% if not stat_href %}onclick="return false;"{% endif %}
+   class="group relative block overflow-hidden rounded-2xl border border-ink-200 bg-white px-4 py-4 shadow-sm transition
+          {% if stat_href %}hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg{% endif %}">
+  <span class="absolute inset-x-0 top-0 h-[3px]
+        {% if stat_color == 'emerald' %}bg-emerald-500
+        {% elif stat_color == 'amber' %}bg-amber-500
+        {% elif stat_color == 'sky' %}bg-sky-500
+        {% elif stat_color == 'violet' %}bg-violet-500
+        {% elif stat_color == 'rose' %}bg-brand-500
+        {% else %}bg-ink-400{% endif %}"></span>
+  <p class="text-[10px] font-bold uppercase tracking-wider text-ink-500">{{ stat_label }}</p>
+  <p class="mt-1.5 text-3xl font-bold leading-none tabular-nums text-ink-900">{{ stat_value }}</p>
+  {% if stat_sub %}<p class="mt-1.5 text-[11px] leading-snug text-ink-400">{{ stat_sub }}</p>{% endif %}
+</a>

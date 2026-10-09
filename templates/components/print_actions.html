@@ -1,0 +1,21 @@
+{% comment %}
+Print / export action group. Pass: print_url (preview page), pdf_url, label.
+Every formal document exposes these three actions from the same spec, so this
+fragment stays in one place rather than being re-spelled on each page.
+{% endcomment %}
+<div class="flex flex-wrap items-center gap-2">
+  {% if print_url %}
+    <a href="{{ print_url }}" target="_blank" rel="noopener"
+       class="inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink-700 transition hover:border-ink-300 hover:bg-ink-50">
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm-3 4.5h.008v.008H12V16.5Zm6-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+      {{ label|default:"Print preview" }}
+    </a>
+  {% endif %}
+  {% if pdf_url %}
+    <a href="{{ pdf_url }}"
+       class="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700">
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5A3.375 3.375 0 0 0 10.125 2.25H8.25m0 12.75 2.25 2.25 4.5-4.5m-6.75 6v3"/></svg>
+      Export PDF
+    </a>
+  {% endif %}
+</div>

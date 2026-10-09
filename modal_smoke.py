@@ -104,7 +104,19 @@ def main():
         if donation:
             fragment(c, f"/donations/{donation.pk}/", "donation detail")
         if bag:
-            fragment(c, f"/inventory/bags/{bag.pk}/", "bag detail")
+            # The bag record is deliberately NOT a modal: it carries the
+            # record-test-result form plus the guarded release/transition
+            # actions, so it is a working surface and stays a full page. Assert
+            # that here too, because this script is where the modal contract is
+            # policed — an HX-Request must NOT be able to turn it into a
+            # fragment (that would bury the forms in a nested scroll box).
+            r = c.get(f"/inventory/bags/{bag.pk}/", HTTP_HX_REQUEST="true")
+            body = r.content.decode("utf-8", "replace")
+            check(f"bag detail stays a full page even for HX-Request "
+                  f"/inventory/bags/{bag.pk}/",
+                  r.status_code == 200 and "<!DOCTYPE" in body
+                  and "bbModal()" not in body)
+            fullpage(c, f"/inventory/bags/{bag.pk}/", "bag detail")
         fragment(c, "/inventory/bags/register/", "bag register")
         fragment(c, "/requests/create/", "request create")
         if request:

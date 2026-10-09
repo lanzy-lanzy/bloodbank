@@ -207,6 +207,11 @@ LOGGING = {
     },
 }
 
+# --- Printable documents (reports + inventory statement) ----------------------
+# Shared by the print preview and the server-side PDF (core/documents.py).
+# The PDF backend is xhtml2pdf (pure Python, no native pango/cairo needed).
+REPORT_PAPER = os.environ.get("REPORT_PAPER", "A4")   # A4 | LETTER | LEGAL
+
 # --- Business-rule defaults (mechanism only; values live in DB settings) ---------
 # These are *software* defaults for thresholds that are operational, not clinical.
 DEFAULT_EXPIRING_SOON_DAYS = int(os.environ.get("EXPIRING_SOON_DAYS", "7"))

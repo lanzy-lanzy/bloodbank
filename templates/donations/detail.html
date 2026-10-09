@@ -181,7 +181,7 @@
         {% for bag in bags %}
         <tr class="hover:bg-ink-50/60">
           <td class="px-4 py-3 border-t border-ink-100 font-medium">
-            <a href="{% url 'inventory:bag_detail' bag.pk %}" hx-get="{% url 'inventory:bag_detail' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700">{{ bag.bag_code }}</a>
+            <a href="{% url 'inventory:bag_detail' bag.pk %}" class="text-brand-600 hover:text-brand-700">{{ bag.bag_code }}</a>
           </td>
           <td class="px-4 py-3 border-t border-ink-100 text-ink-700">{{ bag.blood_type }}</td>
           <td class="px-4 py-3 border-t border-ink-100 text-ink-700">{{ bag.component }}</td>
@@ -225,7 +225,7 @@
         <tr class="hover:bg-ink-50/60">
           <td class="px-4 py-3 border-t border-ink-100 text-ink-500 whitespace-nowrap">{{ t.created_at|date:"M j, Y H:i" }}</td>
           <td class="px-4 py-3 border-t border-ink-100 font-medium">
-            <a href="{% url 'inventory:bag_detail' t.bag_id %}" hx-get="{% url 'inventory:bag_detail' t.bag_id %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-brand-600 hover:text-brand-700">{{ t.bag.bag_code }}</a>
+            <a href="{% url 'inventory:bag_detail' t.bag_id %}" class="text-brand-600 hover:text-brand-700">{{ t.bag.bag_code }}</a>
           </td>
           <td class="px-4 py-3 border-t border-ink-100 text-ink-700 whitespace-nowrap">
             {{ t.get_transaction_type_display }}

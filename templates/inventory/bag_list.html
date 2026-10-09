@@ -1,74 +1,102 @@
 {% extends "base.html" %}
 {% block title %}Blood Bags — {{ ORG_NAME }}{% endblock %}
 {% block content %}
-<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+<div class="mb-5 flex flex-wrap items-start justify-between gap-4">
   <div>
-    <h1 class="text-xl font-bold text-ink-900">Blood Bags</h1>
-    <p class="text-sm text-ink-500 mt-0.5">Search and filter the bag inventory.</p>
+    <h1 class="text-2xl font-bold tracking-tight text-ink-900">Blood Bags</h1>
+    <p class="mt-1 max-w-2xl text-sm text-ink-500">
+      Search and filter the physical bag inventory. "Still in date" and the expiring window are
+      read from the configured alert window, not hard-coded.
+    </p>
   </div>
-  <div class="flex gap-2">
-    <a href="{% url 'inventory:compat_check' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-ink-200 bg-white text-sm font-medium text-ink-700 hover:bg-ink-50">Compatibility Check</a>
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="{% url 'inventory:dashboard' %}"
+       class="inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50">Dashboard</a>
+    {% url 'inventory:statement' as statement_url %}{% url 'inventory:statement_pdf' as statement_pdf_url %}
+    {% include "components/print_actions.html" with print_url=statement_url pdf_url=statement_pdf_url label="Print statement" %}
     {% url 'inventory:bag_register' as bag_add_url %}
     {% include "components/modal_action.html" with ma_url=bag_add_url ma_label="+ Register Bag" ma_icon="M12 5v14M5 12h14" %}
   </div>
 </div>
 
-<div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4">
+<div class="mb-4 overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
+  <div class="flex items-center gap-2 border-b border-ink-100 bg-ink-50/50 px-4 py-2.5">
+    <svg class="h-4 w-4 text-ink-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.012L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z"/></svg>
+    <h2 class="text-xs font-bold uppercase tracking-wider text-ink-500">Filter bags</h2>
+  </div>
   <form method="get" action="{% url 'inventory:bag_list' %}"
         hx-get="{% url 'inventory:bag_list' %}" hx-target="#results" hx-push-url="true"
         hx-trigger="change, keyup changed delay:300ms from:input[name=q]"
-        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-    <input type="search" name="q" value="{{ q }}" placeholder="Bag code, donation code, donor code, location…"
-           class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500 lg:col-span-2">
-    <select name="status" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
-      <option value="">Any status</option>
-      {% if status_filter_labels %}
-        <option value="{{ status_filter }}" selected>{{ status_filter_labels }}</option>
-      {% endif %}
-      {% for value, label in statuses %}
-        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
-    <select name="blood_type" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
-      <option value="">Any blood type</option>
-      {% for bt in blood_types %}
-        <option value="{{ bt.pk }}" {% if blood_type_filter == bt.pk|stringformat:"s" %}selected{% endif %}>{{ bt.code }}</option>
-      {% endfor %}
-    </select>
-    <select name="component" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
-      <option value="">Any component</option>
-      {% for c in components %}
-        <option value="{{ c.pk }}" {% if component_filter == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
-      {% endfor %}
-    </select>
-    <select name="expiry" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
-      <option value="">Any expiry</option>
-      <option value="active" {% if expiry_filter == "active" %}selected{% endif %}>Still in date</option>
-      <option value="soon" {% if expiry_filter == "soon" %}selected{% endif %}>Expiring within {{ window_days }} days</option>
-      <option value="expired" {% if expiry_filter == "expired" %}selected{% endif %}>Past expiry</option>
-    </select>
-    <select name="sort" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
-      <option value="">Newest collected</option>
-      <option value="oldest" {% if sort == "oldest" %}selected{% endif %}>Oldest collected</option>
-      <option value="expiry" {% if sort == "expiry" %}selected{% endif %}>Earliest expiration</option>
-      <option value="blood_type" {% if sort == "blood_type" %}selected{% endif %}>Blood type</option>
-      <option value="status" {% if sort == "status" %}selected{% endif %}>Status</option>
-    </select>
-    <div class="sm:col-span-2 lg:col-span-1 flex items-center gap-2">
-      <div class="flex-1">
-        <label class="block text-[10px] uppercase tracking-wide text-ink-400 mb-0.5">Collected from</label>
-        <input type="date" name="collected_from" value="{{ request.GET.collected_from|default:'' }}"
-               class="w-full rounded-xl border border-ink-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500">
-      </div>
-      <div class="flex-1">
-        <label class="block text-[10px] uppercase tracking-wide text-ink-400 mb-0.5">to</label>
-        <input type="date" name="collected_to" value="{{ request.GET.collected_to|default:'' }}"
-               class="w-full rounded-xl border border-ink-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500">
+        class="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="lg:col-span-2">
+      <label for="bag-q" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-500">Search</label>
+      <input id="bag-q" type="search" name="q" value="{{ q }}" placeholder="Bag code, donation code, donor code, location&hellip;"
+             class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none">
+    </div>
+    <div>
+      <label for="bag-status" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-500">Status</label>
+      <select id="bag-status" name="status" class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none">
+        <option value="">Any status</option>
+        {% if status_filter_labels %}
+          <option value="{{ status_filter }}" selected>{{ status_filter_labels }}</option>
+        {% endif %}
+        {% for value, label in statuses %}
+          <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="bag-bt" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-500">Blood type</label>
+      <select id="bag-bt" name="blood_type" class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none">
+        <option value="">Any blood type</option>
+        {% for bt in blood_types %}
+          <option value="{{ bt.pk }}" {% if blood_type_filter == bt.pk|stringformat:"s" %}selected{% endif %}>{{ bt.code }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="bag-comp" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-500">Component</label>
+      <select id="bag-comp" name="component" class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none">
+        <option value="">Any component</option>
+        {% for c in components %}
+          <option value="{{ c.pk }}" {% if component_filter == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="bag-exp" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-500">Expiration</label>
+      <select id="bag-exp" name="expiry" class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none">
+        <option value="">Any expiry</option>
+        <option value="active" {% if expiry_filter == "active" %}selected{% endif %}>Still in date</option>
+        <option value="soon" {% if expiry_filter == "soon" %}selected{% endif %}>Expiring within {{ window_days }} days</option>
+        <option value="expired" {% if expiry_filter == "expired" %}selected{% endif %}>Past expiry</option>
+      </select>
+    </div>
+    <div>
+      <label for="bag-sort" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-500">Sort by</label>
+      <select id="bag-sort" name="sort" class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none">
+        <option value="">Newest collected</option>
+        <option value="oldest" {% if sort == "oldest" %}selected{% endif %}>Oldest collected</option>
+        <option value="expiry" {% if sort == "expiry" %}selected{% endif %}>Earliest expiration</option>
+        <option value="blood_type" {% if sort == "blood_type" %}selected{% endif %}>Blood type</option>
+        <option value="status" {% if sort == "status" %}selected{% endif %}>Status</option>
+      </select>
+    </div>
+    <div class="sm:col-span-2 lg:col-span-1">
+      <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-500">Collected between</span>
+      <div class="flex items-center gap-2">
+        <label for="bag-cfrom" class="sr-only">Collected from</label>
+        <input id="bag-cfrom" type="date" name="collected_from" value="{{ request.GET.collected_from|default:'' }}"
+               class="w-full rounded-xl border border-ink-300 px-2 py-2 text-sm transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none">
+        <span class="text-xs text-ink-400">to</span>
+        <label for="bag-cto" class="sr-only">Collected to</label>
+        <input id="bag-cto" type="date" name="collected_to" value="{{ request.GET.collected_to|default:'' }}"
+               class="w-full rounded-xl border border-ink-300 px-2 py-2 text-sm transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none">
       </div>
     </div>
     <div class="flex items-end justify-end gap-2 sm:col-span-2 lg:col-span-1">
-      <a href="{% url 'inventory:bag_list' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Reset</a>
-      <button type="submit" class="rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2">Filter</button>
+      <a href="{% url 'inventory:bag_list' %}" class="rounded-xl border border-ink-200 px-4 py-2 text-sm font-medium text-ink-600 transition hover:bg-ink-50">Reset</a>
+      <button type="submit" class="rounded-xl bg-ink-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-700">Filter</button>
     </div>
   </form>
 </div>

@@ -4,12 +4,26 @@ columns, filters, permitted roles and CSV export.
 CSV exports respect: role permissions, active filters, safe escaping (via the
 csv module) and include a generation timestamp row. Sensitive columns are
 excluded from exports available to non-admin roles where marked.
+
+Each entry also carries presentation metadata (``description`` for the report
+centre, ``page``/``landscape`` for the printable document) so a report can be
+presented professionally without a second lookup table. No business rule lives
+here: these are querysets and column labels, and every decision they feed is
+still made in a service or a model.
 """
 import csv
 from datetime import timedelta
 
 from django.db.models import Q
 from django.utils import timezone
+
+# Reports whose tables are wide enough to read better in landscape. Anything
+# with eight or more columns switches automatically (LANDSCAPE_FROM_COLUMNS);
+# this covers the 6- and 7-column cases that would still be cramped in portrait.
+_LANDSCAPE_REPORTS = frozenset({
+    "inventory", "inventory_movements", "donors", "eligible_donors",
+    "donations", "requests", "points", "expired_discarded", "audit",
+})
 
 
 def _donor_rows(qs):
@@ -26,6 +40,7 @@ def _donor_rows(qs):
 REPORTS = {
     "donors": {
         "title": "Donor Master List",
+        "description": "Every registered donor with blood type, contact details and current eligibility.",
         "group": "Donor Reports",
         "roles": ["ADMIN", "STAFF"],
         "columns": ["Donor ID", "Name", "Blood Type", "Status", "Contact", "Municipality",
@@ -36,6 +51,7 @@ REPORTS = {
     },
     "donors_by_type": {
         "title": "Donors by Blood Type",
+        "description": "Active and total donor counts per ABO/Rh group for recruitment planning.",
         "group": "Donor Reports",
         "roles": ["ADMIN", "STAFF"],
         "columns": ["Blood Type", "Active Donors", "All Donors"],
@@ -45,6 +61,7 @@ REPORTS = {
     },
     "eligible_donors": {
         "title": "Eligible Donors",
+        "description": "Donors the configured rules currently clear for collection, with their next eligible date.",
         "group": "Donor Reports",
         "roles": ["ADMIN", "STAFF"],
         "columns": ["Donor ID", "Name", "Blood Type", "Contact", "Municipality", "Next Eligible"],
@@ -54,6 +71,7 @@ REPORTS = {
     },
     "deferred_donors": {
         "title": "Deferred Donors",
+        "description": "Temporarily and permanently deferred donors with the recorded reason and review date.",
         "group": "Donor Reports",
         "roles": ["ADMIN", "STAFF"],
         "columns": ["Donor ID", "Name", "Status", "Reason", "Deferred Until"],
@@ -65,6 +83,7 @@ REPORTS = {
     },
     "donations": {
         "title": "Donations",
+        "description": "Collection records with volume, resulting blood type and processing status.",
         "group": "Donation Reports",
         "roles": ["ADMIN", "STAFF"],
         "columns": ["Donation ID", "Donor", "Date", "Type", "Volume (mL)", "Blood Type", "Status", "Staff"],
@@ -78,6 +97,7 @@ REPORTS = {
     },
     "donations_monthly": {
         "title": "Monthly Donation Trend",
+        "description": "Collections and total volume per month over the trailing twelve months.",
         "group": "Donation Reports",
         "roles": ["ADMIN", "STAFF"],
         "columns": ["Month", "Donations", "Total Volume (mL)"],
@@ -87,6 +107,7 @@ REPORTS = {
     },
     "inventory": {
         "title": "Current Inventory",
+        "description": "Point-in-time stock listing: every bag with collection, expiry, volume and storage location.",
         "group": "Inventory Reports",
         "roles": ["ADMIN", "STAFF"],
         "columns": ["Bag ID", "Blood Type", "Component", "Status", "Collected", "Expires", "Volume (mL)", "Location"],
@@ -100,6 +121,7 @@ REPORTS = {
     },
     "expiring": {
         "title": "Expiring Blood (next 7 days)",
+        "description": "Usable stock inside the configured expiry alert window, earliest expiry first.",
         "group": "Inventory Reports",
         "roles": ["ADMIN", "STAFF"],
         "columns": ["Bag ID", "Blood Type", "Component", "Expires", "Days Left", "Status"],
@@ -112,6 +134,7 @@ REPORTS = {
     },
     "expired_discarded": {
         "title": "Expired & Discarded Blood",
+        "description": "Units that left usable stock by expiry or discard, with the reason on the last ledger entry.",
         "group": "Inventory Reports",
         "roles": ["ADMIN", "STAFF"],
         "columns": ["Bag ID", "Blood Type", "Status", "Collected", "Expired/Updated", "Reason (last txn)"],
@@ -125,6 +148,7 @@ REPORTS = {
     },
     "inventory_movements": {
         "title": "Inventory Movements (Ledger)",
+        "description": "Append-only movement ledger: every bag status change with actor, reason and reference.",
         "group": "Inventory Reports",
         "roles": ["ADMIN", "STAFF"],
         "columns": ["When", "Bag", "Type", "From", "To", "Actor", "Reason", "Reference"],
@@ -138,6 +162,7 @@ REPORTS = {
     },
     "requests": {
         "title": "Blood Requests",
+        "description": "All requests with requesting organization, urgency, status and fulfilment progress.",
         "group": "Request Reports",
         "roles": ["ADMIN", "STAFF"],
         "columns": ["Request ID", "Organization", "Created", "Urgency", "Status", "Units", "Fulfilled"],
@@ -151,6 +176,7 @@ REPORTS = {
     },
     "emergency_requests": {
         "title": "Emergency Requests",
+        "description": "Requests flagged emergency or critical, with the date the units are needed by.",
         "group": "Request Reports",
         "roles": ["ADMIN", "STAFF"],
         "columns": ["Request ID", "Organization", "Urgency", "Required By", "Status", "Units"],
@@ -163,6 +189,7 @@ REPORTS = {
     },
     "fulfillment_rate": {
         "title": "Fulfillment Rate",
+        "description": "Share of closed requests fulfilled outright versus partially fulfilled.",
         "group": "Request Reports",
         "roles": ["ADMIN", "STAFF"],
         "columns": ["Metric", "Value"],
@@ -172,6 +199,7 @@ REPORTS = {
     },
     "points": {
         "title": "Points Issued & Redeemed",
+        "description": "Reward ledger entries with the running donor balance and the actor who posted them.",
         "group": "Reward Reports",
         "roles": ["ADMIN", "STAFF"],
         "columns": ["When", "Donor", "Amount", "Type", "Description", "Balance After", "Actor"],
@@ -185,6 +213,7 @@ REPORTS = {
     },
     "tiers": {
         "title": "Donors by Reward Tier",
+        "description": "Donor distribution across the configured reward tiers.",
         "group": "Reward Reports",
         "roles": ["ADMIN", "STAFF"],
         "columns": ["Tier", "Donors"],
@@ -194,6 +223,7 @@ REPORTS = {
     },
     "audit": {
         "title": "Audit Trail",
+        "description": "Administrator-only extract of the immutable audit log: who changed what, and when.",
         "group": "Audit Reports",
         "roles": ["ADMIN"],
         "columns": ["When", "User", "Action", "Module", "Object", "Description"],
@@ -356,6 +386,65 @@ def _audit_qs(params):
         qs = qs.filter(Q(action__icontains=params["q"]) | Q(description__icontains=params["q"])
                        | Q(user__username__icontains=params["q"]))
     return _apply_dates(qs, params, "created_at")[:3000]
+
+
+# --- Presentation helpers -------------------------------------------------------
+def report_or_none(key):
+    """The registry entry for ``key``, or ``None`` when it does not exist.
+
+    Callers still have to check the caller's role against the entry; this only
+    answers "is there such a report".
+    """
+    return REPORTS.get(key)
+
+
+def is_landscape(key) -> bool:
+    """Wide ledgers print in landscape; see ``_LANDSCAPE_REPORTS``."""
+    return key in _LANDSCAPE_REPORTS
+
+
+def active_filter_labels(key, params):
+    """Human-readable "Scope" pairs for the filters actually applied.
+
+    Only filters with a value are listed, and the value is the *label* an
+    operator would recognise (a status word, a blood-group code, a formatted
+    date) rather than a raw database value, because this text is printed on a
+    signed document.
+    """
+    from inventory.models import BloodType
+
+    report = REPORTS.get(key) or {}
+    humanised = {
+        "q": "Search",
+        "status": "Status",
+        "blood_type": "Blood type",
+        "date_from": "From",
+        "date_to": "To",
+    }
+    labels = []
+
+    def pretty_date(raw):
+        from django.utils.dateparse import parse_date
+        parsed = parse_date(raw)
+        return parsed.strftime("%d %b %Y") if parsed else raw
+
+    for name in report.get("filters", []):
+        raw = (params.get(name) or "").strip()
+        if not raw:
+            continue
+        if name == "blood_type":
+            match = BloodType.objects.filter(pk=raw).first()
+            value = match.code if match else raw
+        elif name == "status":
+            value = str(raw).replace("_", " ").title()
+        elif name in ("date_from", "date_to"):
+            value = pretty_date(raw)
+        else:
+            value = raw
+        labels.append((humanised.get(name, name.replace("_", " ").title()), value))
+    if not labels:
+        labels = [("Scope", "All records matching this report")]
+    return labels
 
 
 def write_csv(response, report_key, rows):

@@ -108,6 +108,8 @@ def main():
         ("bag detail", reverse("inventory:bag_detail", kwargs={"pk": sample_bag.pk}), {200}),
         ("bag register", reverse("inventory:bag_register"), {200}),
         ("transactions", reverse("inventory:transactions"), {200}),
+        ("inventory statement preview", reverse("inventory:statement"), {200}),
+        ("inventory statement pdf", reverse("inventory:statement_pdf"), {200}),
         ("compat check", reverse("inventory:compat_check"), {200}),
         ("requests list", reverse("requests:list"), {200}),
         ("request detail", reverse("requests:detail", kwargs={"pk": sample_request.pk}), {200}),
@@ -143,6 +145,10 @@ def main():
     for key in REPORTS:
         admin_pages.append((f"report {key}", reverse("reports:run", kwargs={"key": key}), {200}))
         admin_pages.append((f"export {key}", reverse("reports:export", kwargs={"key": key}), {200}))
+        # Printable outputs of every report: the print preview and the PDF must
+        # be reachable exactly when the report itself is.
+        admin_pages.append((f"document {key}", reverse("reports:document", kwargs={"key": key}), {200}))
+        admin_pages.append((f"pdf {key}", reverse("reports:pdf", kwargs={"key": key}), {200}))
     for name, url, expected in admin_pages:
         check(admin, name, url, *expected)
 
@@ -172,6 +178,15 @@ def main():
     for key, report in REPORTS.items():
         if "ADMIN" not in report["roles"]:  # audit-only report is admin, others staff too
             staff_pages.append((f"report {key}", reverse("reports:run", kwargs={"key": key}), {200}))
+            staff_pages.append((f"document {key}", reverse("reports:document", kwargs={"key": key}), {200}))
+    # The inventory statement is a staff document, so staff must get it too.
+    staff_pages.append(("inventory statement", reverse("inventory:statement"), {200}))
+    staff_pages.append(("inventory statement pdf", reverse("inventory:statement_pdf"), {200}))
+    # ... but the admin-only audit report stays un-printable for staff.
+    staff_pages.append(("audit report document (deny)",
+                        reverse("reports:document", kwargs={"key": "audit"}), {403}))
+    staff_pages.append(("audit report pdf (deny)",
+                        reverse("reports:pdf", kwargs={"key": "audit"}), {403}))
     for name, url, expected in staff_pages:
         check(staff, name, url, *expected)
 
@@ -255,6 +270,13 @@ def main():
               reverse("requests:create") + "?channel=WALK_IN", {200})
     check(requester, "inventory (deny)", reverse("inventory:dashboard"), {302, 403})
     check(requester, "inventory sidebar badge (deny)", reverse("inventory:badge"), {302, 403})
+    # The printable statement and the report documents must be exactly as locked
+    # as the pages they are opened from - an export path is not a way around a
+    # role gate.
+    check(requester, "inventory statement (deny)", reverse("inventory:statement"), {302, 403})
+    check(requester, "inventory statement pdf (deny)", reverse("inventory:statement_pdf"), {302, 403})
+    check(requester, "report document (deny)", reverse("reports:document", kwargs={"key": "inventory"}), {302, 403})
+    check(requester, "report pdf (deny)", reverse("reports:pdf", kwargs={"key": "inventory"}), {302, 403})
     check(requester, "donors (deny)", reverse("donors:list"), {403})
     check(requester, "reports (deny)", reverse("reports:center"), {302, 403})
     check(requester, "registrations (deny)", reverse("accounts:registration_list"), {302, 403})

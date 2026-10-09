@@ -9,6 +9,10 @@ dependencies = [
     "python-dotenv>=1.0",
     "dj-database-url>=2.2",
     "django-shortcuts>=1.6",
+    # Server-side PDF export for reports and the inventory statement (the print
+    # preview and the "Download PDF" button both render through it). Pure
+    # Python: unlike WeasyPrint it needs no native pango/cairo/GTK toolchain.
+    "xhtml2pdf>=0.2.11,<0.3",
 ]
 
 [project.optional-dependencies]

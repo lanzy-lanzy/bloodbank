@@ -51,6 +51,18 @@ commands in [README.md](README.md) and [TESTING.md](TESTING.md).
 7. **Secrets** only via env / `.env` (git-ignored). `.env.example` documents
    every variable. Never commit credentials, never hard-code fallbacks that
    look production-safe.
+8. **Printable documents go through `core/documents.py`.** Never hand-roll a
+   printable page or a PDF in a view/template. Build a `DocumentSpec` and let
+   `PrintableDocumentMixin` render the preview and the PDF from it, so the
+   printed page, the preview and the download are always the same document.
+   `templates/documents/document.html` is written to the xhtml2pdf CSS subset
+   on purpose — **no flexbox, no grid, no CSS variables, no external
+   stylesheets** there; adding one silently breaks the PDF. Reportlab's fonts are
+   WinAnsi, so any character a user can type must go through `pdf_safe_text()`
+   for the PDF or it prints as an empty box. A document is a record: it must
+   never invent a figure, and a truncated listing must say it is truncated
+   (see `STATEMENT_LIST_LIMIT`). Export endpoints inherit the *same* role gate
+   as the page they came from — printing is never a way around `REPORTS[key]["roles"]`.
 
 ## Django/templates gotchas that bit us
 
@@ -111,23 +123,37 @@ commands in [README.md](README.md) and [TESTING.md](TESTING.md).
   built assets. `settings.STORAGES`
   uses the whitenoise manifest backend only when `DEBUG=False` and not
   testing (otherwise `{% static %}` would demand a fresh collectstatic).
+- **`templates/documents/document.html` is PDF-constrained.** It is the only
+  template that must stay inside the xhtml2pdf CSS subset, so: no `<link>` to an
+  external stylesheet, no Tailwind classes, no flexbox/grid/CSS variables, and
+  every colour written out explicitly. Screen-only styling goes inside
+  `{% if chrome %}`, which is never set for the PDF — that is what makes a
+  toolbar structurally unable to reach paper. `pdf:pagenumber` /
+  `pdf:pagecount` inside `#doc_header`/`#doc_footer` are xhtml2pdf-only and must
+  not be moved into a normal element. Adding a report or a statement means
+  adding rows/spec fields, not editing this template.
 
 ## Verification workflow (run before declaring anything done)
 
 ```
 npm run build:css                 # rebuild static/css/tailwind.css after class changes
 python manage.py check
-python manage.py test                 # 218 tests — must stay OK
+python manage.py test                 # must stay OK
 python check_templates.py             # all templates compile
-python check_e2e.py                   # 142-page GET walk (4 roles + anonymous)
-python check_e2e_post.py              # 75-assert POST workflows (rolls back)
+python check_e2e.py                   # 4-role GET walk + negative access
+python check_e2e_post.py              # POST workflows (rolls back)
 python modal_smoke.py                 # modal/HX-Request contract (rolls back)
+python check_documents.py             # every report + the inventory statement:
+                                      #   preview 200, real %PDF- bytes, 403 for
+                                      #   the roles that must not have them
 ```
 
-`check_e2e*.py` require a seeded dev DB (`manage.py seed_demo`) and never
-modify it (POST smoke is wrapped in a rolled-back atomic block). If you add
-a page/route/permission, extend those scripts AND the matching app `tests.py`
-(especially negative-access assertions).
+`check_e2e*.py` and `check_documents.py` require a seeded dev DB
+(`manage.py seed_demo`) and never modify it (POST smoke is wrapped in a
+rolled-back atomic block). If you add a page/route/permission, extend those
+scripts AND the matching app `tests.py` (especially negative-access assertions).
+`check_documents.py` is the one to extend whenever a new report or a new
+printable document is added — it is what proves the PDF is a real PDF.
 
 ## Style
 
@@ -156,3 +182,16 @@ a page/route/permission, extend those scripts AND the matching app `tests.py`
   `layout` is set). Never `confirm()` in templates — use the
   `bb-confirm-delete` page dialog (settings templates) or a GET-rendered
   confirmation modal.
+- **Modal CRUD has one exception: heavy detail screens are pages.** If a screen
+  has **forms plus more than one action**, it is a working surface, not a
+  preview — keep it a full page. `inventory:bag_detail` is the case in point:
+  `BagDetailView` uses plain `render()` (NOT `render_any`), its template extends
+  `base.html` with no `{% if layout %}` branches, and every bag link is a plain
+  anchor (bag list, ledger, dashboard, compat check, request detail, donation
+  detail, staff dashboard). Two reasons, both load-bearing: a modal buries the
+  test-result form and guarded release actions in a nested scroll box and loses
+  the surrounding stock context; and rendering the full document unconditionally
+  means a reintroduced `hx-get` injects a whole `<html>` into `#modal-root` and
+  fails loudly instead of silently half-rendering.
+  `inventory.tests.BagDetailIsAPageTests` pins it — extend that test if you add
+  another heavy screen.

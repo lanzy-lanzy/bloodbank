@@ -1,37 +1,67 @@
-<div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+{% comment %}
+Result table for one report. Also swapped in over HTMX, so it must stay
+self-contained (no dependency on the page template's context). Numeric columns
+are right-aligned by build_columns() so figures line up down the page.
+{% endcomment %}
+<div class="overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
+  <div class="flex flex-wrap items-center justify-between gap-2 border-b border-ink-100 bg-ink-50/60 px-4 py-2.5">
+    <h2 class="text-xs font-bold uppercase tracking-wider text-ink-500">Results</h2>
+    <p class="text-xs text-ink-500">
+      <span class="font-semibold tabular-nums text-ink-700">{{ page_obj.paginator.count }}</span>
+      row{{ page_obj.paginator.count|pluralize }} &middot; page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </p>
+  </div>
+
   <div class="overflow-x-auto">
     <table class="min-w-full text-sm">
-      <thead class="bg-ink-50 text-xs uppercase tracking-wide text-ink-500">
-        <tr>
-          {% for col in columns %}<th class="px-4 py-3 text-left whitespace-nowrap">{{ col }}</th>{% endfor %}
+      <thead>
+        <tr class="border-b border-ink-200">
+          <th scope="col" class="w-10 px-4 py-2.5 text-right text-[11px] font-bold uppercase tracking-wider text-ink-400">#</th>
+          {% for col in columns %}<th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider whitespace-nowrap text-ink-500">{{ col }}</th>{% endfor %}
         </tr>
       </thead>
       <tbody class="divide-y divide-ink-100">
         {% for row in rows %}
-          <tr class="hover:bg-ink-50/60">
-            {% for cell in row %}<td class="px-4 py-2.5 text-ink-700 whitespace-nowrap">{{ cell }}</td>{% endfor %}
+          <tr class="transition-colors hover:bg-brand-50/40">
+            <td class="px-4 py-2.5 text-right text-xs tabular-nums text-ink-300">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+            {% for cell in row %}<td class="px-4 py-2.5 whitespace-nowrap text-ink-700">{{ cell }}</td>{% endfor %}
           </tr>
         {% empty %}
-          <tr><td colspan="{{ columns|length }}" class="px-4 py-10 text-center text-ink-500">No rows match the current filters.</td></tr>
+          <tr>
+            <td colspan="{{ columns|length|add:1 }}" class="px-4 py-14">
+              {% include "components/empty_state.html" with empty_title="No rows match the current filters" empty_text="Adjust or clear the filters above to widen the result set." %}
+            </td>
+          </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  <div class="border-t border-ink-100 px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-sm">
-    <span class="text-ink-500">
-      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-      · {{ page_obj.paginator.count }} row{{ page_obj.paginator.count|pluralize }}
-      · 50 per page
+
+  <div class="flex flex-wrap items-center justify-between gap-2 border-t border-ink-100 px-4 py-3 text-sm">
+    <span class="text-xs text-ink-500">
+      Showing <span class="font-semibold tabular-nums text-ink-700">{{ page_obj.start_index }}</span>&ndash;<span class="font-semibold tabular-nums text-ink-700">{{ page_obj.end_index }}</span>
+      of <span class="font-semibold tabular-nums text-ink-700">{{ page_obj.paginator.count }}</span>
     </span>
-    <div class="flex gap-2">
+    <div class="flex items-center gap-2">
       {% if page_obj.has_previous %}
         <a href="?page={{ page_obj.previous_page_number }}{% for k, v in filters.items %}{% if v %}&amp;{{ k }}={{ v|urlencode }}{% endif %}{% endfor %}"
-           class="rounded-lg border border-ink-200 px-3 py-1.5 hover:bg-ink-50">← Prev</a>
+           class="inline-flex items-center gap-1 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-medium text-ink-600 transition hover:bg-ink-50">
+          <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/></svg>
+          Previous
+        </a>
+      {% else %}
+        <span class="cursor-not-allowed rounded-lg border border-ink-100 bg-ink-50 px-3 py-1.5 text-xs font-medium text-ink-300">Previous</span>
       {% endif %}
       {% if page_obj.has_next %}
         <a href="?page={{ page_obj.next_page_number }}{% for k, v in filters.items %}{% if v %}&amp;{{ k }}={{ v|urlencode }}{% endif %}{% endfor %}"
-           class="rounded-lg border border-ink-200 px-3 py-1.5 hover:bg-ink-50">Next →</a>
+           class="inline-flex items-center gap-1 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-medium text-ink-600 transition hover:bg-ink-50">
+          Next
+          <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+        </a>
+      {% else %}
+        <span class="cursor-not-allowed rounded-lg border border-ink-100 bg-ink-50 px-3 py-1.5 text-xs font-medium text-ink-300">Next</span>
       {% endif %}
     </div>
   </div>
 </div>
+

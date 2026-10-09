@@ -1,49 +1,66 @@
 {% load humanize %}
-<div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+{% comment %}
+Bag listing table. Swapped in over HTMX, so it must stay self-contained.
+Expiry is always shown as date + remaining days: a date alone is ambiguous on a
+warehouse shelf, and the remaining-days figure is what staff actually act on.
+{% endcomment %}
+<div class="overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
   <div class="overflow-x-auto">
     <table class="min-w-full text-sm">
       <thead>
-        <tr>
-          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Bag</th>
-          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Type / Component</th>
-          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Donor / Donation</th>
-          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Collected</th>
-          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Expires</th>
-          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Location</th>
-          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Allocated to</th>
-          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Status</th>
+        <tr class="border-b border-ink-200 bg-ink-50/60">
+          <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Bag</th>
+          <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Type / Component</th>
+          <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Donor / Donation</th>
+          <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Collected</th>
+          <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Expires</th>
+          <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Location</th>
+          <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Allocated to</th>
+          <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Status</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody class="divide-y divide-ink-100">
         {% for bag in bags %}
-        <tr class="hover:bg-ink-50/60">
-          <td class="px-4 py-3"><a class="font-semibold text-ink-900 hover:text-brand-600" href="{% url 'inventory:bag_detail' bag.pk %}" hx-get="{% url 'inventory:bag_detail' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ bag.bag_code }}</a>
-            <span class="block text-xs text-ink-400">{{ bag.volume_ml }} mL</span></td>
-          <td class="px-4 py-3"><span class="font-bold text-brand-700">{{ bag.blood_type.code }}</span> <span class="text-ink-600">{{ bag.component }}</span></td>
+        <tr class="align-top transition-colors hover:bg-ink-50/60">
+          <td class="px-4 py-3">
+            <a class="font-semibold text-ink-900 transition hover:text-brand-600" href="{% url 'inventory:bag_detail' bag.pk %}">{{ bag.bag_code }}</a>
+            <span class="mt-0.5 block text-xs tabular-nums text-ink-400">{{ bag.volume_ml }} mL</span>
+          </td>
+          <td class="px-4 py-3">
+            <span class="inline-flex h-6 min-w-[2.5rem] items-center justify-center rounded-md bg-brand-50 px-1.5 text-xs font-bold text-brand-700 ring-1 ring-inset ring-brand-200">{{ bag.blood_type.code }}</span>
+            <span class="mt-1 block text-xs text-ink-600">{{ bag.component }}</span>
+          </td>
           <td class="px-4 py-3 text-xs">
-            {% if bag.donor %}<a class="text-ink-700 hover:text-brand-600 font-medium" href="{% url 'donors:detail' bag.donor.pk %}" hx-get="{% url 'donors:detail' bag.donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ bag.donor.donor_code }}</a>{% else %}<span class="text-ink-400">external</span>{% endif %}
-            {% if bag.donation %}<span class="block text-ink-400">{{ bag.donation.donation_code }}</span>{% endif %}
+            {% if bag.donor %}
+              <a class="font-medium text-ink-700 transition hover:text-brand-600" href="{% url 'donors:detail' bag.donor.pk %}" hx-get="{% url 'donors:detail' bag.donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ bag.donor.donor_code }}</a>
+            {% else %}<span class="text-ink-400">external</span>{% endif %}
+            {% if bag.donation %}<span class="mt-0.5 block text-ink-400">{{ bag.donation.donation_code }}</span>{% endif %}
           </td>
-          <td class="px-4 py-3 text-ink-600 whitespace-nowrap">{{ bag.collected_at|date:"Y-m-d H:i" }}</td>
-          <td class="px-4 py-3 whitespace-nowrap {% if bag.is_expired_by_date %}text-brand-600 font-semibold{% elif bag.days_until_expiry <= 7 %}text-amber-600 font-semibold{% else %}text-ink-600{% endif %}">
+          <td class="whitespace-nowrap px-4 py-3 tabular-nums text-ink-600">{{ bag.collected_at|date:"Y-m-d H:i" }}</td>
+          <td class="whitespace-nowrap px-4 py-3 tabular-nums {% if bag.is_expired_by_date %}font-bold text-brand-600{% elif bag.days_until_expiry <= 7 %}font-semibold text-amber-600{% else %}text-ink-600{% endif %}">
             {{ bag.expires_at|date:"Y-m-d H:i" }}
-            <span class="block text-[11px] font-normal text-ink-400">{% if bag.is_expired_by_date %}expired{% else %}{{ bag.days_until_expiry }} day{{ bag.days_until_expiry|pluralize }} left{% endif %}</span>
+            <span class="mt-0.5 block text-[11px] font-normal text-ink-400">
+              {% if bag.is_expired_by_date %}expired{% else %}{{ bag.days_until_expiry }} day{{ bag.days_until_expiry|pluralize }} left{% endif %}
+            </span>
           </td>
-          <td class="px-4 py-3 text-ink-600 text-xs">{{ bag.location|default:"—" }}{% if bag.storage_position %} · {{ bag.storage_position }}{% endif %}</td>
+          <td class="px-4 py-3 text-xs text-ink-600">
+            {{ bag.location|default:"&mdash;"|safe }}
+            {% if bag.storage_position %}<span class="mt-0.5 block text-ink-400">{{ bag.storage_position }}</span>{% endif %}
+          </td>
           <td class="px-4 py-3 text-xs">
             {% for alloc in bag.open_allocations %}
-              <a class="font-semibold text-ink-800 hover:text-brand-600" href="{% url 'requests:detail' alloc.request.pk %}"
+              <a class="font-semibold text-ink-800 transition hover:text-brand-600" href="{% url 'requests:detail' alloc.request.pk %}"
                  hx-get="{% url 'requests:detail' alloc.request.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ alloc.request.request_code }}</a>
-              <span class="block text-[11px] text-ink-400">{{ alloc.request.organization.name }} · {{ alloc.get_status_display|lower }}</span>
+              <span class="mt-0.5 block text-[11px] text-ink-400">{{ alloc.request.organization.name }} &middot; {{ alloc.get_status_display|lower }}</span>
             {% empty %}
-              <span class="text-ink-400">—</span>
+              <span class="text-ink-300">&mdash;</span>
             {% endfor %}
           </td>
           <td class="px-4 py-3">{% include "components/status_badge.html" with status=bag.status %}</td>
         </tr>
         {% empty %}
         <tr><td colspan="8" class="px-4 py-10">
-          {% include "components/empty_state.html" with empty_title="No blood bags found" empty_text="Adjust filters or register a bag." %}
+          {% include "components/empty_state.html" with empty_title="No blood bags found" empty_text="Adjust the filters, or register a bag from a collection or an external source." %}
         </td></tr>
         {% endfor %}
       </tbody>
@@ -51,3 +68,4 @@
   </div>
   {% include "components/pagination.html" with page_obj=page_obj %}
 </div>
+

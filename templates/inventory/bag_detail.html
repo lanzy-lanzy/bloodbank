@@ -1,4 +1,4 @@
-{% extends layout|default:"base.html" %}
+{% extends "base.html" %}
 {% block title %}{{ bag.bag_code }} — Inventory — {{ ORG_NAME }}{% endblock %}
 {% block content %}
 <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
@@ -19,11 +19,11 @@
       · {{ bag.volume_ml }} mL · screening: {{ bag.get_screening_status_display }}
     </p>
   </div>
-  {% if layout %}
-  <button type="button" @click="bbCloseModal()" class="text-sm font-medium text-brand-600 hover:text-brand-700">Close</button>
-  {% else %}
-  <a href="{% url 'inventory:bag_list' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">← Back to inventory</a>
-  {% endif %}
+  <a href="{% url 'inventory:bag_list' %}"
+     class="inline-flex items-center gap-1.5 rounded-xl border border-ink-200 bg-white px-3.5 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50">
+    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+    Back to blood bags
+  </a>
 </div>
 
 <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -115,8 +115,7 @@
                 {% if res %}
                   {% if res.verified_by %}<span class="text-emerald-600 font-medium">✓ {{ res.verified_by.get_username }} · {{ res.verified_at|date:"m-d H:i" }}</span>
                   {% else %}
-                  <form method="post" action="{% url 'inventory:test_verify' bag.pk res.pk %}"
-                        {% if layout %}hx-post="{% url 'inventory:test_verify' bag.pk res.pk %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %} class="inline">
+                  <form method="post" action="{% url 'inventory:test_verify' bag.pk res.pk %}" class="inline">
                     {% csrf_token %}
                     <button type="submit" class="rounded-lg border border-amber-300 bg-amber-50 text-amber-700 px-2.5 py-1 text-xs font-semibold hover:bg-amber-100">Verify (2nd person)</button>
                   </form>
@@ -134,7 +133,6 @@
       <div class="px-5 py-4 border-t border-ink-100 bg-ink-50/60">
         <h3 class="text-sm font-semibold text-ink-800 mb-2">Record Test Result</h3>
         <form method="post" action="{% url 'inventory:bag_test' bag.pk %}"
-              {% if layout %}hx-post="{% url 'inventory:bag_test' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %}
               class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 items-end">
           {% csrf_token %}
           {% include "components/form_errors.html" with form=test_form %}
@@ -158,8 +156,7 @@
             Safety-critical. The system re-checks that every required test is non-reactive/acceptable and verified before release.
             {% if bag.status == "TESTING" %}Current screening gate: required tests {{ bag.screening_status|lower }}.{% endif %}
           </p>
-          <form method="post" action="{% url 'inventory:bag_release' bag.pk %}" @submit.prevent="confirmOpen = true"
-                {% if layout %}hx-post="{% url 'inventory:bag_release' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML" hx-trigger="bb:form-submit"{% endif %}>
+          <form method="post" action="{% url 'inventory:bag_release' bag.pk %}" @submit.prevent="confirmOpen = true">
             {% csrf_token %}
             <input type="hidden" name="confirm" value="RELEASE">
             <input type="text" name="reason" maxlength="255" placeholder="Release note (optional; defaults to authorized release)"
@@ -181,7 +178,6 @@
         <div x-data="{ status: '' }">
           <h3 class="text-sm font-semibold text-ink-800 mb-2">Other Transitions</h3>
           <form method="post" action="{% url 'inventory:bag_transition' bag.pk %}"
-                {% if layout %}hx-post="{% url 'inventory:bag_transition' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %}
                 class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 items-end">
             {% csrf_token %}
             <div>

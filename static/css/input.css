@@ -31,7 +31,128 @@
   ::selection { background: var(--color-brand-200); color: var(--color-brand-900); }
 }
 
-/* --- Modal system (see core/modals.py + components/modal_shell.html) -------- */
+/* --- Print (loaded in base.html; see the workflow note in AGENTS/agents.md) --
+   Applies to every page so a staff member can always Ctrl+P something useful.
+   The rule of thumb: keep the *data*, drop the *application*. Navigation,
+   filter bars, buttons and badges go; the report itself, its figures and its
+   tables stay, and the table header repeats on every printed page. */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 14mm 12mm 16mm 12mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Application chrome: never part of a printed record. */
+  aside,
+  header,
+  nav,
+  .no-print,
+  [data-no-print],
+  #modal-root,
+  .bb-modal-root,
+  #toast-root,
+  form,
+  button,
+  .doc-toolbar {
+    display: none !important;
+  }
+
+  /* The sidebar is an <aside> and the topbar a <header>, so the layout wrapper
+     has to stop reserving their space or the content lands in the left margin. */
+  .lg\:pl-64,
+  .pt-16 {
+    padding-left: 0 !important;
+    padding-top: 0 !important;
+    margin: 0 !important;
+  }
+
+  main,
+  main * {
+    max-width: 100% !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Cards flatten into the page instead of floating on it. */
+  .shadow-sm,
+  .shadow,
+  .shadow-lg,
+  .shadow-card,
+  .shadow-glow,
+  .rounded-2xl,
+  .rounded-xl {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  .hover\:shadow:hover {
+    box-shadow: none !important;
+  }
+
+  /* Colour must survive printing, or status loses meaning. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Tables: show the grid, repeat the header, never orphan a row. */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto;
+  }
+
+  thead {
+    display: table-header-group; /* repeats on every page */
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  tr,
+  img,
+  svg,
+  figure {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  thead th {
+    border-bottom: 1.5pt solid #000 !important;
+  }
+
+  td,
+  th {
+    padding: 3pt 5pt !important;
+  }
+
+  /* Horizontal scrollers hide columns; printing must not. */
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 8pt;
+    color: #555555;
+  }
+
+  /* Pagination controls mean nothing on paper. */
+  [aria-label="Pagination"],
+  nav[aria-label="Pagination"] {
+    display: none !important;
+  }
+}
+
 body.bb-modal-open { overflow: hidden; }
 /* The panel body is a light surface so the templates' own white cards render
    identically inside a modal as they do on the full page. */

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+{% comment %}
+Formal printable document, rendered for BOTH the on-screen print preview and
+the server-side PDF so the two can never diverge. Layout is table-based and the
+stylesheet stays inside the CSS subset xhtml2pdf implements (no flexbox, no
+grid, no CSS variables) - see core/documents.py.
+{% endcomment %}
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ doc.title }} - {{ ORG_NAME }}</title>
+<style type="text/css">
+@page {
+  size: {{ doc.resolved_page_size|lower }}{% if doc.resolved_landscape %} landscape{% else %} portrait{% endif %};
+  margin: 1.5cm 1.2cm 1.6cm 1.2cm;
+  @frame doc_header_frame { -pdf-frame-content: doc_header; left: 1.2cm; width: 18.6cm; top: 0.7cm; height: 0.6cm; }
+  @frame doc_footer_frame { -pdf-frame-content: doc_footer; left: 1.2cm; width: 18.6cm; top: 28.1cm; height: 0.7cm; }
+}
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { font-family: Helvetica, Arial, sans-serif; font-size: 9pt; color: #1e293b; margin: 0; padding: 0; }
+p { margin: 0 0 5pt 0; }
+a { color: #1e293b; text-decoration: none; }
+table { width: 100%; }
+td, th { vertical-align: top; }
+table.masthead { border-bottom: 2.5pt solid #0f172a; padding-bottom: 7pt; margin-bottom: 12pt; }
+td.mast-org { font-size: 15pt; font-weight: bold; color: #0f172a; }
+td.mast-sub { font-size: 8pt; color: #64748b; }
+td.mast-meta { text-align: right; font-size: 7.5pt; color: #64748b; }
+td.mast-doc { text-align: right; font-size: 8pt; font-weight: bold; color: #be123c; }
+td.mast-conf { text-align: right; font-size: 7pt; color: #94a3b8; }
+table.doctitle { margin-bottom: 10pt; }
+td.dt-label { font-size: 7.5pt; font-weight: bold; color: #be123c; }
+td.dt-title { font-size: 16pt; font-weight: bold; color: #0f172a; padding-top: 2pt; }
+td.dt-sub { font-size: 9pt; color: #475569; padding-top: 3pt; }
+td.dt-ref { text-align: right; font-size: 8pt; color: #64748b; }
+td.dt-refname { text-align: right; font-size: 7pt; color: #94a3b8; }
+table.metagrid td { border: 0.6pt solid #e2e8f0; background-color: #f8fafc; padding: 5pt 7pt; width: 25%; }
+td.meta-label { font-size: 7pt; font-weight: bold; color: #64748b; }
+td.meta-value { font-size: 9pt; font-weight: bold; color: #0f172a; padding-top: 1pt; }
+table.summary td { border: 0.8pt solid #e2e8f0; background-color: #ffffff; padding: 7pt 8pt; text-align: center; }
+td.sum-value { font-size: 15pt; font-weight: bold; color: #0f172a; }
+td.sum-label { font-size: 7pt; color: #64748b; padding-top: 2pt; }
+table.data { margin-top: 12pt; }
+th.dh { background-color: #0f172a; color: #ffffff; font-size: 7.5pt; font-weight: bold; padding: 6pt 6pt; text-align: left; }
+td.dc { font-size: 8.5pt; padding: 5pt 6pt; border-bottom: 0.5pt solid #e2e8f0; color: #1e293b; }
+tr.alt td.dc { background-color: #f8fafc; }
+tr.total td.dc { background-color: #f1f5f9; font-weight: bold; color: #0f172a; border-top: 1pt solid #0f172a; border-bottom: none; }
+td.empty { font-size: 9pt; color: #64748b; text-align: center; padding: 22pt 8pt; background-color: #f8fafc; border: 0.6pt solid #e2e8f0; }
+td.num { text-align: right; }
+p.note { font-size: 8pt; color: #475569; margin-bottom: 3pt; }
+table.colophon { margin-top: 14pt; border-top: 0.8pt solid #cbd5e1; padding-top: 7pt; }
+td.colo { font-size: 7.5pt; color: #64748b; }
+td.colo-right { text-align: right; font-size: 7.5pt; color: #64748b; }
+table.sign { margin-top: 22pt; }
+table.sign td { width: 33%; padding-right: 14pt; }
+td.sign-role { font-size: 7pt; font-weight: bold; color: #64748b; }
+td.sign-line { font-size: 9pt; color: #0f172a; padding-top: 16pt; border-bottom: 0.6pt solid #94a3b8; }
+td.sign-note { font-size: 7pt; color: #94a3b8; padding-top: 2pt; }
+</style>
+
+{% if chrome %}
+{% comment %}
+Screen-only chrome. render_document() passes chrome=False for the PDF, so a
+toolbar or a grey backdrop can never reach paper; the print rules below keep
+the preview itself paper-clean too.
+{% endcomment %}
+<style type="text/css">
+body { background-color: #eef1f5; padding: 0 0 40pt 0; }
+.paper { width: 210mm; margin: 24px auto; background-color: #ffffff; padding: 15mm 14mm;
+         box-shadow: 0 18px 50px -18px rgba(15, 23, 42, .45); }
+.doc-toolbar { position: sticky; top: 0; z-index: 5; width: 210mm; margin: 0 auto; padding: 13px 16px;
+               background-color: #0f172a; color: #f8fafc; display: flex; flex-wrap: wrap;
+               align-items: center; justify-content: space-between; gap: 12px; }
+.tb-title { font-size: 13px; font-weight: 700; }
+.tb-hint { font-size: 11px; color: #94a3b8; }
+.tb-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.tb-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
+          padding: 7px 13px; border-radius: 8px; border: 1px solid transparent; cursor: pointer;
+          text-decoration: none; line-height: 1.2; }
+.tb-btn-primary { background-color: #e11d48; color: #ffffff; }
+.tb-btn-primary:hover { background-color: #be123c; }
+.tb-btn-ghost { background-color: transparent; color: #e2e8f0; border-color: #334155; }
+.tb-btn-ghost:hover { background-color: #1e293b; }
+.tb-btn svg { width: 15px; height: 15px; }
+#doc_header, #doc_footer { display: none; }
+@media (max-width: 880px) { .paper, .doc-toolbar { width: auto; margin: 12px; } .paper { padding: 18px; } }
+@media print {
+  body { background-color: #ffffff; padding: 0; }
+  .paper { width: auto; margin: 0; padding: 0; box-shadow: none; }
+  .doc-toolbar { display: none; }
+}
+</style>
+{% endif %}
+</head>
+<body>
+{% if chrome %}
+<div class="doc-toolbar no-print">
+  <div>
+    <div class="tb-title">{{ doc.title }}</div>
+    <div class="tb-hint">Print preview &middot; {{ doc.rows|length }} row{{ doc.rows|length|pluralize }} &middot; {{ doc.resolved_page_size|upper }}{% if doc.resolved_landscape %} landscape{% endif %}</div>
+  </div>
+  <div class="tb-actions">
+    {% comment %}
+    The print button needs no URL: the preview page *is* the document, so its
+    button calls window.print() on the page it is already on (see the script at
+    the foot of this file). Only PDF/CSV/Close are real routes.
+    {% endcomment %}
+    <a class="tb-btn tb-btn-primary" href="#" data-bb-print-now="1">Print</a>
+    {% if doc.toolbar.pdf %}<a class="tb-btn tb-btn-ghost" href="{{ doc.toolbar.pdf }}">Download PDF</a>{% endif %}
+    {% if doc.toolbar.csv %}<a class="tb-btn tb-btn-ghost" href="{{ doc.toolbar.csv }}">Export CSV</a>{% endif %}
+    {% if doc.toolbar.back %}<a class="tb-btn tb-btn-ghost" href="{{ doc.toolbar.back }}">Close</a>{% endif %}
+  </div>
+</div>
+{% endif %}
+<div class="paper">
+<div id="doc_header">
+  <table>
+    <tr>
+      <td style="font-size:7pt; color:#64748b;">{{ ORG_NAME }} &mdash; {{ doc.doc_type }}</td>
+      <td style="font-size:7pt; color:#64748b; text-align:right;">{{ doc.title }}</td>
+    </tr>
+  </table>
+</div>
+<div id="doc_footer">
+  <table>
+    <tr>
+      <td style="font-size:7pt; color:#64748b;">{{ ORG_NAME }}{% if ORG_CONTACT %} &middot; {{ ORG_CONTACT }}{% endif %}</td>
+      <td style="font-size:7pt; color:#64748b; text-align:right;">Page <pdf:pagenumber> of <pdf:pagecount> &middot; Confidential</td>
+    </tr>
+  </table>
+</div>
+
+
+<table class="masthead">
+  <tr>
+    <td class="mast-org">{{ ORG_NAME }}</td>
+    <td class="mast-meta" style="width:38%;">
+      <div class="mast-doc">{{ doc.doc_type }}</div>
+      <div class="mast-conf">CONFIDENTIAL &middot; INTERNAL USE ONLY</div>
+    </td>
+  </tr>
+  <tr>
+    <td class="mast-sub">{% if ORG_ADDRESS %}{{ ORG_ADDRESS }}{% endif %}{% if ORG_ADDRESS and ORG_CONTACT %} &middot; {% endif %}{% if ORG_CONTACT %}{{ ORG_CONTACT }}{% endif %}{% if not ORG_ADDRESS and not ORG_CONTACT %}Blood Bank Management System{% endif %}</td>
+    <td class="mast-meta">{% if doc.reference %}{{ doc.reference }}{% endif %}</td>
+  </tr>
+</table>
+
+<table class="doctitle">
+  <tr>
+    <td>
+      <div class="dt-label">{{ doc.doc_type }}</div>
+      <div class="dt-title">{{ doc.title }}</div>
+      {% if doc.subtitle %}<div class="dt-sub">{{ doc.subtitle }}</div>{% endif %}
+    </td>
+    <td class="dt-ref" style="width:32%;">
+      {% if doc.reference %}<div class="dt-refname">DOCUMENT REFERENCE</div><div>{{ doc.reference }}</div>{% endif %}
+    </td>
+  </tr>
+</table>
+
+{% if doc.meta %}
+<table class="metagrid">
+  <tr>
+    {% for label, value in doc.meta %}
+    <td>
+      <div class="meta-label">{{ label }}</div>
+      <div class="meta-value">{{ value }}</div>
+    </td>
+    {% endfor %}
+  </tr>
+</table>
+{% endif %}
+
+{% if doc.summary %}
+<table class="summary">
+  <tr>
+    {% for label, value in doc.summary %}
+    <td>
+      <div class="sum-value">{{ value }}</div>
+      <div class="sum-label">{{ label }}</div>
+    </td>
+    {% endfor %}
+  </tr>
+</table>
+{% endif %}
+
+
+<table class="data">
+  <thead>
+    <tr>
+      <th class="dh" style="width:3%;">#</th>
+      {% for column in doc.columns %}
+      <th class="dh" style="width:{{ column.width }}%;{% if column.css_align == 'right' %} text-align:right;{% endif %}">{{ column.label }}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in doc.rows %}
+    <tr{% if forloop.counter|divisibleby:2 == 0 %} class="alt"{% endif %}>
+      <td class="dc" style="text-align:right; color:#94a3b8;">{{ forloop.counter }}</td>
+      {% for column in doc.columns %}
+      <td class="dc"{% if column.css_align == 'right' %} style="text-align:right;"{% endif %}>{{ row|slice:forloop.counter0|last }}</td>
+      {% endfor %}
+    </tr>
+    {% empty %}
+    <tr><td class="empty" colspan="{{ doc.columns|length|add:1 }}">{{ doc.empty_text }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if doc.notes %}
+<p style="margin-top:12pt;"><span class="dt-label">NOTES</span></p>
+{% for note in doc.notes %}<p class="note">{{ note }}</p>{% endfor %}
+{% endif %}
+
+{% if doc.show_signatures %}
+<table class="sign">
+  <tr>
+    <td>
+      <div class="sign-line">{% if doc.prepared_by %}{{ doc.prepared_by }}{% endif %}</div>
+      <div class="sign-role">Prepared by</div>
+      <div class="sign-note">{{ doc.prepared_role|default:"Blood Bank Staff" }}</div>
+    </td>
+    <td>
+      <div class="sign-line"></div>
+      <div class="sign-role">Reviewed by</div>
+      <div class="sign-note">Supervisor / Quality Assurance</div>
+    </td>
+    <td>
+      <div class="sign-line"></div>
+      <div class="sign-role">Approved by</div>
+      <div class="sign-note">Medical Director</div>
+    </td>
+  </tr>
+</table>
+{% endif %}
+
+<table class="colophon">
+  <tr>
+    <td class="colo" style="width:62%;">
+      {{ ORG_NAME }}{% if ORG_ADDRESS %} &middot; {{ ORG_ADDRESS }}{% endif %}{% if ORG_CONTACT %} &middot; {{ ORG_CONTACT }}{% endif %}<br>
+      Generated from live system records at the moment of printing. This is a point-in-time
+      extract and confers no clinical authorisation on its own.
+    </td>
+    <td class="colo-right">
+      {{ doc.doc_type }} &middot; {{ doc.rows|length }} row{{ doc.rows|length|pluralize }}<br>
+      {% if doc.reference %}Ref {{ doc.reference }} &middot; {% endif %}Confidential
+    </td>
+  </tr>
+</table>
+
+</div>
+{% if chrome %}
+<script>
+// The "Print" action on the preview re-prints the same document, so the operator
+// never has to go back through the app UI to reach the print dialog.
+document.querySelectorAll('[data-bb-print-now]').forEach(function (el) {
+  el.addEventListener('click', function (evt) {
+    evt.preventDefault();
+    window.print();
+  });
+});
+</script>
+{% endif %}
+</body>
+</html>

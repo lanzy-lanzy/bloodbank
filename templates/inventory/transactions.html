@@ -1,54 +1,86 @@
 {% extends "base.html" %}
 {% block title %}Inventory Movements — {{ ORG_NAME }}{% endblock %}
 {% block content %}
-<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+<div class="mb-5 flex flex-wrap items-start justify-between gap-4">
   <div>
-    <h1 class="text-xl font-bold text-ink-900">Inventory Movement Ledger</h1>
-    <p class="text-sm text-ink-500 mt-0.5">Append-only record of every bag status change. Historical entries cannot be edited or deleted.</p>
+    <h1 class="text-2xl font-bold tracking-tight text-ink-900">Inventory Movement Ledger</h1>
+    <p class="mt-1 max-w-2xl text-sm text-ink-500">
+      Append-only record of every bag status change. Entries are written by the transition
+      that caused them and can be neither edited nor deleted &mdash; a bag's whole history
+      can be reconstructed from this table alone.
+    </p>
   </div>
-  <a href="{% url 'inventory:dashboard' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">← Inventory dashboard</a>
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="{% url 'inventory:dashboard' %}"
+       class="inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50">
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+      Dashboard
+    </a>
+    {% url "reports:run" key="inventory_movements" as ledger_report_url %}
+    <a href="{{ ledger_report_url }}"
+       class="inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50">Printable report</a>
+  </div>
 </div>
 
-<div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4">
-  <form method="get" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-    <input type="search" name="q" value="{{ q }}" placeholder="Bag code, reference, reason…"
-           class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
-    <select name="type" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
-      <option value="">All transaction types</option>
-      {% for value, label in types %}
-        <option value="{{ value }}" {% if type_filter == value %}selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
-    <div class="flex justify-end gap-2">
-      <a href="{% url 'inventory:transactions' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Reset</a>
-      <button type="submit" class="rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2">Filter</button>
+<div class="mb-4 overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
+  <div class="flex items-center gap-2 border-b border-ink-100 bg-ink-50/50 px-4 py-2.5">
+    <svg class="h-4 w-4 text-ink-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.012L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z"/></svg>
+    <h2 class="text-xs font-bold uppercase tracking-wider text-ink-500">Filter movements</h2>
+  </div>
+  <form method="get" class="grid grid-cols-1 gap-3 p-4 sm:grid-cols-3">
+    <div>
+      <label for="txn-q" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-500">Search</label>
+      <input id="txn-q" type="search" name="q" value="{{ q }}" placeholder="Bag code, reference, reason&hellip;"
+             class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none">
+    </div>
+    <div>
+      <label for="txn-type" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-500">Movement type</label>
+      <select id="txn-type" name="type" class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none">
+        <option value="">All transaction types</option>
+        {% for value, label in types %}
+          <option value="{{ value }}" {% if type_filter == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="flex items-end justify-end gap-2">
+      <a href="{% url 'inventory:transactions' %}" class="rounded-xl border border-ink-200 px-4 py-2 text-sm font-medium text-ink-600 transition hover:bg-ink-50">Reset</a>
+      <button type="submit" class="rounded-xl bg-ink-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-700">Filter</button>
     </div>
   </form>
 </div>
 
-<div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+<div class="overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
   <div class="overflow-x-auto">
     <table class="min-w-full text-sm">
       <thead>
-        <tr>
-          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">When</th>
-          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Bag</th>
-          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Type</th>
-          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Movement</th>
-          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Actor</th>
-          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Reason / Reference</th>
+        <tr class="border-b border-ink-200 bg-ink-50/60">
+          <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">When</th>
+          <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Bag</th>
+          <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Movement</th>
+          <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Status change</th>
+          <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Actor</th>
+          <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Reason / Reference</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody class="divide-y divide-ink-100">
         {% for t in transactions %}
-        <tr class="hover:bg-ink-50/60">
-          <td class="px-4 py-2.5 text-ink-500 whitespace-nowrap">{{ t.created_at|date:"Y-m-d H:i" }}</td>
-          <td class="px-4 py-2.5"><a class="font-semibold text-ink-900 hover:text-brand-600" href="{% url 'inventory:bag_detail' t.bag.pk %}" hx-get="{% url 'inventory:bag_detail' t.bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ t.bag.bag_code }}</a>
-            <span class="block text-[11px] text-ink-400">{{ t.bag.blood_type.code }} · {{ t.bag.component.code|upper }}</span></td>
-          <td class="px-4 py-2.5 text-ink-700">{{ t.get_transaction_type_display }}</td>
-          <td class="px-4 py-2.5 text-xs text-ink-600 whitespace-nowrap">{% if t.previous_status %}{{ t.previous_status }} → {{ t.new_status }}{% else %}{{ t.new_status }}{% endif %}</td>
-          <td class="px-4 py-2.5 text-ink-600">{{ t.actor.get_username|default:"system" }}</td>
-          <td class="px-4 py-2.5 text-xs text-ink-500">{{ t.reason|default:"—" }}{% if t.reference %}<span class="block text-ink-400">ref: {{ t.reference }}</span>{% endif %}</td>
+        <tr class="align-top transition-colors hover:bg-ink-50/60">
+          <td class="whitespace-nowrap px-4 py-3 tabular-nums text-ink-500">{{ t.created_at|date:"Y-m-d H:i" }}</td>
+          <td class="px-4 py-3">
+            <a class="font-semibold text-ink-900 transition hover:text-brand-600" href="{% url 'inventory:bag_detail' t.bag.pk %}">{{ t.bag.bag_code }}</a>
+            <span class="mt-0.5 block text-[11px] text-ink-400">{{ t.bag.blood_type.code }} &middot; {{ t.bag.component.code|upper }}</span>
+          </td>
+          <td class="px-4 py-3">
+            <span class="inline-flex items-center rounded-md bg-ink-100 px-2 py-0.5 text-[11px] font-semibold text-ink-600">{{ t.get_transaction_type_display }}</span>
+          </td>
+          <td class="whitespace-nowrap px-4 py-3 text-xs tabular-nums text-ink-600">
+            {% if t.previous_status %}{{ t.previous_status }} <span class="text-ink-300">&rarr;</span> <strong class="font-semibold text-ink-800">{{ t.new_status }}</strong>{% else %}<strong class="font-semibold text-ink-800">{{ t.new_status }}</strong>{% endif %}
+          </td>
+          <td class="px-4 py-3 text-xs text-ink-600">{{ t.actor.get_username|default:"system" }}</td>
+          <td class="px-4 py-3 text-xs text-ink-500">
+            {{ t.reason|default:"&mdash;"|safe }}
+            {% if t.reference %}<span class="mt-0.5 block text-ink-400">ref: {{ t.reference }}</span>{% endif %}
+          </td>
         </tr>
         {% empty %}
         <tr><td colspan="6" class="px-4 py-10">

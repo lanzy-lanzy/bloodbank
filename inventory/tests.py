@@ -366,3 +366,168 @@ class BagListFilterTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, request.request_code)
         self.assertContains(resp, "Allocated to")
+
+
+class BagDetailIsAPageTests(TestCase):
+    """The bag record is a working surface, so it is a PAGE and never a modal.
+
+    It carries the record-test-result form, second-person verification and the
+    guarded release/transition actions. Packed into a modal those live in a
+    nested scroll box, the stock context around them disappears, and a stray
+    click discards half-entered work — so this locks the decision in.
+    """
+
+    def setUp(self):
+        from django.urls import reverse
+        self.reverse = reverse
+        self.staff = make_user("bag-page-staff", role="STAFF")
+        self.donor_user = make_user("bag-page-donor", role="DONOR")
+        make_donor(user=self.donor_user)
+        self.bt = make_blood_type("O", "NEG")
+        self.comp = make_component("wb", "Whole Blood", shelf_life=30)
+        self.bag = make_bag(make_donor(blood_type=self.bt), blood_type=self.bt,
+                            component=self.comp, status="QUARANTINED")
+        self.client.force_login(self.staff)
+
+    def test_htmx_request_still_gets_a_full_page_not_a_modal_fragment(self):
+        # The regression this guards: an hx-get to #modal-root that silently
+        # half-renders. A full document here means such a link would break
+        # loudly instead of quietly.
+        resp = self.client.get(self.reverse("inventory:bag_detail", kwargs={"pk": self.bag.pk}),
+                               HTTP_HX_REQUEST="true")
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        self.assertIn("<html", body)
+        self.assertIn("</html>", body)
+        # The modal shell is what `layout` swaps the template into; it must not
+        # be here. (Links to *other*, lighter screens - donor, donation,
+        # request - may still open modals from this page; that is fine.)
+        self.assertNotIn("bbModal()", body)
+        self.assertNotIn('hx-get="/inventory/bags/%d/"' % self.bag.pk, body)
+
+    def test_page_carries_the_working_surfaces(self):
+        body = self.client.get(
+            self.reverse("inventory:bag_detail", kwargs={"pk": self.bag.pk})).content.decode()
+        self.assertIn("Record Test Result", body)
+        self.assertIn("Other Transitions", body)
+        self.assertIn("Movement Ledger", body)
+        self.assertIn("Back to blood bags", body)
+
+    def test_forms_are_plain_posts_not_modal_posts(self):
+        body = self.client.get(
+            self.reverse("inventory:bag_detail", kwargs={"pk": self.bag.pk})).content.decode()
+        self.assertIn('action="/inventory/bags/%d/test/"' % self.bag.pk, body)
+        self.assertNotIn('hx-post="/inventory/bags/%d/test/"' % self.bag.pk, body)
+
+    def test_every_bag_link_is_a_plain_anchor(self):
+        """No entry point may point a bag link at the modal root again.
+
+        Scans the template sources rather than rendering each one: rendering
+        them all would need a full context per app, and the thing being guarded
+        is a static attribute on the anchor, not a rendered value.
+        """
+        import pathlib
+        root = pathlib.Path(__file__).resolve().parent.parent / "templates"
+        offenders = []
+        for path in root.rglob("*.html"):
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if "inventory:bag_detail" in line and "hx-get" in line:
+                    offenders.append(f"{path.name}: {line.strip()[:120]}")
+        self.assertEqual(offenders, [],
+                         f"bag detail re-opened as a modal: {offenders}")
+
+    def test_still_staff_only(self):
+        self.client.force_login(self.donor_user)
+        self.assertEqual(
+            self.client.get(
+                self.reverse("inventory:bag_detail", kwargs={"pk": self.bag.pk})).status_code, 403)
+
+
+class InventoryStatementTests(TestCase):
+    """The printable Inventory Statement: formal, filtered, and staff-only.
+
+    It must be a faithful snapshot of the same numbers the dashboard shows, so
+    these tests compare the two rather than just checking a 200.
+    """
+
+    def setUp(self):
+        from django.urls import reverse
+        self.reverse = reverse
+        self.staff = make_user("inv-stmt-staff", role="STAFF")
+        self.requester_user = make_user("inv-stmt-req", role="REQUESTER")
+        self.donor_user = make_user("inv-stmt-donor", role="DONOR")
+        make_org("Statement Org")
+        make_donor(user=self.donor_user)
+        self.bt = make_blood_type("O", "NEG")
+        self.comp = make_component("wb", "Whole Blood", shelf_life=35)
+        self.donor = make_donor(blood_type=self.bt)
+        self.available = make_bag(self.donor, blood_type=self.bt, component=self.comp,
+                                  status="AVAILABLE", expires_in_days=20)
+        self.quarantined = make_bag(self.donor, blood_type=self.bt, component=self.comp,
+                                    status="QUARANTINED", expires_in_days=3)
+        self.expired = make_bag(self.donor, blood_type=self.bt, component=self.comp,
+                                status="EXPIRED", expires_in_days=-4)
+        self.client.force_login(self.staff)
+
+    def test_statement_preview_renders(self):
+        resp = self.client.get(self.reverse("inventory:statement"))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        self.assertIn("Inventory Statement", body)
+        self.assertIn("Blood Bank Management System", body)
+        self.assertIn("CONFIDENTIAL", body)
+        # Signature block: a statement gets signed.
+        self.assertIn("Prepared by", body)
+        self.assertIn("Approved by", body)
+
+    def test_statement_lists_every_bag_with_its_expiry_and_status(self):
+        body = self.client.get(self.reverse("inventory:statement")).content.decode()
+        for bag in (self.available, self.quarantined, self.expired):
+            self.assertIn(bag.bag_code, body)
+
+    def test_statement_respects_the_bag_filters(self):
+        resp = self.client.get(self.reverse("inventory:statement"), {"status": "QUARANTINED"})
+        body = resp.content.decode()
+        self.assertIn(self.quarantined.bag_code, body)
+        self.assertNotIn(self.available.bag_code, body)
+
+    def test_statement_counts_agree_with_the_dashboard(self):
+        from inventory.services import build_inventory_statement
+        spec = build_inventory_statement(self.client.get(self.reverse("inventory:statement")).wsgi_request)
+        summary = dict(spec.summary)
+        dashboard = self.client.get(self.reverse("inventory:dashboard")).content.decode()
+        self.assertEqual(summary["Total bags"], "3")
+        self.assertEqual(summary["Available"], "1")
+        self.assertEqual(summary["Quarantine / testing"], "1")
+        self.assertEqual(summary["Expired"], "1")
+        # The dashboard states the same "available" figure, so the two agree.
+        self.assertIn("1", dashboard)
+
+    def test_statement_names_the_configured_expiry_window(self):
+        from core.testing import set_rules
+        set_rules(expiring_soon_days=5)
+        body = self.client.get(self.reverse("inventory:statement")).content.decode()
+        self.assertIn("5 day", body)
+
+    def test_statement_warns_about_stock_past_its_expiry(self):
+        make_bag(self.donor, blood_type=self.bt, component=self.comp,
+                 status="AVAILABLE", expires_in_days=-1)
+        body = self.client.get(self.reverse("inventory:statement")).content.decode()
+        self.assertIn("past their expiration date", body)
+
+    def test_statement_pdf_is_a_valid_download(self):
+        resp = self.client.get(self.reverse("inventory:statement_pdf"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["Content-Type"], "application/pdf")
+        self.assertIn("attachment;", resp["Content-Disposition"])
+        self.assertRegex(resp["Content-Disposition"], r"inventory_statement_\d{8}_\d{4}\.pdf")
+        self.assertTrue(resp.content.startswith(b"%PDF-"))
+
+    def test_statement_is_staff_only(self):
+        for user in (self.requester_user, self.donor_user):
+            with self.subTest(user=user.username):
+                self.client.force_login(user)
+                self.assertEqual(
+                    self.client.get(self.reverse("inventory:statement")).status_code, 403)
+                self.assertEqual(
+                    self.client.get(self.reverse("inventory:statement_pdf")).status_code, 403)

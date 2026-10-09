@@ -92,7 +92,11 @@ Open <http://127.0.0.1:8000/> and log in. Each role lands on its own dashboard.
   email and a clearly-labelled **MOCK** SMS provider.
 - **Rewards program**: immutable point ledger, configurable rules, tiers and
   redemption.
-- **Config-driven reports** with CSV export.
+- **Config-driven reports** with filters, a formal **print preview**, **PDF
+  export** and CSV — one document template drives all three, so a printed page
+  and a downloaded file can never disagree.
+- **Formal Inventory Statement** (print + PDF): stock by blood group, expiry
+  outlook and a bag-level listing that honours the on-screen filters.
 - **Append-only audit trail** across all protected state changes.
 
 ## What is where
@@ -105,11 +109,12 @@ Open <http://127.0.0.1:8000/> and log in. Each role lands on its own dashboard.
 | `donors/` | Donor registry, screening questions/results, eligibility engine |
 | `appointments/` | Donation appointment scheduling + donor self-booking |
 | `donations/` | Donation lifecycle state machine, collection workflow |
-| `inventory/` | Blood bags, test results, state machine, release guard, ledger, compatibility engine, expiry jobs |
+| `inventory/` | Blood bags, test results, state machine, release guard, ledger, compatibility engine, expiry jobs, printable Inventory Statement |
 | `requests/` | Organizations, requester accounts, blood requests, allocation, fulfillment feedback |
 | `notifications/` | Templates, providers (in-app / Django email / **MOCK** SMS), emergency alerts, token-based donor responses |
 | `rewards/` | Point ledger, configured rules, tiers, redemption |
-| `reports/` | Config-driven report engine + CSV export |
+| `reports/` | Config-driven report engine + print preview, PDF and CSV export |
+| `core/` | Shared shell: role mixins, modal CRUD, template tags, and the printable-document engine (`documents.py`) |
 | `settings_app/` | System settings + blood-bank configuration UI (admin-only) |
 | `audit/` | Append-only audit trail (immutable model + queryset) |
 | `templates/` | All Django templates (per-app folders + `components/`) |

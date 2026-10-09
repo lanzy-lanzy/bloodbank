@@ -1,38 +1,68 @@
 {% extends "base.html" %}
 {% block title %}{{ report.title }} — {{ ORG_NAME }}{% endblock %}
 {% block content %}
-<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-  <div>
-    <p class="text-xs font-semibold uppercase tracking-wide text-ink-400">{{ report.group }}</p>
-    <h1 class="text-xl font-bold text-ink-900">{{ report.title }}</h1>
+<div class="mb-5 flex flex-wrap items-start justify-between gap-4">
+  <div class="min-w-0">
+    <nav class="flex items-center gap-1.5 text-xs font-medium text-ink-400 mb-1.5">
+      <a href="{% url 'reports:center' %}" class="hover:text-brand-600 transition">Reporting Centre</a>
+      <span aria-hidden="true">/</span>
+      <span class="text-ink-500">{{ report.group }}</span>
+    </nav>
+    <h1 class="text-2xl font-bold tracking-tight text-ink-900">{{ report.title }}</h1>
+    {% if report.description %}<p class="mt-1 text-sm text-ink-500 max-w-2xl">{{ report.description }}</p>{% endif %}
+    <p class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-500">
+      <span class="inline-flex items-center gap-1.5 rounded-md bg-ink-100 px-2 py-0.5 font-semibold tabular-nums text-ink-600">{{ total_rows }} record{{ total_rows|pluralize }}</span>
+      <span aria-hidden="true">·</span>
+      <span>{{ report.columns|length }} columns</span>
+      <span aria-hidden="true">·</span>
+      <span>{{ report.group }}</span>
+    </p>
   </div>
-  <div class="flex items-center gap-2">
-    <a href="{% url 'reports:center' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">All reports</a>
-    <a href="{% url 'reports:export' key=report_key %}?{% for k, v in filters.items %}{% if v %}&amp;{{ k }}={{ v|urlencode }}{% endif %}{% endfor %}"
-       class="rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2 hover:bg-ink-700 inline-flex items-center gap-2">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0 4-4m-4 4-4-4M4 20h16"/></svg>
-      Export CSV
+
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="{% url 'reports:center' %}" class="inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50">
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+      All reports
+    </a>
+    <a href="{{ csv_url }}" class="inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50">
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+      CSV
+    </a>
+    <a href="{{ document_url }}" target="_blank" rel="noopener"
+       class="inline-flex items-center gap-2 rounded-xl border border-ink-900 bg-white px-4 py-2 text-sm font-semibold text-ink-900 transition hover:bg-ink-900 hover:text-white">
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm-3 4.5h.008v.008H12V16.5Zm6-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+      Print preview
+    </a>
+    <a href="{{ pdf_url }}"
+       class="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700">
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5A3.375 3.375 0 0 0 10.125 2.25H8.25m0 12.75 2.25 2.25 4.5-4.5m-6.75 6v3"/></svg>
+      Export PDF
     </a>
   </div>
 </div>
 
 {% if report.filters %}
-  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4">
-    <form method="get"
-          hx-get="{% url 'reports:run' key=report_key %}" hx-target="#report-table" hx-push-url="true"
-          hx-trigger="change, keyup changed delay:400ms from:input[name=q]"
-          class="flex flex-wrap items-end gap-3">
+  <form method="get" action="{% url 'reports:run' key=report_key %}"
+        hx-get="{% url 'reports:run' key=report_key %}" hx-target="#report-table" hx-push-url="true"
+        hx-trigger="change, keyup changed delay:400ms from:input[name=q]"
+        class="mb-4 rounded-2xl border border-ink-200 bg-white p-4 shadow-sm">
+    <div class="mb-3 flex items-center gap-2 border-b border-ink-100 pb-2.5">
+      <svg class="h-4 w-4 text-ink-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.012L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z"/></svg>
+      <h2 class="text-xs font-bold uppercase tracking-wider text-ink-500">Refine</h2>
+      <span class="text-xs text-ink-400">Filters apply to the table, the print preview and every export</span>
+    </div>
+    <div class="flex flex-wrap items-end gap-3">
       {% for f in report.filters %}
         {% if f == "q" %}
           <div class="min-w-[220px] flex-1">
-            <label class="block text-xs font-medium text-ink-500 mb-1">Search</label>
-            <input type="search" name="q" value="{{ filters.q }}" placeholder="ID, name, code…"
-                   class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500">
+            <label for="flt-q" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-500">Search</label>
+            <input id="flt-q" type="search" name="q" value="{{ filters.q }}" placeholder="ID, name, code&hellip;"
+                   class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none">
           </div>
         {% elif f == "status" %}
           <div>
-            <label class="block text-xs font-medium text-ink-500 mb-1">Status</label>
-            <select name="status" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500">
+            <label for="flt-status" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-500">Status</label>
+            <select id="flt-status" name="status" class="rounded-xl border border-ink-300 px-3 py-2 text-sm transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none">
               <option value="">Any status</option>
               {% if report_key == "donors" %}
                 {% for value, label in donor_statuses %}<option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
@@ -47,30 +77,30 @@
           </div>
         {% elif f == "blood_type" %}
           <div>
-            <label class="block text-xs font-medium text-ink-500 mb-1">Blood type</label>
-            <select name="blood_type" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500">
+            <label for="flt-bt" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-500">Blood type</label>
+            <select id="flt-bt" name="blood_type" class="rounded-xl border border-ink-300 px-3 py-2 text-sm transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none">
               <option value="">Any type</option>
               {% for bt in blood_types %}<option value="{{ bt.pk }}" {% if filters.blood_type == bt.pk|stringformat:"s" %}selected{% endif %}>{{ bt.code }}</option>{% endfor %}
             </select>
           </div>
         {% elif f == "date_from" %}
           <div>
-            <label class="block text-xs font-medium text-ink-500 mb-1">From</label>
-            <input type="date" name="date_from" value="{{ filters.date_from }}" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500">
+            <label for="flt-from" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-500">From</label>
+            <input id="flt-from" type="date" name="date_from" value="{{ filters.date_from }}" class="rounded-xl border border-ink-300 px-3 py-2 text-sm transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none">
           </div>
         {% elif f == "date_to" %}
           <div>
-            <label class="block text-xs font-medium text-ink-500 mb-1">To</label>
-            <input type="date" name="date_to" value="{{ filters.date_to }}" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500">
+            <label for="flt-to" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-500">To</label>
+            <input id="flt-to" type="date" name="date_to" value="{{ filters.date_to }}" class="rounded-xl border border-ink-300 px-3 py-2 text-sm transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none">
           </div>
         {% endif %}
       {% endfor %}
-      <div class="flex items-center gap-2">
-        <a href="{% url 'reports:run' key=report_key %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Reset</a>
-        <button type="submit" class="rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2">Apply</button>
+      <div class="ml-auto flex items-center gap-2">
+        <a href="{% url 'reports:run' key=report_key %}" class="rounded-xl border border-ink-200 px-4 py-2 text-sm font-medium text-ink-600 transition hover:bg-ink-50">Reset</a>
+        <button type="submit" class="rounded-xl bg-ink-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-700">Apply</button>
       </div>
-    </form>
-  </div>
+    </div>
+  </form>
 {% endif %}
 
 <div id="report-table">

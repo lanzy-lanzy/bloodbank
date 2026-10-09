@@ -7,12 +7,12 @@ from django.views import View
 from django.views.generic import ListView
 
 from audit import services as audit
-from core.mixins import StaffRequiredMixin, is_htmx
+from core.mixins import PrintableDocumentMixin, StaffRequiredMixin, is_htmx
 from core.modals import modal_success, render_any
 from inventory.forms import BagRegisterForm, TestResultForm, TransitionForm
 from inventory.models import BloodBag, BloodComponent, BloodType, InventoryTransaction, TestResult, TestType
 from inventory.services import (CompatibilityService, InventoryError, InventoryService,
-                                expiring_window_days)
+                                build_inventory_statement, expiring_window_days)
 from requests.models import Allocation
 from requests.services import BloodRequestService
 
@@ -181,6 +181,21 @@ class BagRegisterView(StaffRequiredMixin, View):
 
 
 class BagDetailView(StaffRequiredMixin, View):
+    """A blood bag's record, its safety tests and its movement history.
+
+    Deliberately a FULL PAGE, not a modal fragment. This screen is a working
+    surface, not a summary: it carries a "record test result" form, a
+    second-person verification control, and the guarded release / transition
+    actions (each behind its own confirmation). In a modal all of that lives in
+    a nested scroll box, the surrounding stock context disappears, and a
+    mis-click closes unsaved work.
+
+    So this view renders ``base.html`` unconditionally - it does not use
+    ``render_any``. That is also the guard: if a link ever regains an
+    ``hx-get`` pointing at ``#modal-root``, the whole document is injected into
+    the modal root and breaks loudly, instead of silently half-rendering.
+    """
+
     def get(self, request, pk):
         bag = get_object_or_404(
             BloodBag.objects.select_related("blood_type", "component", "donor", "donation",
@@ -192,7 +207,7 @@ class BagDetailView(StaffRequiredMixin, View):
             latest = bag.test_results.filter(test_type=tt).order_by("-performed_at", "-id").first()
             latest_results[tt] = latest
         can_release = bag.can_transition_to("AVAILABLE")
-        return render_any(request, "inventory/bag_detail.html", {
+        return render(request, "inventory/bag_detail.html", {
             "bag": bag,
             "latest_results": latest_results,
             "test_results": bag.test_results.select_related("test_type", "performed_by", "verified_by")[:20],
@@ -201,8 +216,7 @@ class BagDetailView(StaffRequiredMixin, View):
             "can_release": can_release,
             "transactions": bag.transactions.select_related("actor")[:50],
             "allocations": bag.allocations.select_related("request", "item")[:10],
-            "modal_maxw": "max-w-5xl",
-        }, modal_title=f"Bag {bag.bag_code}")
+        })
 
 
 class BagTestResultView(StaffRequiredMixin, View):
@@ -323,6 +337,40 @@ class InventoryTransactionListView(StaffRequiredMixin, ListView):
         ctx.update({"q": self.q, "type_filter": self.txn_type,
                     "types": InventoryTransaction.TxnType.choices})
         return ctx
+
+
+class InventoryStatementView(StaffRequiredMixin, PrintableDocumentMixin, View):
+    """Formal, printable Inventory Statement.
+
+    The one document a blood bank is asked to produce on paper: total stock, the
+    position per blood group, the units inside the expiry window, and the full
+    bag listing under the filters the operator is looking at. It reads the same
+    numbers as the dashboard, via the same service, so a printed statement can
+    never contradict the screen it was generated from.
+    """
+
+    document_url = "inventory:statement"
+    pdf_url = "inventory:statement_pdf"
+    back_url = "inventory:dashboard"
+
+    def get(self, request):
+        return self.document(request)
+
+    def build_document_spec(self, request, *args, **kwargs):
+        return build_inventory_statement(request)
+
+
+class InventoryStatementPdfView(StaffRequiredMixin, PrintableDocumentMixin, View):
+    """The Inventory Statement as a downloadable PDF."""
+
+    document_url = "inventory:statement"
+    pdf_url = "inventory:statement_pdf"
+    back_url = "inventory:dashboard"
+
+    def get(self, request):
+        return self.pdf(request)
+
+    build_document_spec = InventoryStatementView.build_document_spec
 
 
 class CompatCheckView(StaffRequiredMixin, View):

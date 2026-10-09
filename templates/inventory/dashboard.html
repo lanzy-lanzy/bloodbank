@@ -1,50 +1,67 @@
 {% extends "base.html" %}
-{% block title %}Inventory — {{ ORG_NAME }}{% endblock %}
+{% block title %}Blood Inventory — {{ ORG_NAME }}{% endblock %}
 {% block content %}
-<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+<div class="mb-6 flex flex-wrap items-start justify-between gap-4">
   <div>
-    <h1 class="text-xl font-bold text-ink-900">Blood Inventory</h1>
-    <p class="text-sm text-ink-500 mt-0.5">Blood bag stock, quarantine, testing and expiration status.</p>
+    <h1 class="text-2xl font-bold tracking-tight text-ink-900">Blood Inventory</h1>
+    <p class="mt-1 max-w-2xl text-sm text-ink-500">
+      Stock position, quarantine and testing holds, reservation commitments and
+      expiration outlook. Every count below is live and every bag moves only
+      through an audited transition.
+    </p>
   </div>
-  <div class="flex flex-wrap gap-2">
-    <a href="{% url 'inventory:compat_check' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-ink-200 bg-white text-sm font-medium text-ink-700 hover:bg-ink-50">Compatibility Check</a>
-    <a href="{% url 'inventory:transactions' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-ink-200 bg-white text-sm font-medium text-ink-700 hover:bg-ink-50">Movement Ledger</a>
-    <a href="{% url 'inventory:bag_register' %}" hx-get="{% url 'inventory:bag_register' %}" hx-target="#modal-root" hx-swap="innerHTML" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm">+ Register Bag</a>
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="{% url 'inventory:compat_check' %}"
+       class="inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50">Compatibility Check</a>
+    <a href="{% url 'inventory:transactions' %}"
+       class="inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50">Movement Ledger</a>
+    {% url "inventory:statement" as statement_url %}{% url "inventory:statement_pdf" as statement_pdf_url %}
+    {% include "components/print_actions.html" with print_url=statement_url pdf_url=statement_pdf_url label="Print statement" %}
+    <a href="{% url 'inventory:bag_register' %}" hx-get="{% url 'inventory:bag_register' %}" hx-target="#modal-root" hx-swap="innerHTML"
+       class="inline-flex items-center gap-2 rounded-xl bg-ink-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-ink-700">+ Register Bag</a>
   </div>
 </div>
 
 {% if past_expiry_usable %}
-<div class="mb-4 flex flex-wrap items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3">
-  <p class="text-sm text-amber-800">
-    <strong>{{ past_expiry_usable|length }} bag(s)</strong> are past their expiration date but still sit in a
-    usable status. Run the expiration rule (<code class="text-xs">manage.py expire_blood_bags</code>) to move them
-    to EXPIRED with a ledger entry; until then they are excluded from every compatible-stock count.
-  </p>
-  <a href="{% url 'inventory:bag_list' %}?status=AVAILABLE,QUARANTINED,TESTING,RESERVED,RETURNED&expiry=expired&sort=expiry"
-     class="text-sm font-semibold text-amber-800 hover:text-amber-900 shrink-0">Review bags →</a>
+<div class="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3.5">
+  <div class="flex items-start gap-3">
+    <svg class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.008v.008H12v-.008Z"/></svg>
+    <p class="text-sm leading-relaxed text-amber-900">
+      <strong>{{ past_expiry_usable|length }} bag{{ past_expiry_usable|length|pluralize }}</strong>
+      {{ past_expiry_usable|length|pluralize:"is,are" }} past their expiration date but still sit in a
+      usable status. Run the expiration rule
+      (<code class="rounded bg-amber-100 px-1 py-0.5 text-xs">manage.py expire_blood_bags</code>) to move them to
+      EXPIRED with a ledger entry; until then they are excluded from every compatible-stock count.
+    </p>
+  </div>
+  <a href="{% url 'inventory:bag_list' %}?status=AVAILABLE,QUARANTINED,TESTING,RESERVED,RETURNED&amp;expiry=expired&amp;sort=expiry"
+     class="shrink-0 text-sm font-semibold text-amber-900 underline decoration-amber-400 underline-offset-2 hover:decoration-amber-700">Review bags &rarr;</a>
 </div>
 {% endif %}
 
-<div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
-  {% include "components/stat_card.html" with stat_label="Total Bags" stat_value=total_bags stat_color=slate %}
-  {% url "inventory:bag_list" as bag_list_url %}{% include "components/stat_card.html" with stat_label="Available" stat_value=available stat_color=emerald stat_href=bag_list_url|add:"?status=AVAILABLE&expiry=active" %}
-  {% include "components/stat_card.html" with stat_label="Quarantine / Testing" stat_value=quarantined stat_color=amber stat_href=bag_list_url|add:"?status=QUARANTINED,TESTING" %}
-  {% include "components/stat_card.html" with stat_label="Reserved" stat_value=reserved stat_color=sky stat_href=bag_list_url|add:"?status=RESERVED" %}
-  {% include "components/stat_card.html" with stat_label="Expired" stat_value=expired stat_color=red stat_href=bag_list_url|add:"?status=EXPIRED" %}
-  {% include "components/stat_card.html" with stat_label="Discarded" stat_value=discarded stat_color=red stat_href=bag_list_url|add:"?status=DISCARDED" %}
+{% url "inventory:bag_list" as bag_list_url %}
+<div class="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
+  {% include "components/kpi_tile.html" with stat_label="Total Bags" stat_value=total_bags stat_color=slate stat_sub="All registered units" stat_href=bag_list_url %}
+  {% include "components/kpi_tile.html" with stat_label="Available" stat_value=available stat_color=emerald stat_sub="In date, ready to issue" stat_href=bag_list_url|add:"?status=AVAILABLE&expiry=active" %}
+  {% include "components/kpi_tile.html" with stat_label="Quarantine / Testing" stat_value=quarantined stat_color=violet stat_sub="Awaiting verification" stat_href=bag_list_url|add:"?status=QUARANTINED,TESTING" %}
+  {% include "components/kpi_tile.html" with stat_label="Reserved" stat_value=reserved stat_color=sky stat_sub="Committed to a request" stat_href=bag_list_url|add:"?status=RESERVED" %}
+  {% include "components/kpi_tile.html" with stat_label="Expired" stat_value=expired stat_color=rose stat_sub="Out of usable stock" stat_href=bag_list_url|add:"?status=EXPIRED" %}
+  {% include "components/kpi_tile.html" with stat_label="Discarded" stat_value=discarded stat_color=slate stat_sub="Removed from service" stat_href=bag_list_url|add:"?status=DISCARDED" %}
 </div>
 
-<div class="bg-white rounded-2xl border border-ink-200 shadow-sm mb-4">
-  <div class="px-5 py-4 border-b border-ink-100 flex flex-wrap items-center justify-between gap-2">
-    <div>
-      <h2 class="font-semibold text-ink-900">Open Demand vs Stock on Hand</h2>
-      <p class="text-xs text-ink-500 mt-0.5">
+<div class="mb-5 overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
+  <div class="flex flex-wrap items-center justify-between gap-3 border-b border-ink-100 bg-ink-50/50 px-5 py-3.5">
+    <div class="min-w-0">
+      <h2 class="text-sm font-bold text-ink-900">Open Demand vs Stock on Hand</h2>
+      <p class="mt-0.5 max-w-3xl text-xs leading-relaxed text-ink-500">
         Approved requests still owed units. "Free stock" is compatible, in-date, unreserved bags
         measured against the units still open to reserve.
-        {{ demand_units }} unit(s) owed across {{ demand|length }} item(s){% if shortage_units %} · {{ shortage_units }} cannot be filled from stock{% endif %}.
+        <span class="font-semibold text-ink-600">{{ demand_units }} unit{{ demand_units|pluralize }} owed</span>
+        across {{ demand|length }} item{{ demand|length|pluralize }}{% if shortage_units %}, of which
+        <span class="font-semibold text-amber-700">{{ shortage_units }} cannot be filled from stock</span>{% endif %}.
       </p>
     </div>
-    <a href="{% url 'requests:list' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">All requests →</a>
+    <a href="{% url 'requests:list' %}" class="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-brand-600 transition hover:text-brand-700">All requests &rarr;</a>
   </div>
   <div class="overflow-x-auto">
     <table class="min-w-full text-sm">
@@ -95,70 +112,82 @@
   </div>
 </div>
 
-<div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-  <div class="xl:col-span-2 bg-white rounded-2xl border border-ink-200 shadow-sm">
-    <div class="px-5 py-4 border-b border-ink-100">
-      <h2 class="font-semibold text-ink-900">Inventory by Blood Type</h2>
-      <p class="text-xs text-ink-500 mt-0.5">
-        "Available" counts in-date stock only; "Expiring" is the subset of it inside the alert window.
-        Blood types and components are configurable — manage them under Settings → Blood Bank.
-      </p>
-      {% if low_stock %}
-      <p class="text-xs text-brand-700 mt-1 font-medium">
-        At or below the low-stock threshold ({{ low_stock_threshold }}):
-        {% for row in low_stock %}{{ row.blood_type.code }}{% if not forloop.last %}, {% endif %}{% endfor %}
-      </p>
-      {% endif %}
+<div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
+  <div class="overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm xl:col-span-2">
+    <div class="flex flex-wrap items-start justify-between gap-3 border-b border-ink-100 bg-ink-50/50 px-5 py-3.5">
+      <div class="min-w-0">
+        <h2 class="text-sm font-bold text-ink-900">Stock Position by Blood Group</h2>
+        <p class="mt-0.5 max-w-2xl text-xs leading-relaxed text-ink-500">
+          "Available" counts in-date stock only; "Expiring" is the subset of it inside the
+          {{ window_days }}-day alert window. Blood types and components are configurable &mdash;
+          manage them under Settings &rarr; Blood Bank.
+        </p>
+        {% if low_stock %}
+        <p class="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-200">
+          At or below the low-stock threshold ({{ low_stock_threshold }}):
+          {% for row in low_stock %}{{ row.blood_type.code }}{% if not forloop.last %}, {% endif %}{% endfor %}
+        </p>
+        {% endif %}
+      </div>
+      <a href="{% url 'inventory:bag_list' %}" class="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-brand-600 transition hover:text-brand-700">All bags &rarr;</a>
     </div>
     <div class="overflow-x-auto">
       <table class="min-w-full text-sm">
         <thead>
-          <tr>
-            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Blood Type</th>
-            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Available</th>
-            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">of which expiring ≤{{ window_days }}d</th>
-            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Reserved</th>
-            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Quarantine/Testing</th>
+          <tr class="border-b border-ink-200">
+            <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Blood Group</th>
+            <th scope="col" class="px-4 py-2.5 text-right text-[11px] font-bold uppercase tracking-wider text-ink-500">Available</th>
+            <th scope="col" class="px-4 py-2.5 text-right text-[11px] font-bold uppercase tracking-wider text-ink-500">Expiring &le;{{ window_days }}d</th>
+            <th scope="col" class="px-4 py-2.5 text-right text-[11px] font-bold uppercase tracking-wider text-ink-500">Reserved</th>
+            <th scope="col" class="px-4 py-2.5 text-right text-[11px] font-bold uppercase tracking-wider text-ink-500">Quarantine / Testing</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody class="divide-y divide-ink-100">
           {% for row in matrix %}
-          <tr class="hover:bg-ink-50/60">
-            <td class="px-4 py-3 font-semibold text-ink-900"><a class="hover:text-brand-600" href="{% url 'inventory:bag_list' %}?blood_type={{ row.blood_type.pk }}&status=AVAILABLE&expiry=active">{{ row.blood_type.code }}</a></td>
-            <td class="px-4 py-3 text-right tabular-nums {% if row.available == 0 %}text-brand-600 font-semibold{% endif %}">{{ row.available }}</td>
-            <td class="px-4 py-3 text-right tabular-nums {% if row.expiring_soon %}text-amber-600 font-semibold{% endif %}">{{ row.expiring_soon }}</td>
-            <td class="px-4 py-3 text-right tabular-nums">{{ row.reserved }}</td>
-            <td class="px-4 py-3 text-right tabular-nums text-ink-500">{{ row.quarantined }}</td>
+          <tr class="transition-colors hover:bg-ink-50/60">
+            <td class="px-4 py-3">
+              <a class="inline-flex items-center gap-2 font-semibold text-ink-900 transition hover:text-brand-600" href="{% url 'inventory:bag_list' %}?blood_type={{ row.blood_type.pk }}&amp;status=AVAILABLE&amp;expiry=active">
+                <span class="inline-flex h-7 w-11 items-center justify-center rounded-md bg-brand-50 text-xs font-bold text-brand-700 ring-1 ring-inset ring-brand-200">{{ row.blood_type.code }}</span>
+              </a>
+            </td>
+            <td class="px-4 py-3 text-right tabular-nums {% if row.available == 0 %}font-bold text-brand-600{% else %}font-semibold text-ink-900{% endif %}">{{ row.available }}</td>
+            <td class="px-4 py-3 text-right tabular-nums {% if row.expiring_soon %}font-bold text-amber-600{% else %}text-ink-500{% endif %}">{{ row.expiring_soon }}</td>
+            <td class="px-4 py-3 text-right tabular-nums text-ink-700">{% if row.reserved %}{{ row.reserved }}{% else %}<span class="text-ink-300">&mdash;</span>{% endif %}</td>
+            <td class="px-4 py-3 text-right tabular-nums text-ink-500">{% if row.quarantined %}{{ row.quarantined }}{% else %}<span class="text-ink-300">&mdash;</span>{% endif %}</td>
           </tr>
           {% empty %}
-          <tr><td colspan="5" class="px-4 py-6 text-center text-ink-500">No blood types configured yet.</td></tr>
+          <tr><td colspan="5" class="px-4 py-10">
+            {% include "components/empty_state.html" with empty_title="No blood types configured" empty_text="Blood groups are institutional configuration; add them under Settings -> Blood Bank." %}
+          </td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
 
-  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
-    <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
-      <div>
-        <h2 class="font-semibold text-ink-900">Expiring ≤{{ window_days }} days</h2>
-        <p class="text-xs text-ink-500 mt-0.5">Available and reserved bags, earliest expiry first.</p>
+  <div class="overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
+    <div class="flex items-center justify-between gap-2 border-b border-ink-100 bg-ink-50/50 px-5 py-3.5">
+      <div class="min-w-0">
+        <h2 class="text-sm font-bold text-ink-900">Expiring within {{ window_days }} days</h2>
+        <p class="mt-0.5 text-xs text-ink-500">Usable stock, earliest expiry first.</p>
       </div>
-      <a href="{% url 'inventory:bag_list' %}?expiry=soon" class="text-sm font-medium text-brand-600 hover:text-brand-700">Review all →</a>
+      <a href="{% url 'inventory:bag_list' %}?expiry=soon" class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-brand-600 transition hover:text-brand-700">Review all &rarr;</a>
     </div>
-    <ul class="divide-y divide-ink-100 max-h-[420px] overflow-y-auto">
+    <ul class="max-h-[420px] divide-y divide-ink-100 overflow-y-auto">
       {% for bag in expiring_soon %}
-      <li class="px-5 py-3 flex items-center justify-between gap-3">
-        <div>
-          <a href="{% url 'inventory:bag_detail' bag.pk %}" hx-get="{% url 'inventory:bag_detail' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-sm font-semibold text-ink-900 hover:text-brand-600">{{ bag.bag_code }}</a>
-          <p class="text-xs text-ink-500">{{ bag.blood_type.code }} · {{ bag.component }} · {{ bag.location|default:"unspecified" }}</p>
+      <li class="flex items-center justify-between gap-3 px-5 py-3">
+        <div class="min-w-0">
+          <a href="{% url 'inventory:bag_detail' bag.pk %}" class="text-sm font-semibold text-ink-900 transition hover:text-brand-600">{{ bag.bag_code }}</a>
+          <p class="truncate text-xs text-ink-500">{{ bag.blood_type.code }} &middot; {{ bag.component }} &middot; {{ bag.location|default:"unspecified" }}</p>
         </div>
-        <span class="text-xs font-semibold {% if bag.days_until_expiry <= 1 %}text-brand-600{% else %}text-amber-600{% endif %} shrink-0">
-          {% if bag.days_until_expiry <= 0 %}expired today{% else %}{{ bag.days_until_expiry }} day{{ bag.days_until_expiry|pluralize }} left{% endif %}
+        <span class="shrink-0 rounded-md px-2 py-1 text-[11px] font-bold tabular-nums
+                     {% if bag.days_until_expiry <= 1 %}bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-200
+                     {% else %}bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200{% endif %}">
+          {% if bag.days_until_expiry <= 0 %}today{% else %}{{ bag.days_until_expiry }}d{% endif %}
         </span>
       </li>
       {% empty %}
-      <li class="px-5 py-8 text-center text-sm text-ink-500">No bags expiring within the alert window.</li>
+      <li class="px-5 py-12 text-center text-sm text-ink-500">No bags expiring within the alert window.</li>
       {% endfor %}
     </ul>
   </div>

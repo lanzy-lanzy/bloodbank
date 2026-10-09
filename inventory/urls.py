@@ -16,4 +16,8 @@ urlpatterns = [
     path("bags/<int:pk>/transition/", views.BagTransitionView.as_view(), name="bag_transition"),
     path("transactions/", views.InventoryTransactionListView.as_view(), name="transactions"),
     path("compatibility/", views.CompatCheckView.as_view(), name="compat_check"),
+    # Formal Inventory Statement: print preview + PDF of the current stock
+    # position, honouring the same bag filters the list view uses.
+    path("statement/", views.InventoryStatementView.as_view(), name="statement"),
+    path("statement.pdf", views.InventoryStatementPdfView.as_view(), name="statement_pdf"),
 ]

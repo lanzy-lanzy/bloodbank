@@ -107,7 +107,7 @@
             {% for a in allocations %}
             <tr class="border-t border-ink-100">
               <td class="px-4 py-3">
-                {% if is_staff_view %}<a class="font-semibold text-ink-900 hover:text-brand-600" href="{% url 'inventory:bag_detail' a.bag.pk %}" hx-get="{% url 'inventory:bag_detail' a.bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ a.bag.bag_code }}</a>{% else %}{{ a.bag.bag_code }}{% endif %}
+                {% if is_staff_view %}<a class="font-semibold text-ink-900 hover:text-brand-600" href="{% url 'inventory:bag_detail' a.bag.pk %}">{{ a.bag.bag_code }}</a>{% else %}{{ a.bag.bag_code }}{% endif %}
                 <span class="block text-[11px] text-ink-400">{{ a.bag.blood_type.code }} · expires {{ a.bag.expires_at|date:"Y-m-d" }}</span>
               </td>
               <td class="px-4 py-3 text-ink-600">{{ a.item.blood_type.code }} {{ a.item.component.code|upper }}</td>
@@ -185,7 +185,7 @@
             <ul class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {% for bag in entry.bags %}
               <li class="text-xs border border-ink-100 rounded-xl px-3 py-2 flex items-center justify-between">
-                <a class="font-semibold text-ink-800 hover:text-brand-600" href="{% url 'inventory:bag_detail' bag.pk %}" hx-get="{% url 'inventory:bag_detail' bag.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ bag.bag_code }}</a>
+                <a class="font-semibold text-ink-800 hover:text-brand-600" href="{% url 'inventory:bag_detail' bag.pk %}">{{ bag.bag_code }}</a>
                 <span class="text-ink-500">{{ bag.blood_type.code }} · exp {{ bag.expires_at|date:"m-d" }} ({{ bag.days_until_expiry }}d)</span>
               </li>
               {% endfor %}

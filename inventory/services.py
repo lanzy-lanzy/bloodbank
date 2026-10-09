@@ -59,6 +59,162 @@ def expiring_window_days():
     return get_int_setting("expiring_soon_days", 7)
 
 
+# --- Inventory Statement (printable / PDF) --------------------------------------
+STATEMENT_LIST_LIMIT = 5000
+"""Cap on bag rows in one printed statement.
+
+A statement is a snapshot for filing, not a data dump. If a filter matches more
+rows than this the extras are dropped and the document SAYS so in its notes:
+silently truncating a stock count would be the dangerous option.
+"""
+
+_STATEMENT_COLUMNS = [
+    "Bag Code", "Blood Type", "Component", "Status", "Volume (mL)",
+    "Collected", "Expires", "Days Left", "Location", "Donor",
+]
+
+
+def _statement_bags(params):
+    """The bag listing a statement prints, under the operator's own filters.
+
+    Mirrors :class:`inventory.views.BagListView` so "what I see on screen" and
+    "what the statement lists" are the same set of rows. The limit is applied
+    here rather than in the template, and the true total is returned so the
+    document can disclose any truncation.
+    """
+    qs = BloodBag.objects.select_related("blood_type", "component", "donor", "donation")
+    if params.get("q"):
+        term = params["q"].strip()
+        qs = qs.filter(Q(bag_code__icontains=term) | Q(donor__donor_code__icontains=term)
+                       | Q(donation__donation_code__icontains=term)
+                       | Q(location__icontains=term) | Q(storage_position__icontains=term))
+    if params.get("status"):
+        qs = qs.filter(status__in=[s for s in params["status"].split(",") if s])
+    if params.get("blood_type"):
+        qs = qs.filter(blood_type_id=params["blood_type"])
+    if params.get("component"):
+        qs = qs.filter(component_id=params["component"])
+    if params.get("collected_from"):
+        qs = qs.filter(collected_at__date__gte=params["collected_from"])
+    if params.get("collected_to"):
+        qs = qs.filter(collected_at__date__lte=params["collected_to"])
+
+    now = timezone.now()
+    expiry = params.get("expiry")
+    if expiry == "active":
+        qs = qs.filter(expires_at__gt=now)
+    elif expiry == "soon":
+        qs = qs.filter(expires_at__gt=now, expires_at__lte=now + timedelta(days=expiring_window_days()))
+    elif expiry == "expired":
+        qs = qs.filter(expires_at__lte=now)
+
+    order = {"oldest": "collected_at", "expiry": "expires_at",
+             "blood_type": "blood_type__abo", "status": "status"}.get(
+        params.get("sort", ""), "-collected_at")
+    qs = qs.order_by(order, "pk")
+    return list(qs[:STATEMENT_LIST_LIMIT]), qs.count()
+
+
+def _statement_rows(bags):
+    """Flatten bags to printable cells. Dates are local, not UTC, on paper."""
+    rows = []
+    for bag in bags:
+        rows.append([
+            bag.bag_code,
+            bag.blood_type.code if bag.blood_type else "-",
+            bag.component.code.upper(),
+            bag.get_status_display(),
+            bag.volume_ml,
+            timezone.localtime(bag.collected_at).strftime("%Y-%m-%d"),
+            timezone.localtime(bag.expires_at).strftime("%Y-%m-%d"),
+            bag.days_until_expiry,
+            " / ".join(p for p in (bag.location, bag.storage_position) if p) or "-",
+            bag.donor.donor_code if bag.donor else "external",
+        ])
+    return rows
+
+
+def build_inventory_statement(request):
+    """Assemble the printable Inventory Statement for ``request``.
+
+    Presentation only, and it is built on exactly the queries the dashboard
+    uses, so a printed statement can never contradict the screen it was
+    generated from. No clinical or operational threshold is decided here: the
+    expiry window is read from the configured setting rather than hard-coded, and
+    "available" keeps the dashboard's meaning (AVAILABLE *and* in date).
+    """
+    from core.documents import build_document
+    from reports.views import _actor_label
+
+    now = timezone.now()
+    days = expiring_window_days()
+    bags_qs = BloodBag.objects.select_related("blood_type", "component")
+    available = bags_qs.filter(status="AVAILABLE", expires_at__gt=now)
+    quarantined = bags_qs.filter(status__in=["QUARANTINED", "TESTING"])
+    reserved = bags_qs.filter(status="RESERVED")
+    expired = bags_qs.filter(status="EXPIRED")
+    discarded = bags_qs.filter(status="DISCARDED")
+    expiring = InventoryService.expiring_soon()
+    past_expiry_usable = InventoryService.usable_past_expiry()
+
+    bags, matched_total = _statement_bags(request.GET)
+    bag_rows = _statement_rows(bags)
+
+    notes = [
+        "\"Available\" counts units that are AVAILABLE and still within date; "
+        "\"Expiring\" is a subset of it, not a separate pool.",
+        f"Expiring-soon window: {days} day(s), read from the configured "
+        "expiring_soon_days setting rather than a fixed date.",
+        "Stock figures are a point-in-time extract. Bag statuses change only "
+        "through audited transitions recorded in the movement ledger.",
+    ]
+    if matched_total > len(bag_rows):
+        notes.append(
+            f"LISTING TRUNCATED: {matched_total:,} bag(s) matched the filters but this "
+            f"statement lists the first {len(bag_rows):,}. Narrow the filters to produce "
+            "a complete statement."
+        )
+    if past_expiry_usable.exists():
+        notes.append(
+            f"{past_expiry_usable.count()} bag(s) are past their expiration date but "
+            "still sit in a usable status. They are excluded from every usable-stock "
+            "figure above until the expiration rule moves them to EXPIRED."
+        )
+
+    generated = timezone.localtime()
+    user_label = _actor_label(request.user)
+
+    return build_document(
+        title="Inventory Statement",
+        doc_type="INVENTORY STATEMENT",
+        subtitle="Blood stock position, expiry outlook and bag-level listing",
+        reference=f"INV-{generated:%Y%m%d-%H%M}",
+        columns=_STATEMENT_COLUMNS,
+        rows=bag_rows,
+        meta=[
+            ("Generated on", generated.strftime("%d %b %Y, %H:%M")),
+            ("Prepared by", user_label),
+            ("Bags listed", f"{len(bag_rows):,}"),
+            ("Expiry window", f"{days} day(s)"),
+        ],
+        summary=[
+            ("Total bags", f"{bags_qs.count():,}"),
+            ("Available", f"{available.count():,}"),
+            ("Quarantine / testing", f"{quarantined.count():,}"),
+            ("Reserved", f"{reserved.count():,}"),
+            ("Expiring soon", f"{len(expiring):,}"),
+            ("Expired", f"{expired.count():,}"),
+            ("Discarded", f"{discarded.count():,}"),
+        ],
+        landscape=True,
+        notes=notes,
+        prepared_by=user_label,
+        prepared_role=f"{str(request.user.role).replace('_', ' ').title()} - Blood Bank",
+        empty_text="No blood bags matched the current filters.",
+        pdf_filename=f"inventory_statement_{generated:%Y%m%d_%H%M}.pdf",
+    )
+
+
 class InventoryService:
     @staticmethod
     def create_bag_from_donation(donation, *, component, volume_ml, collected_at,
