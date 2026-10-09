@@ -1,4 +1,8 @@
 """Accounts: role model, login gating, user management permissions."""
+from datetime import date
+from io import StringIO
+
+from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -419,6 +423,115 @@ class RequesterApprovalLinkTests(TestCase):
         RegistrationService.review(reg, decision=RegistrationRequest.Status.APPROVED,
                                    actor=self.admin)
         self.assertFalse(RequesterProfile.objects.filter(user__username="link-donor").exists())
+
+
+@override_settings(SMS_PROVIDER="mock", SMS_API_KEY="")
+class DonorApprovalLinkTests(TestCase):
+    """Approving a DONOR must create the linked Donor record.
+
+    Without it the account activates but the donor dashboard falls through to
+    the "No donor record linked to your account" screen, so the new donor can
+    never see their profile/history."""
+
+    def setUp(self):
+        make_registration_templates()
+        self.admin = make_user("dlink-admin", role="ADMIN")
+
+    def _donor_reg(self, **overrides):
+        username = overrides.pop("username", "dlink-donor")
+        applicant = make_user(username, role="DONOR", is_active=False)
+        defaults = dict(first_name="Dona", last_name="Link", username=username,
+                        email="dlink@example.test", phone="09171234567", role="DONOR",
+                        date_of_birth=date(1995, 5, 5), address="1 Donor St",
+                        municipality="Zamboanga City", province="Zamboanga del Sur",
+                        user=applicant)
+        defaults.update(overrides)
+        return RegistrationRequest.objects.create(**defaults)
+
+    def _approve(self, reg):
+        from accounts.services import RegistrationService
+        RegistrationService.review(reg, decision=RegistrationRequest.Status.APPROVED,
+                                   actor=self.admin)
+
+    def test_approval_creates_linked_donor(self):
+        from donors.models import Donor
+        reg = self._donor_reg()
+        self._approve(reg)
+        donor = Donor.objects.get(user=reg.user)
+        self.assertEqual(donor.first_name, "Dona")
+        self.assertEqual(donor.last_name, "Link")
+        self.assertEqual(str(donor.date_of_birth), "1995-05-05")
+        self.assertEqual(donor.contact_number, "09171234567")
+        self.assertEqual(donor.municipality, "Zamboanga City")
+        # sex is not collected at signup → neutral default, staff edits later
+        self.assertEqual(donor.sex, Donor.Sex.UNDISCLOSED)
+
+    def test_approved_donor_dashboard_no_longer_warns(self):
+        reg = self._donor_reg(username="dlink-dash")
+        self._approve(reg)
+        self.client.login(username="dlink-dash", password=PASSWORD)
+        resp = self.client.get(reverse("core:dashboard"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, "No donor record linked")
+
+    def test_existing_donor_profile_is_not_duplicated(self):
+        from donors.models import Donor
+        reg = self._donor_reg(username="dlink-existing")
+        Donor.objects.create(user=reg.user, first_name="Pre", last_name="Existing",
+                             date_of_birth=date(1990, 1, 1), sex="MALE",
+                             contact_number="09000000000")
+        self._approve(reg)
+        self.assertEqual(Donor.objects.filter(user=reg.user).count(), 1)
+        self.assertEqual(Donor.objects.get(user=reg.user).first_name, "Pre")
+
+    def test_missing_dob_leaves_account_active_without_donor(self):
+        from donors.models import Donor
+        reg = self._donor_reg(username="dlink-nodobj", date_of_birth=None)
+        self._approve(reg)
+        reg.user.refresh_from_db()
+        self.assertTrue(reg.user.is_active)
+        self.assertFalse(Donor.objects.filter(user=reg.user).exists())
+
+
+class BackfillDonorProfilesCommandTests(TestCase):
+    """backfill_donor_profiles repairs approved donors left unlinked before the
+    approval flow created Donor records. Insert-only + idempotent."""
+
+    def setUp(self):
+        make_registration_templates()
+
+    def _approved_donor_without_profile(self, username, **overrides):
+        user = make_user(username, role="DONOR")  # already active (as post-approval)
+        defaults = dict(first_name="Old", last_name="Approved", username=username,
+                        email=f"{username}@example.test", phone="09171234567",
+                        role="DONOR", date_of_birth=date(1988, 3, 3), user=user,
+                        status=RegistrationRequest.Status.APPROVED)
+        defaults.update(overrides)
+        return RegistrationRequest.objects.create(**defaults)
+
+    def test_creates_missing_donor_and_is_idempotent(self):
+        from donors.models import Donor
+        reg = self._approved_donor_without_profile("bf-donor")
+        call_command("backfill_donor_profiles", stdout=StringIO())
+        self.assertTrue(Donor.objects.filter(user=reg.user).exists())
+        # running again must not duplicate
+        call_command("backfill_donor_profiles", stdout=StringIO())
+        self.assertEqual(Donor.objects.filter(user=reg.user).count(), 1)
+        from audit.models import AuditLog
+        self.assertTrue(AuditLog.objects.filter(action="DONOR_PROFILE_BACKFILLED").exists())
+
+    def test_dry_run_writes_nothing(self):
+        from donors.models import Donor
+        reg = self._approved_donor_without_profile("bf-dry")
+        call_command("backfill_donor_profiles", "--dry-run", stdout=StringIO())
+        self.assertFalse(Donor.objects.filter(user=reg.user).exists())
+
+    def test_skips_missing_dob(self):
+        from donors.models import Donor
+        reg = self._approved_donor_without_profile("bf-nodobj", date_of_birth=None)
+        call_command("backfill_donor_profiles", stdout=StringIO())
+        self.assertFalse(Donor.objects.filter(user=reg.user).exists())
+        self.assertTrue(reg.user.is_active)
 
 
 @override_settings(SMS_PROVIDER="mock", SMS_API_KEY="")

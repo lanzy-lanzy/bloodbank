@@ -83,7 +83,7 @@
     <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
       <div class="px-5 py-4 border-b border-ink-100"><h2 class="font-semibold text-ink-900">Review Decision</h2></div>
       <div class="p-5 space-y-5">
-        <p class="text-xs text-ink-500 -mt-2">Approving activates the account and notifies the applicant by in-app message and SMS. For requesters, approval also links the account to the organization named above (created if it is not yet on file — staff can correct its details under Organizations). Rejection requires a reason and is sent to the applicant too.</p>
+        <p class="text-xs text-ink-500 -mt-2">Approving activates the account and notifies the applicant by in-app message and SMS. For donors, approval also creates their donor record from the details on file (staff can complete it, e.g. sex, on the donor form). For requesters, approval links the account to the organization named above (created if it is not yet on file — staff can correct its details under Organizations). Rejection requires a reason and is sent to the applicant too.</p>
         <form method="post" action="{% url 'accounts:registration_review' registration.pk %}"
               {% if layout %}hx-post="{% url 'accounts:registration_review' registration.pk %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %}>
           {% csrf_token %}

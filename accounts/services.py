@@ -91,6 +91,42 @@ class RegistrationService:
         return RequesterProfile.objects.create(user=user, organization=organization)
 
     @staticmethod
+    def _link_donor_profile(registration, user):
+        """Create the Donor record for an approved donor so the account has a
+        profile to land on (otherwise the donor dashboard shows "No donor record
+        linked").
+
+        Mirror of `_link_requester_organization`: approval is the authorization
+        gate, and the record is built only from data the applicant already
+        supplied on the registration form. `sex` is not collected at signup, so
+        it defaults to UNDISCLOSED (a neutral, non-clinical placeholder staff can
+        correct on the donor form). Returns None when the user already has a
+        donor profile, or when a required field (date of birth) is missing —
+        leaving the fail-safe "contact staff" dashboard in place rather than
+        inventing a value. No eligibility is computed here (agents.md rule 1).
+        """
+        from donors.models import Donor
+
+        if getattr(user, "donor_profile", None) is not None:
+            return None
+        if registration.date_of_birth is None:
+            return None
+        return Donor.objects.create(
+            user=user,
+            first_name=registration.first_name,
+            middle_name=registration.middle_name,
+            last_name=registration.last_name,
+            date_of_birth=registration.date_of_birth,
+            sex=Donor.Sex.UNDISCLOSED,
+            contact_number=registration.phone,
+            email=registration.email,
+            address=registration.address,
+            municipality=registration.municipality,
+            province=registration.province,
+            blood_type=registration.blood_type,
+        )
+
+    @staticmethod
     def review(registration, *, decision, actor, reason="", request=None):
         """Approve or reject a PENDING registration. One-shot; audited; notifies applicant."""
         from notifications.services import NotificationError, NotificationService
@@ -110,6 +146,7 @@ class RegistrationService:
         user = registration.user
         before = {"status": registration.status, "is_active": user.is_active}
         linked_organization = ""
+        linked_donor = ""
         with transaction.atomic():
             registration.status = decision
             registration.reviewed_by = actor
@@ -125,6 +162,10 @@ class RegistrationService:
                         registration, user)
                     if profile is not None:
                         linked_organization = profile.organization.name
+                elif registration.role == User.Role.DONOR:
+                    donor = RegistrationService._link_donor_profile(registration, user)
+                    if donor is not None:
+                        linked_donor = donor.donor_code
             audit.log(request, user=actor,
                       action="REGISTRATION_APPROVED" if decision == RegistrationRequest.Status.APPROVED
                       else "REGISTRATION_REJECTED",
@@ -135,7 +176,10 @@ class RegistrationService:
                                   f"{'approved' if decision == RegistrationRequest.Status.APPROVED else 'rejected'}"
                                   + (f" — reason: {reason.strip()}" if reason else "")
                                   + (f" — linked to organization {linked_organization}."
-                                     if linked_organization else ""))
+                                     if linked_organization else "")
+                                  + (f" — created donor record {linked_donor}."
+                                     if linked_donor else ""))
+
         context = {"full_name": registration.full_name,
                    "role": registration.get_role_display(),
                    "rejection_reason": registration.rejection_reason}
