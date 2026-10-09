@@ -8,6 +8,9 @@ dependencies = [
     "whitenoise>=6.7",
     "python-dotenv>=1.0",
     "dj-database-url>=2.2",
+    # MySQL driver for the XAMPP (local MySQL/MariaDB) development database.
+    # Pure Python, so it needs no compiler on Windows.
+    "pymysql>=1.1",
     "django-shortcuts>=1.6",
     # Server-side PDF export for reports and the inventory statement (the print
     # preview and the "Download PDF" button both render through it). Pure

@@ -223,6 +223,9 @@ class Allocation(models.Model):
         ordering = ["-allocated_at"]
         constraints = [
             # A bag may have at most one ACTIVE allocation at a time.
+            # MySQL/MariaDB cannot build a partial index, so
+            # 0004_mysql_active_allocation_unique recreates this safety guard
+            # there with a generated column + UNIQUE index.
             models.UniqueConstraint(
                 fields=["bag"],
                 condition=models.Q(status__in=["RESERVED", "ISSUED"]),

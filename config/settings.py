@@ -1,7 +1,8 @@
 """
 Django settings for the Blood Bank Management System.
 
-Development: SQLite. Production: PostgreSQL via DATABASE_URL.
+Development: MySQL (XAMPP). Production: PostgreSQL via DATABASE_URL.
+SQLite remains available with DB_ENGINE=sqlite.
 All secrets come from environment variables (.env supported).
 """
 import os
@@ -10,6 +11,17 @@ from pathlib import Path
 
 import dj_database_url
 from dotenv import load_dotenv
+
+# Development targets the MySQL/MariaDB service bundled with XAMPP. Django's
+# MySQL backend imports the driver under the name "MySQLdb"; PyMySQL is a
+# pure-Python drop-in (no compiler needed on Windows) registered here for it.
+# Guarded so the file-based SQLite fallback still runs when PyMySQL is absent.
+try:
+    import pymysql
+
+    pymysql.install_as_MySQLdb()
+except ImportError:  # pragma: no cover - SQLite-only setups have no MySQL driver
+    pass
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -87,13 +99,56 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 # --- Database ---------------------------------------------------------------
-# SQLite for development; set DATABASE_URL for PostgreSQL in production.
-DATABASES = {
-    "default": dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=int(os.environ.get("DB_CONN_MAX_AGE", "0")),
-    )
-}
+# Default: the local MySQL/MariaDB server provided by XAMPP
+# (127.0.0.1:3306, user "root", empty password, database "bloodbank").
+# Every value is overridable through the DB_* variables in .env. A
+# DATABASE_URL still takes precedence so production PostgreSQL keeps working
+# unchanged; set DB_ENGINE=sqlite to fall back to the file-based dev database.
+_DB_ENGINE = os.environ.get("DB_ENGINE", "mysql")
+_DB_CONN_MAX_AGE = int(os.environ.get("DB_CONN_MAX_AGE", "0"))
+
+if os.environ.get("DATABASE_URL"):
+    DATABASES = {
+        "default": dj_database_url.config(
+            conn_max_age=_DB_CONN_MAX_AGE,
+        )
+    }
+elif _DB_ENGINE == "sqlite":
+    DATABASES = {
+        "default": dj_database_url.config(
+            default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+            conn_max_age=_DB_CONN_MAX_AGE,
+        )
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": os.environ.get("DB_NAME", "bloodbank"),
+            "USER": os.environ.get("DB_USER", "root"),
+            "PASSWORD": os.environ.get("DB_PASSWORD", ""),
+            "HOST": os.environ.get("DB_HOST", "127.0.0.1"),
+            "PORT": os.environ.get("DB_PORT", "3306"),
+            "CONN_MAX_AGE": _DB_CONN_MAX_AGE,
+            "OPTIONS": {
+                "charset": "utf8mb4",
+                # XAMPP ships MariaDB, which does not enable strict mode by
+                # default. Turn it on per connection so bad writes (e.g. data
+                # truncation) raise instead of passing silently (mysql.W002).
+                "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+            },
+        }
+    }
+
+# MySQL/MariaDB cannot build partial (conditional) unique indexes, so Django
+# reports models.W036 for the two constraints this project relies on. Both are
+# re-created on MySQL as generated-column + UNIQUE-index migrations
+# (appointments 0003_mysql_open_slot_unique, requests
+# 0004_mysql_active_allocation_unique), so the warning is expected there and
+# silenced for that backend only. SQLite/PostgreSQL still surface W036 for any
+# conditional constraint that lacks such a migration.
+if DATABASES["default"]["ENGINE"] == "django.db.backends.mysql":
+    SILENCED_SYSTEM_CHECKS = ["models.W036"]
 
 # --- Auth -------------------------------------------------------------------
 AUTH_USER_MODEL = "accounts.User"

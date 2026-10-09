@@ -32,6 +32,8 @@ class Appointment(models.Model):
         ordering = ["date", "time"]
         constraints = [
             # A donor cannot hold two open appointments in the same slot.
+            # MySQL/MariaDB cannot build a partial index, so 0003_mysql_open_slot_unique
+            # recreates this guard there with a generated column + UNIQUE index.
             models.UniqueConstraint(
                 fields=["donor", "date", "time"],
                 condition=~models.Q(status__in=["CANCELLED", "NO_SHOW", "COMPLETED"]),

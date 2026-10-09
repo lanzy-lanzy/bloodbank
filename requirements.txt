@@ -2,6 +2,9 @@ Django>=5.2,<6
 whitenoise>=6.7
 python-dotenv>=1.0
 dj-database-url>=2.2
+# MySQL driver for the XAMPP (local MySQL/MariaDB) development database.
+# Pure Python, so it needs no compiler on Windows.
+PyMySQL>=1.1
 # Server-side PDF export for reports and the inventory statement (print
 # preview + "Download PDF" both render through it). Pure Python: it needs no
 # native pango/cairo/GTK toolchain, unlike WeasyPrint.
