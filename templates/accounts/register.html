@@ -91,6 +91,34 @@
       </div>
     </section>
 
+    {# Step 3b — donor interview sheet (self-declaration, staff-reviewed) #}
+    <section x-show="role==='DONOR'" x-cloak>
+      <h3 class="text-sm font-semibold text-ink-900 uppercase tracking-wide mb-1">Donor interview sheet</h3>
+      <p class="text-xs text-ink-500 mb-3">A short health self-declaration. Answer every question
+        truthfully — your answers are <strong>reviewed by blood bank staff</strong> before approval and
+        confirmed again at face-to-face screening. The system does not decide your eligibility from
+        this form.</p>
+      <div class="rounded-2xl border border-brand-100 bg-brand-50/40 p-4 space-y-1">
+        {% for q in form.interview_question_fields %}
+        <div class="py-2 border-b border-brand-100 last:border-0">
+          <p class="text-sm font-medium text-ink-700 mb-1">{{ q.label }}<span class="text-brand-600 ml-0.5" title="Required">*</span></p>
+          <div class="mt-1 text-sm text-ink-600">{{ q }}</div>
+          {% for error in q.errors %}<p class="mt-1 text-xs font-medium text-brand-600" role="alert">{{ error }}</p>{% endfor %}
+        </div>
+        {% endfor %}
+        <div class="pt-3">
+          {% include "components/field.html" with field=form.interview_notes %}
+        </div>
+        <div class="pt-1 rounded-xl bg-white/70 border border-brand-100 p-3">
+          <label class="flex items-start gap-2 text-sm text-ink-700">
+            {{ form.declaration }}
+            <span>{{ form.declaration.label }}<span class="text-brand-600 ml-0.5" title="Required">*</span></span>
+          </label>
+          {% for error in form.declaration.errors %}<p class="mt-1 text-xs font-medium text-brand-600" role="alert">{{ error }}</p>{% endfor %}
+        </div>
+      </div>
+    </section>
+
     <section x-show="role==='REQUESTER'" x-cloak>
       <h3 class="text-sm font-semibold text-ink-900 uppercase tracking-wide mb-1">Requester details</h3>
       <p class="text-xs text-ink-500 mb-3">Name the hospital, clinic or organization you represent.</p>

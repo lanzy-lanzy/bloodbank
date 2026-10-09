@@ -127,3 +127,79 @@ class RegistrationRequest(models.Model):
     def full_name(self):
         parts = [self.first_name, self.middle_name, self.last_name]
         return " ".join(p for p in parts if p) or self.username
+
+
+class RegistrationInterview(models.Model):
+    """Self-declared donor interview sheet filled during DONOR registration.
+
+    Mirrors the standard pre-donation health self-declaration (Philippine Red
+    Cross / WHO donor interview style): a fixed set of YES/NO questions plus an
+    applicant declaration. It is a RECORD of what the applicant stated at signup
+    so a blood bank administrator can weigh it when approving the registration.
+
+    It is deliberately NOT an eligibility engine: no clinical threshold,
+    deferral period, or auto-approve/auto-reject rule is computed here (see
+    agents.md rule 1 — clinical rules live with staff and the DB screening
+    tables). The formal, institution-configurable screening that produces a
+    pass/defer decision lives in `donors.ScreeningQuestion` /
+    `donors.DonorScreening`, run at collection time against an approved Donor.
+    """
+
+    registration = models.OneToOneField(
+        RegistrationRequest, on_delete=models.CASCADE, related_name="interview")
+
+    # --- YES/NO self-declarations (null = not answered) ----------------------
+    felt_well_today = models.BooleanField(null=True, verbose_name=(
+        "I feel well and healthy today."))
+    on_medication = models.BooleanField(null=True, verbose_name=(
+        "I am currently taking any medication."))
+    recent_illness = models.BooleanField(null=True, verbose_name=(
+        "I have had fever, flu, cold, cough, or infection within the past 2 weeks."))
+    prior_transfusion = models.BooleanField(null=True, verbose_name=(
+        "I have received a blood transfusion at any time in my life."))
+    reactive_test = models.BooleanField(null=True, verbose_name=(
+        "I have ever tested positive for Hepatitis B/C, HIV, Syphilis, or had Malaria."))
+    tattoo_piercing = models.BooleanField(null=True, verbose_name=(
+        "I have had a tattoo, body piercing, or acupuncture within the past 12 months."))
+    dental_procedure = models.BooleanField(null=True, verbose_name=(
+        "I have had a tooth extraction or dental procedure within the past 72 hours."))
+    recent_vaccination = models.BooleanField(null=True, verbose_name=(
+        "I have been vaccinated within the past 4 weeks."))
+    high_risk_behavior = models.BooleanField(null=True, verbose_name=(
+        "Within the past 12 months I have shared needles or had sexual contact with a "
+        "partner at risk for HIV/Hepatitis."))
+    pregnant_or_breastfeeding = models.BooleanField(null=True, verbose_name=(
+        "I am currently pregnant, breastfeeding, or delivered within the past year."))
+    previously_deferred = models.BooleanField(null=True, verbose_name=(
+        "I have ever been deferred or turned away from donating blood."))
+
+    # applicant certification (required) + optional free-text context
+    declaration = models.BooleanField(default=False, verbose_name=(
+        "I certify that the information above is true and complete to the best of my "
+        "knowledge, and I understand it will be reviewed by blood bank staff."))
+    notes = models.TextField(blank=True, verbose_name="Additional notes (optional)")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # Ordered question field names for rendering / review display.
+    QUESTION_FIELDS = [
+        "felt_well_today", "on_medication", "recent_illness", "prior_transfusion",
+        "reactive_test", "tattoo_piercing", "dental_procedure", "recent_vaccination",
+        "high_risk_behavior", "pregnant_or_breastfeeding", "previously_deferred",
+    ]
+
+    class Meta:
+        verbose_name = "Registration donor interview"
+        verbose_name_plural = "Registration donor interviews"
+
+    def __str__(self):
+        return f"Donor interview — {self.registration.username}"
+
+    def answered_questions(self):
+        """[(label, 'Yes'|'No'|'—')] in questionnaire order, for the review page."""
+        rows = []
+        for name in self.QUESTION_FIELDS:
+            value = getattr(self, name)
+            answer = "Yes" if value is True else "No" if value is False else "—"
+            rows.append((self._meta.get_field(name).verbose_name, answer))
+        return rows

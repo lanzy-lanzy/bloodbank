@@ -124,7 +124,8 @@ def main():
         ("template list", reverse("notifications:template_list"), {200}),
         ("template create", reverse("notifications:template_create"), {200}),
         ("template edit", reverse("notifications:template_edit", kwargs={"pk": sample_template.pk}), {200}),
-        ("respond pk", reverse("notifications:respond", kwargs={"pk": sample_notif_pk}), {200}),
+        ("respond pk", (reverse("notifications:respond", kwargs={"pk": sample_notif_pk})
+                         if sample_notif_pk else reverse("notifications:inbox")), {200}),
         ("rewards admin", reverse("rewards:admin_overview"), {200}),
         ("rewards my", reverse("rewards:my_rewards"), {200, 403}),
         ("reports center", reverse("reports:center"), {200}),

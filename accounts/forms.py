@@ -5,7 +5,7 @@ from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 
-from accounts.models import RegistrationRequest, User
+from accounts.models import RegistrationInterview, RegistrationRequest, User
 from core.forms import StyledFormMixin
 from core.validators import validate_ph_mobile
 
@@ -163,6 +163,30 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
         self.fields["blood_type"].queryset = BloodType.objects.filter(is_active=True)
         self.fields["blood_type"].required = False
         self.fields["blood_type"].empty_label = "—"
+        # Donor interview sheet: a YES/NO radio per question + a certification
+        # checkbox. Added as form fields (not on the RegistrationRequest model)
+        # so a single POST drives both records. required is enforced per-role
+        # in clean() (only for DONOR); at field level they stay optional so a
+        # REQUESTER submit without them is still valid.
+        for name in RegistrationInterview.QUESTION_FIELDS:
+            label = RegistrationInterview._meta.get_field(name).verbose_name
+            self.fields[name] = forms.ChoiceField(
+                label=label, required=False, widget=forms.RadioSelect,
+                choices=[("yes", "Yes"), ("no", "No")])
+        self.fields["declaration"] = forms.BooleanField(
+            label=str(RegistrationInterview._meta.get_field("declaration").verbose_name),
+            required=False)
+        self.fields["interview_notes"] = forms.CharField(
+            label="Additional notes (optional)", required=False, widget=forms.Textarea,
+            help_text="Anything the blood bank should know (allergies, recent illness, etc.).")
+        # Style the dynamically-added widgets (StyledFormMixin ran before they
+        # existed), so radios/checkbox/textarea match the rest of the form.
+        from core.forms import INPUT_CLASSES
+        for name in RegistrationInterview.QUESTION_FIELDS:
+            self.fields[name].widget.attrs["class"] = "space-y-1"
+        self.fields["declaration"].widget.attrs["class"] = (
+            "rounded border-ink-300 text-brand-600 focus:ring-brand-500/40 h-4 w-4")
+        self.fields["interview_notes"].widget.attrs["class"] = INPUT_CLASSES
 
     def clean_username(self):
         username = self.cleaned_data["username"].strip()
@@ -191,6 +215,19 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
                                ("municipality", "Municipality")):
                 if not cleaned.get(key):
                     self.add_error(key, f"{label} is required for donors.")
+            # Donor interview sheet is mandatory for donors. Normalise the
+            # "yes"/"no" radio values to real booleans in cleaned_data so the
+            # service can persist them; a missing answer is a validation error.
+            for key in RegistrationInterview.QUESTION_FIELDS:
+                raw = cleaned.get(key)
+                if raw in ("yes", "no"):
+                    cleaned[key] = (raw == "yes")
+                else:
+                    cleaned[key] = None
+                    self.add_error(key, "Please answer this question.")
+            if not cleaned.get("declaration"):
+                self.add_error("declaration",
+                               "You must certify the interview before submitting.")
         if role == User.Role.REQUESTER and not (cleaned.get("organization_name") or "").strip():
             self.add_error("organization_name", "Organization is required for a requester.")
         p1, p2 = cleaned.get("password1"), cleaned.get("password2")
@@ -203,3 +240,22 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
             except ValidationError as exc:
                 self.add_error("password1", exc.messages)
         return cleaned
+
+    def interview_question_fields(self):
+        """Bound fields for the interview questions, in questionnaire order."""
+        return [self[name] for name in RegistrationInterview.QUESTION_FIELDS]
+
+    def interview_answers(self):
+        """YES/NO answers + declaration for a DONOR interview, or None.
+
+        Only meaningful once the form is valid and role is DONOR; the values in
+        cleaned_data were normalised to booleans in clean(). Returned as a plain
+        dict so the service can build the RegistrationInterview without knowing
+        anything about the form."""
+        if self.cleaned_data.get("role") != User.Role.DONOR:
+            return None
+        answers = {key: self.cleaned_data.get(key)
+                   for key in RegistrationInterview.QUESTION_FIELDS}
+        answers["declaration"] = bool(self.cleaned_data.get("declaration"))
+        answers["notes"] = (self.cleaned_data.get("interview_notes") or "").strip()
+        return answers

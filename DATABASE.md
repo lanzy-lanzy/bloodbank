@@ -15,6 +15,7 @@ accounts.User (AUTH_USER_MODEL) ── role: ADMIN | STAFF | DONOR | REQUESTER
                                         requests.BloodRequest ──1:N→ requests.RequestItem
                                                               ──1:N→ requests.Allocation ──→ inventory.BloodBag
 accounts.RegistrationRequest ──1:1→ accounts.User (inactive until APPROVED)
+accounts.RegistrationRequest ──1:1→ accounts.RegistrationInterview (donor only, staff-review record)
 
 donors.Donor ──1:N→ donations.Donation ──1:1→ appointments.Appointment
            │        Donation.blood_type → inventory.BloodType
@@ -45,6 +46,21 @@ guards, incl. self-review block and mandatory rejection reason);
 columns. Approving flips `user.is_active`; rejecting leaves the account
 blocked. Duplicate username/email are rejected case-insensitively at form
 level; `phone` must be a valid Philippine mobile (SMS reachability).
+
+### accounts.RegistrationInterview
+1:1 to `RegistrationRequest` (`registration`, `related_name="interview"`,
+CASCADE). The **donor interview sheet** self-declared on the public
+registration form when role=DONOR (REQUESTER registrations have none). Eleven
+nullable-boolean YES/NO questions (`felt_well_today`, `on_medication`,
+`recent_illness`, `prior_transfusion`, `reactive_test`, `tattoo_piercing`,
+`dental_procedure`, `recent_vaccination`, `high_risk_behavior`,
+`pregnant_or_breastfeeding`, `previously_deferred`) mirroring the standard
+pre-donation health questionnaire, plus `declaration` (applicant certification,
+required at submit) and free-text `notes`. It is a **record for admin review
+only**: the system computes no eligibility, deferral, or auto-approve/auto-reject
+from these answers (clinical rules live with staff and `donors.*` screening —
+see agents.md rule 1). Written by `RegistrationService.submit` alongside the
+registration; surfaced verbatim on the registration review page.
 
 ### donors.Donor
 `donor_code` (auto `DON-000001`), optional 1:1 `user` link, `blood_type` FK,

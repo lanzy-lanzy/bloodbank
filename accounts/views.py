@@ -271,6 +271,7 @@ class RegisterView(View):
                     registration=registration,
                     raw_password=form.cleaned_data["password1"],
                     request=request,
+                    interview_answers=form.interview_answers(),
                 )
             except RegistrationError as exc:
                 messages.error(request, str(exc))
@@ -334,7 +335,8 @@ class RegistrationReviewView(AdminRequiredMixin, View):
 
     def _ctx(self, registration):
         return {"registration": registration,
-                "applicant": registration.user}
+                "applicant": registration.user,
+                "interview": getattr(registration, "interview", None)}
 
     def get(self, request, pk):
         registration = get_object_or_404(RegistrationRequest, pk=pk)

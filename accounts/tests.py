@@ -94,14 +94,29 @@ class ProfilePhoneTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
 
 
+def interview_data(**overrides):
+    """A complete, valid donor interview sheet (YES/NO radios + declaration)."""
+    data = {
+        "felt_well_today": "yes", "on_medication": "no", "recent_illness": "no",
+        "prior_transfusion": "no", "reactive_test": "no", "tattoo_piercing": "no",
+        "dental_procedure": "no", "recent_vaccination": "no", "high_risk_behavior": "no",
+        "pregnant_or_breastfeeding": "no", "previously_deferred": "no",
+        "declaration": "on", "interview_notes": "",
+    }
+    data.update(overrides)
+    return data
+
+
 def donor_form_data(**overrides):
     data = {"role": "DONOR", "first_name": "Tina", "middle_name": "M", "last_name": "Test",
             "username": "tina.test", "email": "tina@example.test", "phone": "09171234567",
             "blood_type": "", "date_of_birth": "1996-02-02", "address": "1 Test St",
             "municipality": "Zamboanga City", "province": "Zamboanga del Sur",
             "organization_name": "", "password1": PASSWORD, "password2": PASSWORD}
+    data.update(interview_data())
     data.update(overrides)
     return data
+
 
 
 @override_settings(SMS_PROVIDER="mock", SMS_API_KEY="")
@@ -188,6 +203,64 @@ class RegistrationSubmitTests(TestCase):
         resp = self.client.post(reverse("accounts:login"),
                                 {"username": "tina.test", "password": "WrongPass999!"})
         self.assertNotContains(resp, "pending admin approval")
+
+
+@override_settings(SMS_PROVIDER="mock", SMS_API_KEY="")
+class DonorInterviewTests(TestCase):
+    """The donor interview sheet is captured during DONOR self-registration,
+    stored on RegistrationInterview for staff review, and never gates approval
+    by itself (clinical eligibility is decided at screening, not here)."""
+
+    def setUp(self):
+        make_registration_templates()
+        self.admin = make_user("iv-admin", role="ADMIN")
+
+    def _submit(self, **overrides):
+        return self.client.post(reverse("public_registration:register"),
+                                donor_form_data(**overrides))
+
+    def test_donor_interview_stored_with_registration(self):
+        resp = self._submit(interview_notes="Mild penicillin allergy.")
+        self.assertRedirects(resp, reverse("public_registration:register_done"))
+        reg = RegistrationRequest.objects.get(username="tina.test")
+        from accounts.models import RegistrationInterview
+        interview = RegistrationInterview.objects.get(registration=reg)
+        # "yes"/"no" radios are normalised to real booleans on save.
+        self.assertTrue(interview.felt_well_today)
+        self.assertFalse(interview.reactive_test)
+        self.assertTrue(interview.declaration)
+        self.assertEqual(interview.notes, "Mild penicillin allergy.")
+
+    def test_donor_requires_every_answer(self):
+        data = donor_form_data()
+        del data["reactive_test"]  # leave one question unanswered
+        resp = self.client.post(reverse("public_registration:register"), data)
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(RegistrationRequest.objects.filter(username="tina.test").exists())
+
+    def test_donor_requires_declaration(self):
+        resp = self._submit(declaration="")  # certification unchecked
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(RegistrationRequest.objects.exists())
+
+    def test_requester_registration_has_no_interview(self):
+        from accounts.models import RegistrationInterview
+        resp = self._submit(role="REQUESTER", username="iv-req",
+                            email="iv-req@example.test", organization_name="IV Hospital")
+        self.assertRedirects(resp, reverse("public_registration:register_done"))
+        reg = RegistrationRequest.objects.get(username="iv-req")
+        self.assertFalse(RegistrationInterview.objects.filter(registration=reg).exists())
+
+    def test_review_page_shows_interview_answers(self):
+        self._submit(interview_notes="Recent dengue in household.")
+        reg = RegistrationRequest.objects.get(username="tina.test")
+        self.client.login(username="iv-admin", password=PASSWORD)
+        resp = self.client.get(reverse("accounts:registration_review", args=[reg.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Donor Interview Sheet")
+        self.assertContains(resp, "I feel well and healthy today.")
+        self.assertContains(resp, "Recent dengue in household.")
+
 
 
 @override_settings(SMS_PROVIDER="mock", SMS_API_KEY="")

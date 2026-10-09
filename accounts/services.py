@@ -9,7 +9,7 @@ import logging
 from django.db import transaction
 from django.utils import timezone
 
-from accounts.models import RegistrationRequest, User
+from accounts.models import RegistrationInterview, RegistrationRequest, User
 from audit import services as audit
 
 logger = logging.getLogger("bloodbank.accounts")
@@ -23,8 +23,13 @@ class RegistrationService:
     ELIGIBLE_ROLES = {User.Role.DONOR, User.Role.REQUESTER}
 
     @staticmethod
-    def submit(*, registration, raw_password, request=None):
-        """Create the inactive User + PENDING registration, notify admins, audit."""
+    def submit(*, registration, raw_password, request=None, interview_answers=None):
+        """Create the inactive User + PENDING registration, notify admins, audit.
+
+        `interview_answers` (dict or None) is the donor self-declared interview
+        sheet from the registration form; when present it is stored on the linked
+        RegistrationInterview for staff to weigh at approval. It never changes the
+        submission outcome — the account stays PENDING/inactive regardless."""
         from notifications.services import NotificationError, NotificationService
 
         if registration.role not in RegistrationService.ELIGIBLE_ROLES:
@@ -41,11 +46,16 @@ class RegistrationService:
             # registration may still be unsaved here (ModelForm commit=False),
             # so this is an INSERT, not a field-limited UPDATE.
             registration.save()
+            if interview_answers is not None:
+                RegistrationInterview.objects.create(
+                    registration=registration, **interview_answers)
             audit.log(request, action="REGISTRATION_SUBMITTED", module="accounts",
                       obj=registration,
                       description=f"{registration.get_role_display()} registration submitted "
                                   f"by {registration.full_name} ({registration.username}). "
-                                  "Account is inactive until an administrator approves it.")
+                                  "Account is inactive until an administrator approves it."
+                                  + (" Donor interview sheet attached."
+                                     if interview_answers is not None else ""))
         # Notify every active admin (in-app + SMS channel per template). SMS to
         # unconfigured numbers fails safe and is recorded per channel row.
         context = {"full_name": registration.full_name,
