@@ -1,0 +1,27 @@
+{# Topbar notifications dropdown fragment. Loaded on demand by htmx. Each row posts to notifications:open, which marks the notification read and then redirects to the page the notification is about. #}
+<div class="bb-dropdown-head">
+  <p class="text-sm font-semibold text-ink-900">Notifications</p>
+  <p class="text-xs text-ink-500">{% if unread %}{{ unread }} unread{% else %}You are all caught up{% endif %}</p>
+</div>
+<div class="bb-dropdown-list">
+  {% for row in rows %}
+  <form method="post" action="{% url 'notifications:open' pk=row.notification.pk %}">
+    {% csrf_token %}
+    <button type="submit" class="bb-dropdown-item">
+      <span class="bb-dot {% if row.notification.is_read %}is-read{% endif %}"></span>
+      <span class="min-w-0 flex-1 text-left">
+        <span class="bb-dropdown-title">{{ row.notification.subject|default:"Notification" }}</span>
+        <span class="bb-dropdown-text">{{ row.notification.body|truncatechars:110 }}</span>
+        <span class="bb-dropdown-meta">
+          {{ row.notification.created_at|timesince }} ago
+          {% if row.target_label %}· {{ row.target_label }}{% endif %}
+        </span>
+      </span>
+      <svg class="bb-dropdown-chevron w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+    </button>
+  </form>
+  {% empty %}
+  <p class="px-4 py-8 text-center text-sm text-ink-500">No notifications yet.</p>
+  {% endfor %}
+</div>
+<a href="{{ inbox_url }}" class="bb-dropdown-foot">View all notifications</a>

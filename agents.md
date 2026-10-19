@@ -104,13 +104,78 @@ commands in [README.md](README.md) and [TESTING.md](TESTING.md).
   `prefers-reduced-motion` → single static frame, WebGL/CDN failure → CSS
   gradient fallback (never a broken page).
 - **Auth shell must stay scroll-safe**: `base_auth.html` centres with a
-  `min-h-screen flex flex-col justify-center` wrapper and normal document
-  flow — NOT `body{flex items-center}` + `overflow-hidden` (that combination
-  clips tall cards such as `accounts/register.html` on desktop and cuts the
-  footer off on short viewports). Decorative orbs live in a
+  `min-h-screen flex flex-col` wrapper and normal document flow — the inner
+  wrapper carries `m-auto`, NOT `justify-center` on the outer wrapper (auto
+  margins collapse to zero once the content is taller than the viewport, so a
+  tall card pushes the page down instead of overflowing above the fold) and
+  definitely NOT `body{flex items-center}` + `overflow-hidden` (that
+  combination clips tall cards such as `accounts/register.html` on desktop and
+  cuts the footer off on short viewports). Decorative orbs live in a
   `fixed inset-0 overflow-hidden` layer so they can't create horizontal
   scroll; card padding/type scale via `sm:` variants; width override uses the
-  `{% block auth_width %}` block (register uses `max-w-lg`).
+  `{% block auth_width %}` block (register uses `max-w-3xl`) and the card
+  surface uses `{% block auth_card_class %}` (register/register-done use the
+  dark liquid-glass `.bb-glass-card`, everything else keeps the light card).
+- **The topbar bell is a dropdown, and every row opens the page the
+  notification is about.** The bell lives in `components/topbar.html` (it
+  carries the htmx wiring) and lazy-loads `notifications:inbox_dropdown`
+  into `#notif-dropdown-body`; `templates/notifications/_badge.html` is only
+  the unread count pill (polled every 60s). Each row is a POST to
+  `notifications:open`, which marks the notification read and redirects.
+  The redirect target is resolved on the SERVER by
+  `notifications/services.py::target_for(user, notification)` — never in the
+  template and never from a URL parameter. It must respect the target
+  page's own role gate: a requester only ever gets their own
+  organization's request, a donor gets the RESPOND page (never the request
+  record), staff get the request/donor page. `visible_notifications(user)`
+  is the single rule for "may this user see this notification" — the inbox
+  and the dropdown both use it.
+- **The app shell has a design system too — put the look in the stylesheet,
+  not in the markup.** `static/css/input.css` owns it:
+  - `.bb-sidebar` — the signed-in sidebar is a deep liquid-glass panel
+    (translucent gradient + `backdrop-filter` + an inner aurora). NB: the
+    rule must NOT set `position` — the markup's `fixed` utility has to win,
+    or the sidebar drops into the flow and pushes the whole page down.
+  - `.bb-nav-item` / `.bb-nav-icon` / `.bb-nav-section` / `.bb-nav-badge` —
+    the nav look. `core_extras.nav_item` only emits the structure
+    (`bb-nav-item` + `is-active`); it does not emit colours, so the sidebar
+    can be re-skinned from the stylesheet alone.
+  - `.bb-stat` (dashboard KPI) + `.bb-kpi` (print-friendly variant) — the
+    accent is a `data-accent="rose|emerald|amber|sky|violet|slate"`
+    attribute, not a pile of conditional Tailwind classes.
+  - the app's card idiom (`bg-white rounded-2xl border-ink-200 shadow-sm`,
+    150+ places) is re-skinned ONCE by a rule scoped to
+    `:is(main, .modal-body)` — do not restyle cards template by template.
+  - the content area stays light on purpose: the printable documents and
+    the PDF templates assume a light surface, and 40+ pages are built on the
+    light utility set. Only the shell (sidebar/topbar) is dark.
+- **Auth pages share the same language.** `templates/base_auth.html` exposes
+  `{% block auth_card_class %}` (register/register-done/login use the dark
+  `.bb-glass-card`), `{% block auth_width %}` and
+  `{% block auth_backdrop_extra %}` (the aurora). Form fields on those pages
+  are styled by `.bb-glass-form` — add that class to the wrapper, never
+  hand-roll input colours. `static/js/auth.js` holds the shared
+  show/hide-password button.
+- **The public sign-up is a stepper, and it is presentation only.**
+  `templates/accounts/register.html` renders EVERY step of ONE `<form>`; the
+  server still receives a single POST with every field and
+  `accounts/forms.py` remains the only place the rules live. The steps are
+  switched by `static/js/register-stepper.js` (progressive enhancement: with
+  JS off, every step is visible and the form posts as one long form). Rules
+  for the file:
+  - a step is a `<section data-step-panel data-step-key="..." data-step-for="DONOR|REQUESTER|all">`;
+    `data-step-for` decides which roles see it, and the rail renumbers itself
+  - the role is a real radio group (`name="role"`, values `DONOR`/`REQUESTER`),
+    NOT a hidden select, so the POST contract is unchanged
+  - a field that only exists for one role carries `data-required-for="DONOR"`
+    (set in `RegistrationForm.__init__`); the browser uses it to mark the
+    field required, the server re-checks it in `clean()`
+  - `form.review_rows()` feeds the review step; the stepper refreshes it live
+  - `{% block head_extra %}` adds the stepper script AND the one-line
+    `document.documentElement.classList.add("bb-js")` that hides the inactive
+    steps before the first paint (`.bb-js .bb-panel { display: none }`)
+  - Django 5.2 always uses the **cached** template loader: restart the dev
+    server after editing a template or you will keep seeing the old markup.
 - **Tailwind CSS 4 is built locally, not via CDN.** Source:
   `static/css/input.css` (holds the `@theme` brand/ink tokens + base styles);
   output: `static/css/tailwind.css`, linked by `base.html`/`base_auth.html`/

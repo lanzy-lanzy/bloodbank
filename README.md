@@ -74,7 +74,10 @@ Open <http://127.0.0.1:8000/> and log in. Each role lands on its own dashboard.
 - **Public self-registration** for donors/requesters at `/register/` with an
   admin approval gate: accounts stay inactive until reviewed, and applicants
   are told pending/rejected status (plus the reason) at login and by
-  in-app/SMS notification.
+  in-app/SMS notification. The page is a guided stepper (account type → your
+  details → donor details / organization → health interview → password →
+  review) on a liquid-glass + neumorphic surface; the steps are presentation
+  only — the server still receives one POST and owns every rule.
 - **Full donation lifecycle** as an enforced state machine: registration →
   screening → collection → testing → release.
 - **Blood-bag inventory** with a safety-testing ledger, expiry jobs and a
@@ -90,6 +93,10 @@ Open <http://127.0.0.1:8000/> and log in. Each role lands on its own dashboard.
   at the counter and filled from compatible bags on hand.
 - **Emergency donor notification** with token-based responses over in-app,
   email and a clearly-labelled **MOCK** SMS provider.
+- **Notification dropdown** in the topbar: the newest messages at a glance,
+  and clicking one marks it read and opens the page it is about (the blood
+  request, the donor record, the registration queue) — the link is resolved
+  server-side and never crosses a role's data boundary.
 - **Rewards program**: immutable point ledger, configurable rules, tiers and
   redemption.
 - **Config-driven reports** with filters, a formal **print preview**, **PDF

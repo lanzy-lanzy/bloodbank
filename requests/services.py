@@ -78,6 +78,7 @@ class BloodRequestService:
                         "urgency": blood_request.get_urgency_display(),
                     },
                     channels=["in_app"],
+                    blood_request=blood_request,
                 )
             except Exception:  # noqa: BLE001 — alerting must not break submission
                 logger.exception("Emergency staff alert failed for user %s", user.username)
@@ -422,6 +423,7 @@ class BloodRequestService:
                 NotificationService.send_to_user(
                     blood_request.created_by, template_code, context,
                     channels=["in_app"],
+                    blood_request=blood_request,
                 )
             except Exception:  # noqa: BLE001
                 logger.exception("Requester notification %s failed", template_code)

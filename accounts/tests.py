@@ -266,6 +266,57 @@ class DonorInterviewTests(TestCase):
         self.assertContains(resp, "Recent dengue in household.")
 
 
+class RegistrationStepperTests(TestCase):
+    """The public sign-up page presents the form as a stepper.
+
+    The stepper is presentation only: it must keep the original POST
+    contract (one form, one request, every field), so the server stays the
+    only place where the rules live.
+    """
+
+    def setUp(self):
+        make_registration_templates()
+
+    def _get(self):
+        resp = self.client.get(reverse("public_registration:register"))
+        self.assertEqual(resp.status_code, 200)
+        return resp.content.decode()
+
+    def test_page_renders_one_form_with_every_step(self):
+        content = self._get()
+        self.assertEqual(content.count("<form"), 1)
+        self.assertEqual(content.count("data-step-panel"), 7)  # one panel per step
+        self.assertIn("data-step-nav", content)
+        self.assertIn("register-stepper.js", content)
+
+    def test_role_is_a_real_radio_choice(self):
+        # The role cards are radio inputs, so the POST contract is unchanged
+        # and a crafted role still has to pass the form's choice validation.
+        content = self._get()
+        self.assertIn('name="role"', content)
+        self.assertIn('value="DONOR"', content)
+        self.assertIn('value="REQUESTER"', content)
+
+    def test_review_step_mirrors_the_posted_values(self):
+        data = donor_form_data()
+        del data["declaration"]  # force a re-render with errors
+        resp = self.client.post(reverse("public_registration:register"), data)
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode()
+        self.assertIn('<dd data-review-field="username">tina.test</dd>', content)
+        self.assertIn('<dd data-review-field="role">Donor</dd>', content)
+        self.assertIn('<dd data-review-field="email">tina@example.test</dd>', content)
+
+    def test_role_specific_steps_are_marked_for_the_stepper(self):
+        # The stepper needs to know which steps belong to which role, and
+        # which fields are only required for that role.
+        content = self._get()
+        self.assertIn('data-step-key="donor" data-step-for="DONOR"', content)
+        self.assertIn('data-step-key="requester" data-step-for="REQUESTER"', content)
+        self.assertIn('data-required-for="DONOR"', content)
+        self.assertIn('data-required-for="REQUESTER"', content)
+
+
 
 @override_settings(SMS_PROVIDER="mock", SMS_API_KEY="")
 class RegistrationReviewTests(TestCase):

@@ -1,5 +1,5 @@
 {% load core_extras %}
-<header class="fixed top-0 right-0 left-0 lg:left-64 z-40 h-16 bg-white/85 backdrop-blur-md border-b border-ink-200/70 shadow-sm flex items-center gap-3 px-4 sm:px-6">
+<header class="bb-topbar fixed top-0 right-0 left-0 lg:left-64 z-40 h-16 flex items-center gap-3 px-4 sm:px-6">
   <button @click="sidebarOpen = !sidebarOpen" class="lg:hidden p-2 rounded-lg hover:bg-ink-100 text-ink-600" aria-label="Toggle navigation">
     <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
   </button>
@@ -7,10 +7,25 @@
     <span class="font-bold text-ink-900 text-lg truncate">{% section_title request %}</span>
   </a>
   <div class="flex-1"></div>
-  <span hx-get="{% url 'notifications:inbox_badge' %}" hx-trigger="load, every 60s" hx-target="#notif-badge-slot" hx-swap="innerHTML" id="notif-badge-slot" class="relative"></span>
+  {# Notifications: the bell opens a dropdown with the newest items; each row posts to notifications:open, which marks it read and redirects to the page the notification is about. #}
+  <div x-data="{ open: false }" @click.outside="open = false" class="relative">
+    <button type="button" @click="open = !open" :aria-expanded="open" aria-haspopup="true"
+            aria-label="Notifications"
+            hx-get="{% url 'notifications:inbox_dropdown' %}" hx-trigger="click" hx-target="#notif-dropdown-body" hx-swap="innerHTML"
+            class="relative inline-flex items-center justify-center w-9 h-9 rounded-xl hover:bg-ink-100 text-ink-500 transition">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.86 20H9.14a.5.5 0 0 1-.45-.72l.7-1.39A5.99 5.99 0 0 1 6 13V8a6 6 0 1 1 12 0v5c0 1.78-.86 3.36-2.39 4.89l.7 1.39a.5.5 0 0 1-.45.72Z"/><path stroke-linecap="round" d="M10 20a2 2 0 0 0 4 0"/></svg>
+      <span id="notif-count" class="absolute inset-0" hx-get="{% url 'notifications:inbox_badge' %}" hx-trigger="load, every 60s" hx-swap="innerHTML"></span>
+    </button>
+    <div x-show="open" x-cloak @click.outside="open = false"
+         class="bb-dropdown absolute right-0 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] z-50 overflow-hidden">
+      <div id="notif-dropdown-body">
+        <p class="px-4 py-6 text-center text-sm text-ink-500">Loading notifications…</p>
+      </div>
+    </div>
+  </div>
   <div x-data="{ open: false }" class="relative">
     <button @click="open = !open" class="flex items-center gap-2 p-1.5 rounded-xl hover:bg-ink-100" aria-haspopup="menu" :aria-expanded="open">
-      <span class="w-8 h-8 rounded-lg bg-ink-800 text-white flex items-center justify-center text-sm font-semibold">
+      <span class="bb-avatar w-8 h-8 rounded-lg flex items-center justify-center text-sm font-semibold">
         {{ user.get_initials|default:"U" }}
       </span>
       <span class="hidden md:block text-left leading-tight">
@@ -20,7 +35,7 @@
       <svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m6 9 6 6 6-6"/></svg>
     </button>
     <div x-show="open" x-cloak @click.outside="open = false" x-transition
-         class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-ink-200 py-1.5 z-50">
+         class="bb-dropdown absolute right-0 mt-2 w-56 z-50 overflow-hidden py-1.5">
       <a href="{% url 'accounts:profile' %}" hx-get="{% url 'accounts:profile' %}" hx-target="#modal-root" hx-swap="innerHTML"
          class="flex items-center gap-2 px-4 py-2 text-sm text-ink-700 hover:bg-ink-50">
         <svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>

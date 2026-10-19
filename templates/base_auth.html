@@ -6,15 +6,18 @@
   <title>{% block title %}{{ ORG_NAME }}{% endblock %}</title>
   <link rel="stylesheet" href="{% static_v 'css/tailwind.css' %}">
   <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" defer></script>
+  {# Optional extra <head> content (scripts/styles) for a specific auth page. #}
+  {% block head_extra %}{% endblock %}
   <style>[x-cloak]{display:none!important}</style>
 </head>
-{# Scroll-safe auth shell: no flex centering (it clips tall cards), no overflow-hidden (it cuts the bottom). #}
+{# Scroll-safe auth shell: normal document flow, no overflow-hidden, and the card is centred with auto margins so a tall card (e.g. the registration stepper) pushes the page down instead of overflowing above the fold. #}
 <body class="min-h-full bg-ink-950 text-ink-800 antialiased"
       style="background-image: radial-gradient(ellipse 80% 60% at 15% -10%, rgba(225,29,72,0.22), transparent 60%), radial-gradient(ellipse 70% 55% at 110% 110%, rgba(56,89,199,0.25), transparent 60%), linear-gradient(160deg, #0b1120 0%, #0f172a 50%, #170a14 100%); background-attachment: fixed;">
   {# Decorative blurred orbs behind the card, clipped by the viewport only. #}
   <div aria-hidden="true" class="pointer-events-none fixed inset-0 overflow-hidden -z-0">
     <div class="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-brand-600/20 blur-3xl"></div>
     <div class="absolute -bottom-32 -right-16 w-[28rem] h-[28rem] rounded-full bg-sky-600/15 blur-3xl"></div>
+    {% block auth_backdrop_extra %}{% endblock %}
   </div>
 
   {# Back-to-home affordance, pinned top-left on every auth page. #}
@@ -24,8 +27,9 @@
     Back to home
   </a>
 
-  <div class="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 pt-16 pb-8 sm:px-6 sm:pt-20 sm:pb-12">
-    <div class="w-full {% block auth_width %}max-w-md{% endblock %}">
+  {# `m-auto` centres the card while keeping the top of a tall card reachable: auto margins collapse to zero once the content is taller than the viewport, so the page simply scrolls. #}
+  <div class="relative z-10 flex min-h-screen flex-col items-center px-4 pt-16 pb-8 sm:px-6 sm:pt-20 sm:pb-12">
+    <div class="m-auto w-full {% block auth_width %}max-w-md{% endblock %}">
       <div class="text-center mb-6 sm:mb-8">
         {# Brand mark links home (standard web convention). #}
         <a href="{% url 'core:home' %}" aria-label="{{ ORG_NAME }} — back to home"
@@ -37,7 +41,8 @@
           <p class="text-ink-400 text-sm mt-1.5">Blood Bank Management System</p>
         </a>
       </div>
-      <div class="bg-white/[0.97] backdrop-blur rounded-2xl shadow-2xl ring-1 ring-white/10 p-5 sm:p-8">
+      {# The surface is a block so a page can swap in a different card (the registration stepper uses the dark liquid-glass variant). #}
+      <div class="{% block auth_card_class %}bg-white/[0.97] backdrop-blur rounded-2xl shadow-2xl ring-1 ring-white/10{% endblock %} p-5 sm:p-8">
         {# Nested block: children may override auth_content (accounts pages) or content (public pages). #}
         {% block content %}{% block auth_content %}{% endblock %}{% endblock %}
       </div>

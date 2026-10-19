@@ -85,6 +85,10 @@ def nav_item(url_name, label, request, icon_path, badge_url=""):
     ``badge_url`` is optional: a fragment endpoint that renders
     ``components/nav_badge.html`` and is polled by htmx, so the count stays
     live without a full navigation (the sidebar is not part of #page-content).
+
+    The look of the link lives in the stylesheet (``.bb-nav-item`` in
+    static/css/input.css) so the sidebar can be re-skinned without touching
+    this tag; only the structure is produced here.
     """
     try:
         url = reverse(url_name)
@@ -92,12 +96,11 @@ def nav_item(url_name, label, request, icon_path, badge_url=""):
         return ""
     current = request.path
     active = current == url or (url != "/" and current.startswith(url))
-    cls = ("flex items-center gap-3 px-3 py-2 rounded-xl transition-colors "
-           + ("bg-brand-600/20 text-white font-medium ring-1 ring-inset ring-brand-500/30" if active
-              else "text-ink-400 hover:text-white hover:bg-ink-800"))
+    cls = "bb-nav-item" + (" is-active" if active else "")
     icon = format_html(
-        '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" '
-        'viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{}"/></svg>',
+        '<span class="bb-nav-icon"><svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" '
+        'stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" '
+        'd="{}"/></svg></span>',
         icon_path,
     )
     badge = format_html(

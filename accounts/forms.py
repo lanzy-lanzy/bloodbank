@@ -13,6 +13,12 @@ from core.validators import validate_ph_mobile
 class BloodBankAuthenticationForm(StyledFormMixin, AuthenticationForm):
     """Login form with failed-login lockout protection."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Room for the show/hide button on the right edge of the field.
+        self.fields["password"].widget.attrs["class"] = (
+            self.fields["password"].widget.attrs.get("class", "") + " bb-input-action").strip()
+
     def confirm_login_allowed(self, user):
         if not user.is_active:
             reason = getattr(user, "deactivated_reason", "") or "This account is deactivated."
@@ -183,10 +189,27 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
         # existed), so radios/checkbox/textarea match the rest of the form.
         from core.forms import INPUT_CLASSES
         for name in RegistrationInterview.QUESTION_FIELDS:
-            self.fields[name].widget.attrs["class"] = "space-y-1"
+            # The YES/NO pills are styled by the .bb-q-opts wrapper in the
+            # template, so the widget itself carries no extra class.
+            self.fields[name].widget.attrs["class"] = ""
         self.fields["declaration"].widget.attrs["class"] = (
             "rounded border-ink-300 text-brand-600 focus:ring-brand-500/40 h-4 w-4")
         self.fields["interview_notes"].widget.attrs["class"] = INPUT_CLASSES
+        self.fields["interview_notes"].widget.attrs["rows"] = 3
+        # Role-conditional fields carry the role they belong to. The public
+        # stepper reads it to mark them required for the right role in the
+        # browser; the server re-checks every one of them in clean() below,
+        # so this is a convenience, never the rule.
+        for name in ("date_of_birth", "address", "municipality"):
+            self.fields[name].widget.attrs["data-required-for"] = User.Role.DONOR
+        self.fields["organization_name"].widget.attrs["data-required-for"] = User.Role.REQUESTER
+        for name in RegistrationInterview.QUESTION_FIELDS:
+            self.fields[name].widget.attrs["data-required-for"] = User.Role.DONOR
+        self.fields["declaration"].widget.attrs["data-required-for"] = User.Role.DONOR
+        # The password fields carry a show/hide button on their right edge.
+        for name in ("password1", "password2"):
+            self.fields[name].widget.attrs["class"] = (
+                self.fields[name].widget.attrs.get("class", "") + " bb-input-action").strip()
 
     def clean_username(self):
         username = self.cleaned_data["username"].strip()
@@ -244,6 +267,46 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
     def interview_question_fields(self):
         """Bound fields for the interview questions, in questionnaire order."""
         return [self[name] for name in RegistrationInterview.QUESTION_FIELDS]
+
+    # (field name, label, role scope) for the review step of the public
+    # sign-up. An empty scope means the row applies to every role.
+    REVIEW_FIELDS = (
+        ("role", "Account type", ""),
+        ("first_name", "First name", ""),
+        ("middle_name", "Middle name", ""),
+        ("last_name", "Last name", ""),
+        ("username", "Username", ""),
+        ("email", "Email address", ""),
+        ("phone", "Mobile number", ""),
+        ("date_of_birth", "Date of birth", User.Role.DONOR),
+        ("blood_type", "Blood type", User.Role.DONOR),
+        ("address", "Address", User.Role.DONOR),
+        ("municipality", "Municipality", User.Role.DONOR),
+        ("province", "Province", User.Role.DONOR),
+        ("organization_name", "Organization", User.Role.REQUESTER),
+    )
+
+    def review_rows(self):
+        """[(field name, label, role scope, value)] for the review step.
+
+        Values come from the posted data when the form is bound, so a form
+        re-rendered after a validation error shows what was typed; the
+        stepper refreshes them live while the applicant types.
+        """
+        return [(name, label, scope, self._review_value(name))
+                for name, label, scope in self.REVIEW_FIELDS]
+
+    def _review_value(self, name):
+        if not self.is_bound:
+            return ""
+        raw = self.data.get(name)
+        if name == "role":
+            return {User.Role.DONOR: "Donor",
+                    User.Role.REQUESTER: "Requester"}.get(raw, raw or "")
+        if name == "blood_type":
+            blood_type = getattr(self, "cleaned_data", {}).get("blood_type")
+            return str(blood_type) if blood_type else ""
+        return (raw or "").strip()
 
     def interview_answers(self):
         """YES/NO answers + declaration for a DONOR interview, or None.

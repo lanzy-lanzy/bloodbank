@@ -4,6 +4,7 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render, reverse
+from django.utils import timezone
 from django.views import View
 from django.views.generic import ListView
 
@@ -12,7 +13,12 @@ from core.forms import StyledModelForm
 from core.mixins import AdminRequiredMixin, StaffRequiredMixin, is_htmx
 from core.modals import modal_success, render_any
 from notifications.models import KNOWN_VARIABLES, Notification, NotificationTemplate
-from notifications.services import NotificationError, NotificationService
+from notifications.services import (
+    NotificationError,
+    NotificationService,
+    target_for,
+    visible_notifications,
+)
 
 
 class InboxView(View):
@@ -21,13 +27,62 @@ class InboxView(View):
     template_name = "notifications/inbox.html"
 
     def get(self, request):
-        donor = getattr(request.user, "donor_profile", None)
-        qs = Notification.objects.filter(channel="in_app").filter(
-            Q(user=request.user) | (Q(donor=donor) if donor else Q(pk__in=[]))
-        ).select_related("donor", "blood_request", "template").order_by("-created_at")
+        qs = visible_notifications(request.user).select_related(
+            "donor", "blood_request", "template").order_by("-created_at")
         unread = qs.filter(is_read=False).count()
         qs = qs[:100]
         return render(request, self.template_name, {"notifications": qs, "unread": unread})
+
+
+class InboxDropdownView(View):
+    """Fragment for the topbar notifications dropdown.
+
+    Loaded on demand (htmx) so every page does not pay for the query, and
+    deliberately limited to the newest few items — the full list lives on
+    the inbox page.
+    """
+
+    template_name = "notifications/_dropdown.html"
+    limit = 8
+
+    def get(self, request):
+        qs = visible_notifications(request.user).select_related(
+            "donor", "blood_request", "template").order_by("-created_at")
+        unread = qs.filter(is_read=False).count()
+        rows = []
+        for notification in qs[:self.limit]:
+            url, label = target_for(request.user, notification)
+            rows.append({
+                "notification": notification,
+                "target_url": url,
+                "target_label": label,
+            })
+        return render(request, self.template_name, {
+            "rows": rows,
+            "unread": unread,
+            "inbox_url": reverse("notifications:inbox"),
+        })
+
+
+class NotificationOpenView(View):
+    """POST: open a notification — mark it read and go to the page it is about.
+
+    POST (not GET) because it changes state, and the redirect target is
+    resolved on the server so a crafted URL cannot make a user open a page
+    they are not allowed to see.
+    """
+
+    def post(self, request, pk):
+        notification = get_object_or_404(
+            Notification.objects.select_related("donor", "blood_request", "template"), pk=pk)
+        if not visible_notifications(request.user).filter(pk=notification.pk).exists():
+            raise PermissionDenied("You cannot open that notification.")
+        if not notification.is_read:
+            notification.is_read = True
+            notification.read_at = timezone.now()
+            notification.save(update_fields=["is_read", "read_at"])
+        url, _label = target_for(request.user, notification)
+        return redirect(url or reverse("notifications:inbox"))
 
 
 class InboxBadgeView(View):

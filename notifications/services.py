@@ -2,6 +2,8 @@
 import logging
 
 from django.db import transaction
+from django.db.models import Q
+from django.urls import reverse
 from django.utils import timezone
 
 from notifications.models import Notification, NotificationTemplate
@@ -12,6 +14,62 @@ logger = logging.getLogger("bloodbank.notifications")
 
 class NotificationError(Exception):
     pass
+
+
+def visible_notifications(user):
+    """In-app notifications the signed-in user is allowed to see.
+
+    Their own messages plus the ones addressed to their donor profile — the
+    same rule the inbox page uses, so the dropdown and the inbox never
+    disagree about what a user may read.
+    """
+    donor = getattr(user, "donor_profile", None)
+    return Notification.objects.filter(channel="in_app").filter(
+        Q(user=user) | (Q(donor=donor) if donor else Q(pk__in=[]))
+    )
+
+
+def target_for(user, notification):
+    """(url, label) of the page a notification is about, or (None, None).
+
+    The link must respect the target page's own role gate, so this never
+    points a donor at a blood request they may not open, nor a requester at
+    another organization's request. When there is no such page the caller
+    falls back to the inbox.
+    """
+    role = getattr(user, "role", "")
+    donor_profile = getattr(user, "donor_profile", None)
+
+    if notification.blood_request_id:
+        blood_request = notification.blood_request
+        if role in ("ADMIN", "STAFF"):
+            return (reverse("requests:detail", kwargs={"pk": blood_request.pk}),
+                    f"Blood request {blood_request.request_code}")
+        if role == "REQUESTER":
+            profile = getattr(user, "requester_profile", None)
+            if profile is not None and profile.organization_id == blood_request.organization_id:
+                return (reverse("requests:detail", kwargs={"pk": blood_request.pk}),
+                        f"Blood request {blood_request.request_code}")
+        # A donor is told about an emergency request — they respond to it,
+        # they do not open the request record.
+        if donor_profile is not None and notification.donor_id == donor_profile.pk \
+                and not notification.donor_response:
+            return (reverse("notifications:respond", kwargs={"pk": notification.pk}),
+                    "Respond to this request")
+        return (None, None)
+
+    if notification.donor_id and role in ("ADMIN", "STAFF"):
+        return (reverse("donors:detail", kwargs={"pk": notification.donor_id}),
+                f"Donor {notification.donor.donor_code}")
+
+    template_code = notification.template.code if notification.template_id else ""
+    if template_code.startswith("registration"):
+        if role == "ADMIN":
+            return (reverse("accounts:registration_list"), "Review registrations")
+        return (reverse("accounts:profile"), "Your account")
+    if template_code == "expiration_alert" and role in ("ADMIN", "STAFF"):
+        return (reverse("inventory:bag_list"), "Blood bag inventory")
+    return (None, None)
 
 
 class NotificationService:
@@ -44,7 +102,8 @@ class NotificationService:
         return created
 
     @staticmethod
-    def send_to_user(user, template_code, context, *, channels=None, actor=None, request=None):
+    def send_to_user(user, template_code, context, *, channels=None, actor=None, request=None,
+                     blood_request=None):
         template = NotificationTemplate.objects.filter(code=template_code, is_active=True).first()
         if template is None:
             raise NotificationError(f"No active notification template with code '{template_code}'.")
@@ -54,6 +113,7 @@ class NotificationService:
         for channel in channels:
             notification = Notification.objects.create(
                 user=user, template=template, channel=channel, subject=subject, body=body,
+                blood_request=blood_request,
             )
             NotificationService.dispatch(notification)
             created.append(notification)

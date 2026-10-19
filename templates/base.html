@@ -6,6 +6,8 @@
   <meta name="csrf-token" content="{{ csrf_token }}">
   <title>{% block title %}{{ ORG_NAME }}{% endblock %}</title>
   <link rel="stylesheet" href="{% static_v 'css/tailwind.css' %}">
+  {# Alpine hides x-cloak elements as soon as it initialises; without this rule the dropdowns (user menu, notifications) would flash on load. #}
+  <style>[x-cloak]{display:none!important}</style>
   <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>

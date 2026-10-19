@@ -158,3 +158,842 @@ body.bb-modal-open { overflow: hidden; }
    identically inside a modal as they do on the full page. */
 .modal-body { background: var(--color-ink-50); border-radius: 1rem; padding: 1.25rem; }
 .modal-body > div.max-w-3xl.mx-auto { max-width: none; margin: 0; }
+
+/* ==========================================================================
+   Public registration stepper — "liquid glass" + neumorphic theme.
+   Scoped to .bb-glass-card (auth shell card) and .bb-glass-form (the sign-up
+   and sign-in forms), so no other page is affected. These rules live outside
+   @layer on purpose: unlayered styles beat Tailwind's utilities, which is how
+   the light-theme text-* utilities inherited from the shared form/field
+   template are re-coloured for the dark glass surface.
+   ========================================================================== */
+
+/* ---------- Glass card (auth shell variant used by /register/) ---------- */
+.bb-glass-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 1.75rem;
+  color: #e2e8f0;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.035) 45%, rgba(255, 255, 255, 0.07));
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  -webkit-backdrop-filter: blur(26px) saturate(170%);
+  backdrop-filter: blur(26px) saturate(170%);
+  box-shadow: 0 44px 90px -44px rgba(2, 6, 23, 0.95), 0 1px 0 0 rgba(255, 255, 255, 0.22) inset;
+}
+/* Specular sheen: a bright top edge plus a cursor-following highlight. */
+.bb-glass-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(520px circle at var(--bb-mx, 50%) -12%, rgba(255, 255, 255, 0.16), transparent 62%),
+    linear-gradient(150deg, rgba(255, 255, 255, 0.16), transparent 40%);
+  mix-blend-mode: screen;
+}
+/* Keep the form above the sheen. */
+.bb-glass-card > * { position: relative; z-index: 1; }
+
+/* ---------- Aurora backdrop (behind the glass card) ---------- */
+.bb-aurora {
+  position: absolute;
+  inset: -18%;
+  pointer-events: none;
+  background:
+    radial-gradient(34% 28% at 20% 24%, rgba(244, 63, 94, 0.38), transparent 70%),
+    radial-gradient(30% 26% at 82% 18%, rgba(56, 189, 248, 0.30), transparent 70%),
+    radial-gradient(40% 32% at 58% 88%, rgba(139, 92, 246, 0.32), transparent 72%);
+  filter: blur(46px);
+  animation: bb-aurora 28s ease-in-out infinite alternate;
+}
+@keyframes bb-aurora {
+  to { transform: translate3d(3%, -4%, 0) scale(1.08); }
+}
+
+/* ---------- Form surface ---------- */
+.bb-glass-form { color-scheme: dark; }
+/* Stepper switching: only active when the document is scripted. */
+.bb-js .bb-panel { display: none; }
+.bb-js .bb-panel.is-active { display: block; }
+.bb-glass-form :is(input, select, textarea) { font-family: inherit; }
+.bb-glass-form :is(input:not([type="radio"]):not([type="checkbox"]), select, textarea) {
+  width: 100%;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #f1f5f9;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  box-shadow: inset 3px 3px 8px rgba(2, 6, 23, 0.55), inset -2px -2px 6px rgba(255, 255, 255, 0.045);
+  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+.bb-glass-form :is(input, select, textarea)::placeholder { color: rgba(148, 163, 184, 0.55); }
+.bb-glass-form :is(input, select, textarea):focus {
+  outline: none;
+  border-color: rgba(244, 63, 94, 0.55);
+  background-color: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 3px 3px 8px rgba(2, 6, 23, 0.5), 0 0 0 3px rgba(244, 63, 94, 0.18);
+}
+.bb-glass-form :is(input, select, textarea):disabled { opacity: 0.55; }
+.bb-glass-form select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 2.4rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e1' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.8rem center;
+  background-size: 1rem 1rem;
+}
+.bb-glass-form input[type="radio"], .bb-glass-form input[type="checkbox"] {
+  accent-color: #fb7185;
+  width: 1.05rem;
+  height: 1.05rem;
+  cursor: pointer;
+  flex: none;
+  border-color: rgba(255, 255, 255, 0.28);
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #fb7185;
+}
+.bb-glass-form label { color: #cbd5e1; }
+.bb-glass-form ::-webkit-calendar-picker-indicator { filter: invert(0.8); cursor: pointer; }
+
+/* Re-colour the shared light-theme utilities for the dark glass surface. */
+.bb-glass-form .text-ink-900 { color: #f8fafc; }
+.bb-glass-form .text-ink-800 { color: #e2e8f0; }
+.bb-glass-form .text-ink-700 { color: #cbd5e1; }
+.bb-glass-form .text-ink-600 { color: rgba(203, 213, 225, 0.82); }
+.bb-glass-form .text-ink-500 { color: rgba(148, 163, 184, 0.88); }
+.bb-glass-form .text-ink-400 { color: rgba(148, 163, 184, 0.7); }
+.bb-glass-form .text-brand-600 { color: #fb7185; }
+
+/* ---------- Typography helpers ---------- */
+.bb-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #fda4af;
+}
+.bb-eyebrow::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: linear-gradient(140deg, #fb7185, #38bdf8);
+  box-shadow: 0 0 10px rgba(251, 113, 133, 0.9);
+}
+.bb-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #f8fafc;
+  margin: 0.6rem 0 0.35rem;
+}
+.bb-muted { color: rgba(203, 213, 225, 0.78); font-size: 0.875rem; line-height: 1.6; }
+.bb-strong { color: #f1f5f9; font-weight: 600; }
+.bb-panel-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  letter-spacing: -0.01em;
+}
+/* The step heading is focused programmatically when the step changes, so it
+ * must not paint a focus ring (it is not a control). */
+.bb-panel [data-step-heading]:focus { outline: none; }
+.bb-panel-lead { font-size: 0.8rem; color: rgba(148, 163, 184, 0.9); line-height: 1.6; }
+
+/* ---------- Stepper ---------- */
+.bb-steps-wrap { position: relative; }
+.bb-steps-track {
+  position: absolute;
+  left: 1.05rem;
+  right: 1.05rem;
+  top: 1rem;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 2px rgba(2, 6, 23, 0.65);
+  overflow: hidden;
+}
+.bb-steps-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f43f5e, #fb7185 55%, #38bdf8);
+  box-shadow: 0 0 12px rgba(244, 63, 94, 0.6);
+  transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.bb-steps {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bb-step { flex: 1 1 0; min-width: 0; display: flex; justify-content: center; }
+.bb-step-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+.bb-step-btn:focus-visible { outline: 2px solid #fb7185; outline-offset: 4px; border-radius: 0.75rem; }
+.bb-step-badge {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(226, 232, 240, 0.72);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 5px 5px 12px rgba(2, 6, 23, 0.55), -4px -4px 10px rgba(255, 255, 255, 0.05);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, color 0.25s ease, background 0.25s ease;
+}
+.bb-step-check { display: none; width: 1rem; height: 1rem; }
+.bb-step.is-done .bb-step-num { display: none; }
+.bb-step.is-done .bb-step-check { display: block; }
+.bb-step.is-done .bb-step-badge {
+  color: #fff;
+  background: linear-gradient(145deg, rgba(56, 189, 248, 0.95), rgba(2, 132, 199, 0.95));
+  border-color: rgba(255, 255, 255, 0.24);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.14), 5px 6px 14px rgba(2, 6, 23, 0.5);
+}
+.bb-step.is-active .bb-step-badge {
+  color: #fff;
+  background: linear-gradient(145deg, #fb7185, #e11d48 60%, #be123c);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 0 4px rgba(244, 63, 94, 0.16), 7px 9px 18px rgba(190, 18, 60, 0.5);
+  transform: translateY(-1px);
+}
+.bb-step.has-error .bb-step-badge {
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.45), 5px 6px 14px rgba(2, 6, 23, 0.5);
+}
+.bb-step-label {
+  font-size: 0.66rem;
+  line-height: 1.3;
+  text-align: center;
+  color: rgba(148, 163, 184, 0.8);
+}
+.bb-step.is-active .bb-step-label { color: #f1f5f9; font-weight: 600; }
+.bb-step-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.72rem;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+/* ---------- Panels ---------- */
+.bb-panel {
+  border-radius: 1.35rem;
+  padding: 1.15rem;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 20px 44px -30px rgba(2, 6, 23, 0.95);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+}
+.bb-panel-head { margin-bottom: 0.9rem; }
+.bb-panel-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1.1rem;
+}
+
+/* ---------- Buttons ---------- */
+.bb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 0;
+  border-radius: 0.9rem;
+  padding: 0.68rem 1.15rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease, opacity 0.18s;
+}
+.bb-btn:focus-visible { outline: 2px solid #fb7185; outline-offset: 2px; }
+.bb-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+.bb-btn-primary {
+  color: #fff;
+  background: linear-gradient(145deg, #fb7185, #e11d48 60%, #be123c);
+  box-shadow: 0 14px 30px -14px rgba(225, 29, 72, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.bb-btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 18px 34px -14px rgba(225, 29, 72, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.34); }
+.bb-btn-primary:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 3px 9px rgba(120, 10, 40, 0.6); }
+.bb-btn-ghost {
+  color: rgba(226, 232, 240, 0.92);
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 5px 5px 12px rgba(2, 6, 23, 0.5), -4px -4px 10px rgba(255, 255, 255, 0.045);
+}
+.bb-btn-ghost:hover:not(:disabled) { background-color: rgba(255, 255, 255, 0.1); }
+.bb-btn-block { width: 100%; }
+
+/* ---------- Role picker ---------- */
+.bb-role { position: relative; }
+.bb-role-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.bb-role-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  height: 100%;
+  padding: 1rem 1.05rem;
+  border-radius: 1.15rem;
+  cursor: pointer;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 6px 6px 16px rgba(2, 6, 23, 0.5), -5px -5px 14px rgba(255, 255, 255, 0.045);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+.bb-role:hover .bb-role-card { transform: translateY(-2px); }
+.bb-role:has(.bb-role-input:checked) .bb-role-card {
+  border-color: rgba(251, 113, 133, 0.55);
+  background: linear-gradient(150deg, rgba(244, 63, 94, 0.18), rgba(255, 255, 255, 0.03));
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.14), 8px 10px 22px rgba(2, 6, 23, 0.55), -5px -5px 14px rgba(255, 255, 255, 0.05);
+}
+.bb-role:has(.bb-role-input:focus-visible) .bb-role-card { outline: 2px solid #fb7185; outline-offset: 2px; }
+.bb-role-icon {
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.8rem;
+  color: #fda4af;
+  background: rgba(244, 63, 94, 0.14);
+  border: 1px solid rgba(244, 63, 94, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+.bb-role-title { font-size: 0.92rem; font-weight: 700; color: #f1f5f9; }
+.bb-role-desc { font-size: 0.78rem; line-height: 1.5; color: rgba(148, 163, 184, 0.9); }
+
+/* ---------- Interview (YES / NO pills) ---------- */
+.bb-q-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.bb-q {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+.bb-q-text { font-size: 0.82rem; color: rgba(226, 232, 240, 0.9); line-height: 1.45; }
+.bb-q-opts { display: inline-flex; flex-wrap: wrap; gap: 0.35rem; }
+.bb-q-opts > div, .bb-q-opts > div > div { display: inline-flex; }
+.bb-q-opts label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: rgba(226, 232, 240, 0.78);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.bb-q-opts label:has(input:checked) {
+  color: #fff;
+  background: linear-gradient(145deg, rgba(244, 63, 94, 0.9), rgba(190, 18, 60, 0.9));
+  border-color: rgba(255, 255, 255, 0.24);
+  box-shadow: 0 8px 18px -10px rgba(225, 29, 72, 0.95);
+}
+.bb-q-opts label:has(input:focus-visible) { outline: 2px solid #fb7185; outline-offset: 2px; }
+
+/* ---------- Password strength ---------- */
+.bb-strength { display: flex; align-items: center; gap: 0.6rem; }
+.bb-strength-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 2px rgba(2, 6, 23, 0.6);
+  overflow: hidden;
+}
+.bb-strength-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: #f43f5e;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+.bb-strength-label { font-size: 0.72rem; color: rgba(148, 163, 184, 0.9); white-space: nowrap; }
+.bb-eye {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 0.6rem;
+  color: rgba(203, 213, 225, 0.75);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+}
+.bb-eye:hover { color: #f1f5f9; background: rgba(255, 255, 255, 0.1); }
+/* Room for the show/hide button that sits on the right edge of the field. */
+.bb-glass-form .bb-input-action { padding-right: 2.9rem; }
+.bb-link { color: #fda4af; font-size: 0.85rem; font-weight: 600; text-decoration: none; }
+.bb-link:hover { color: #fecdd3; text-decoration: underline; }
+
+/* ---------- Sign-in: split layout (brand panel + form) ---------- */
+.bb-auth-grid { display: grid; gap: 1.4rem; }
+.bb-auth-aside {
+  border-radius: 1.35rem;
+  padding: 1.3rem;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 20px 44px -32px rgba(2, 6, 23, 0.95);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  backdrop-filter: blur(12px) saturate(140%);
+}
+.bb-auth-title {
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  color: #f8fafc;
+  margin: 0.55rem 0 0.5rem;
+}
+.bb-auth-list { display: flex; flex-direction: column; gap: 0.7rem; margin: 1.1rem 0 0; padding: 0; list-style: none; }
+.bb-auth-item { display: flex; align-items: flex-start; gap: 0.7rem; }
+.bb-auth-icon {
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  flex: none;
+  border-radius: 0.7rem;
+  color: #fda4af;
+  background: rgba(244, 63, 94, 0.14);
+  border: 1px solid rgba(244, 63, 94, 0.26);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+.bb-auth-item b { display: block; font-size: 0.84rem; font-weight: 600; color: #f1f5f9; }
+.bb-auth-item span { display: block; font-size: 0.78rem; line-height: 1.5; color: rgba(148, 163, 184, 0.9); }
+.bb-auth-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 1.35rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.85rem;
+}
+.bb-auth-sep { color: rgba(148, 163, 184, 0.55); }
+.bb-auth-hint {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  margin-top: 1.1rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.9rem;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: rgba(203, 213, 225, 0.85);
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+.bb-auth-hint b { color: #e2e8f0; font-weight: 600; }
+
+@media (min-width: 900px) {
+  .bb-auth-grid { grid-template-columns: 1.05fr 1fr; gap: 2rem; align-items: center; }
+  .bb-auth-aside { padding: 1.75rem; }
+}
+
+/* ---------- Review ---------- */
+.bb-review { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; }
+.bb-review-row {
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+.bb-review-row dt { font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(148, 163, 184, 0.8); }
+.bb-review-row dd { font-size: 0.85rem; font-weight: 600; color: #f1f5f9; margin: 0.15rem 0 0; word-break: break-word; }
+.bb-note {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.9rem;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: rgba(203, 213, 225, 0.85);
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+.bb-note-warn { background: rgba(251, 191, 36, 0.08); border-color: rgba(251, 191, 36, 0.22); }
+.bb-alert {
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.9rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+.bb-alert-error {
+  color: #fecdd3;
+  background: rgba(244, 63, 94, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.32);
+}
+.bb-error { font-size: 0.75rem; font-weight: 600; color: #fb7185; margin-top: 0.35rem; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 640px) {
+  .bb-review { grid-template-columns: minmax(0, 1fr); }
+  .bb-step-label { display: none; }
+  .bb-steps-track { left: 0.9rem; right: 0.9rem; top: 0.9rem; }
+  .bb-step-badge { width: 1.8rem; height: 1.8rem; font-size: 0.72rem; }
+  .bb-panel { padding: 0.95rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-aurora { animation: none; }
+  .bb-steps-fill, .bb-strength-fill, .bb-step-badge { transition: none; }
+}
+
+/* ==========================================================================
+   App shell — sidebar, topbar and cards.
+   The content area stays light (readability, and the printable documents
+   must stay light); the sidebar becomes a deep liquid-glass panel so the
+   signed-in app matches the public auth pages, and the cards pick up a soft
+   neumorphic elevation instead of the flat 1px-border look.
+   ========================================================================== */
+
+/* ---------- Sidebar ---------- */
+.bb-sidebar {
+  /* NB: no `position` here — the markup's `fixed` utility must win (an
+     unlayered `position: relative` would drop the sidebar into the flow and
+     push the whole page down). `fixed` is a containing block for the
+     decorative layers below, so they stay inside the panel. */
+  isolation: isolate;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.88) 0%, rgba(2, 6, 23, 0.93) 100%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  backdrop-filter: blur(22px) saturate(150%);
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 1px 0 0 rgba(255, 255, 255, 0.05) inset, 30px 0 70px -40px rgba(2, 6, 23, 0.95);
+}
+/* Aurora behind the glass — the blur needs something to bite on. */
+.bb-sidebar::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 22% at 16% 6%, rgba(244, 63, 94, 0.30), transparent 70%),
+    radial-gradient(34% 20% at 94% 40%, rgba(56, 189, 248, 0.20), transparent 72%),
+    radial-gradient(42% 24% at 36% 98%, rgba(139, 92, 246, 0.22), transparent 72%);
+  filter: blur(46px);
+  animation: bb-aurora 32s ease-in-out infinite alternate;
+}
+/* Top inner highlight: the glass edge catching the light. */
+.bb-sidebar::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+}
+.bb-sidebar-brand {
+  background: linear-gradient(145deg, rgba(251, 113, 133, 0.95), rgba(190, 18, 60, 0.9));
+  box-shadow: 0 8px 18px -8px rgba(225, 29, 72, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+.bb-sidebar-foot { border-top: 1px solid rgba(255, 255, 255, 0.07); color: rgba(148, 163, 184, 0.8); }
+.bb-sidebar-foot b { color: rgba(226, 232, 240, 0.95); font-weight: 600; }
+
+/* ---------- Sidebar navigation ---------- */
+.bb-nav-section {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.6);
+  padding: 1rem 0.75rem 0.25rem;
+}
+.bb-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 0.85rem;
+  font-size: 0.875rem;
+  color: rgba(203, 213, 225, 0.72);
+  transition: color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+.bb-nav-item:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.bb-nav-item.is-active {
+  color: #fff;
+  font-weight: 500;
+  background: linear-gradient(120deg, rgba(244, 63, 94, 0.92), rgba(190, 18, 60, 0.85));
+  box-shadow: 0 10px 24px -14px rgba(225, 29, 72, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+.bb-nav-icon {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  border-radius: 0.6rem;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+.bb-nav-item:hover .bb-nav-icon { background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.1); }
+.bb-nav-item.is-active .bb-nav-icon {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.26);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.bb-nav-badge {
+  margin-left: auto;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.32rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(145deg, #fb7185, #e11d48);
+  box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.16), 0 4px 10px -4px rgba(225, 29, 72, 0.9);
+}
+
+/* ---------- Topbar ---------- */
+.bb-topbar {
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 10px 30px -26px rgba(15, 23, 42, 0.5);
+}
+.bb-avatar {
+  background: linear-gradient(145deg, #334155, #0f172a);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 4px 10px -6px rgba(15, 23, 42, 0.8);
+}
+/* Count pill on the topbar bell: a white ring keeps it readable on glass. */
+.bb-count-pill {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 4px 10px -4px rgba(225, 29, 72, 0.9);
+}
+
+/* ---------- Dropdowns (topbar) ---------- */
+.bb-dropdown {
+  border-radius: 1.1rem;
+  background: rgba(255, 255, 255, 0.93);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 26px 54px -26px rgba(15, 23, 42, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.bb-dropdown-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+}
+.bb-dropdown-list { max-height: 22rem; overflow-y: auto; }
+.bb-dropdown-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.bb-dropdown-item:hover { background: rgba(241, 245, 249, 0.9); }
+.bb-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-top: 0.42rem;
+  flex: none;
+  border-radius: 999px;
+  background: #e11d48;
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.14);
+}
+.bb-dot.is-read { background: transparent; box-shadow: inset 0 0 0 1.5px rgba(148, 163, 184, 0.7); }
+.bb-dropdown-title { display: block; font-size: 0.83rem; font-weight: 600; color: #0f172a; }
+.bb-dropdown-text {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.76rem;
+  color: rgba(71, 85, 105, 0.92);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bb-dropdown-meta { display: block; margin-top: 0.2rem; font-size: 0.68rem; color: rgba(100, 116, 139, 0.95); }
+.bb-dropdown-chevron { margin-top: 0.3rem; color: rgba(148, 163, 184, 0.7); }
+.bb-dropdown-foot {
+  display: block;
+  padding: 0.7rem 1rem;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #e11d48;
+  background: rgba(248, 250, 252, 0.7);
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
+}
+.bb-dropdown-foot:hover { color: #be123c; background: rgba(241, 245, 249, 0.95); }
+
+/* ---------- Cards ---------- */
+/* The app's card idiom is `bg-white rounded-2xl border-ink-200 shadow-sm`
+   (150+ places), so the skin is applied once, here, instead of in every
+   template. Neumorphic lift: a soft ambient shadow plus an inner highlight. */
+:is(main, .modal-body) :is(.bg-white).rounded-2xl.border-ink-200 {
+  background: linear-gradient(180deg, #ffffff 0%, #ffffff 62%, #fbfcfe 100%);
+  border-color: rgba(226, 232, 240, 0.95);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 12px 28px -20px rgba(15, 23, 42, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+:is(main, .modal-body) :is(.bg-white).rounded-2xl.border-ink-200:hover {
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 18px 34px -22px rgba(15, 23, 42, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+/* ---------- Stat cards (dashboard KPI) ---------- */
+.bb-stat {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(180deg, #ffffff 0%, #fdfdff 100%);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 14px 30px -20px rgba(15, 23, 42, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+.bb-stat:hover {
+  transform: translateY(-3px);
+  border-color: rgba(203, 213, 225, 0.95);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 24px 42px -24px rgba(15, 23, 42, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+/* Accent bloom behind the card: the glass catching coloured light. */
+.bb-stat::before {
+  content: "";
+  position: absolute;
+  top: -40%;
+  right: -8%;
+  width: 9rem;
+  height: 9rem;
+  border-radius: 999px;
+  background: var(--bb-accent-glow, rgba(244, 63, 94, 0.2));
+  filter: blur(26px);
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: -1;
+  transition: opacity 0.25s ease, transform 0.35s ease;
+}
+.bb-stat:hover::before { opacity: 0.9; transform: scale(1.1); }
+.bb-stat-icon {
+  color: var(--bb-accent, #e11d48);
+  background: var(--bb-accent-soft, rgba(244, 63, 94, 0.1));
+  border: 1px solid var(--bb-accent-line, rgba(244, 63, 94, 0.22));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.bb-stat[data-accent="rose"] {
+  --bb-accent: #e11d48; --bb-accent-soft: rgba(244, 63, 94, 0.1);
+  --bb-accent-line: rgba(244, 63, 94, 0.22); --bb-accent-glow: rgba(244, 63, 94, 0.2);
+}
+.bb-stat[data-accent="emerald"] {
+  --bb-accent: #059669; --bb-accent-soft: rgba(16, 185, 129, 0.12);
+  --bb-accent-line: rgba(16, 185, 129, 0.24); --bb-accent-glow: rgba(16, 185, 129, 0.18);
+}
+.bb-stat[data-accent="amber"] {
+  --bb-accent: #d97706; --bb-accent-soft: rgba(245, 158, 11, 0.14);
+  --bb-accent-line: rgba(245, 158, 11, 0.26); --bb-accent-glow: rgba(245, 158, 11, 0.18);
+}
+.bb-stat[data-accent="sky"] {
+  --bb-accent: #0284c7; --bb-accent-soft: rgba(14, 165, 233, 0.12);
+  --bb-accent-line: rgba(14, 165, 233, 0.24); --bb-accent-glow: rgba(14, 165, 233, 0.18);
+}
+.bb-stat[data-accent="violet"] {
+  --bb-accent: #7c3aed; --bb-accent-soft: rgba(139, 92, 246, 0.12);
+  --bb-accent-line: rgba(139, 92, 246, 0.24); --bb-accent-glow: rgba(139, 92, 246, 0.2);
+}
+.bb-stat[data-accent="slate"] {
+  --bb-accent: #475569; --bb-accent-soft: rgba(100, 116, 139, 0.12);
+  --bb-accent-line: rgba(100, 116, 139, 0.24); --bb-accent-glow: rgba(100, 116, 139, 0.16);
+}
+
+/* ---------- KPI tile (print-friendly variant) ---------- */
+.bb-kpi {
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 10px 24px -18px rgba(15, 23, 42, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.bb-kpi:hover { transform: translateY(-2px); }
+
+/* ---------- Print: the decorative layer never reaches paper ---------- */
+@media print {
+  .bb-stat::before,
+  .bb-sidebar::before,
+  .bb-aurora,
+  .bb-glass-card::before { display: none !important; }
+  .bb-stat, .bb-kpi { box-shadow: none !important; }
+}
+

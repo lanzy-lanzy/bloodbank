@@ -10,7 +10,8 @@ from core.testing import make_donor, make_user
 from notifications.models import Notification
 from notifications.providers import (MockSMSProvider, SemaphoreSMSProvider,
                                       _normalize_ph_mobile, get_provider)
-from notifications.services import NotificationError, NotificationService
+from notifications.services import (NotificationError, NotificationService,
+                                      target_for)
 
 LOCMEM = override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 
@@ -203,3 +204,85 @@ class TokenResponseTests(TestCase):
         self.assertEqual(resp.status_code, 403)
         self.n.refresh_from_db()
         self.assertFalse(self.n.is_read)
+
+
+class NotificationDropdownTests(TestCase):
+    """Topbar dropdown: the newest items, each row opening the page it is about."""
+
+    def setUp(self):
+        self.admin = make_user("drop-admin", role="ADMIN")
+        self.other = make_user("drop-other", role="DONOR")
+        self.donor = make_donor(email="dropper@example.test")
+
+    def _login_admin(self):
+        self.client.login(username="drop-admin", password="Test12345!")
+
+    def test_dropdown_lists_only_the_users_own_notifications(self):
+        Notification.objects.create(user=self.admin, channel="in_app", subject="Mine", body="b")
+        Notification.objects.create(user=self.other, channel="in_app", subject="Theirs", body="b")
+        self._login_admin()
+        resp = self.client.get(reverse("notifications:inbox_dropdown"))
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode()
+        self.assertIn("Mine", content)
+        self.assertNotIn("Theirs", content)
+
+    def test_opening_a_notification_marks_it_read_and_redirects(self):
+        n = Notification.objects.create(user=self.admin, channel="in_app",
+                                        subject="Mine", body="b")
+        self._login_admin()
+        resp = self.client.post(reverse("notifications:open", kwargs={"pk": n.pk}))
+        n.refresh_from_db()
+        self.assertTrue(n.is_read)
+        self.assertIsNotNone(n.read_at)
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, reverse("notifications:inbox"))
+
+    def test_cannot_open_a_notification_that_is_not_yours(self):
+        n = Notification.objects.create(user=self.other, channel="in_app",
+                                        subject="Theirs", body="b")
+        self._login_admin()
+        resp = self.client.post(reverse("notifications:open", kwargs={"pk": n.pk}))
+        self.assertEqual(resp.status_code, 403)
+        n.refresh_from_db()
+        self.assertFalse(n.is_read)
+
+    def test_staff_notification_about_a_request_opens_that_request(self):
+        from core.testing import make_org, make_request
+
+        request = make_request(make_org("Drop Hospital"))
+        n = Notification.objects.create(user=self.admin, channel="in_app", subject="Emergency",
+                                        body="b", blood_request=request)
+        url, label = target_for(self.admin, n)
+        self.assertEqual(url, reverse("requests:detail", kwargs={"pk": request.pk}))
+        self.assertIn(request.request_code, label)
+
+    def test_requester_only_gets_a_link_to_their_own_organization(self):
+        from core.testing import make_org, make_request, make_requester
+
+        requester = make_requester("drop-req")
+        own = make_request(requester.requester_profile.organization, created_by=requester)
+        other = make_request(make_org("Someone Else"))
+        n_own = Notification.objects.create(user=requester, channel="in_app", subject="Mine",
+                                            body="b", blood_request=own)
+        n_other = Notification.objects.create(user=requester, channel="in_app", subject="Theirs",
+                                               body="b", blood_request=other)
+        self.assertEqual(target_for(requester, n_own)[0],
+                         reverse("requests:detail", kwargs={"pk": own.pk}))
+        # another organization's request is not linked at all
+        self.assertEqual(target_for(requester, n_other)[0], None)
+
+    def test_donor_emergency_alert_points_at_responding_not_the_request(self):
+        from core.testing import make_org, make_request
+
+        request = make_request(make_org("Drop Clinic"))
+        n = Notification.objects.create(donor=self.donor, channel="in_app", subject="Emergency",
+                                        body="b", blood_request=request)
+        donor_user = make_user("drop-donor-user", role="DONOR")
+        self.donor.user = donor_user
+        self.donor.save(update_fields=["user"])
+        donor_user.refresh_from_db()
+        url, label = target_for(donor_user, n)
+        # the donor may not open the request record — they respond to it
+        self.assertEqual(url, reverse("notifications:respond", kwargs={"pk": n.pk}))
+

@@ -56,6 +56,46 @@ class TemplateComponentTests(TestCase):
         self.assertEqual(bad, [], f"leaking template comments: {bad}")
 
 
+class AppShellTests(TestCase):
+    """The signed-in shell: sidebar navigation and the dashboard cards.
+
+    The look lives in the stylesheet, so these assertions only pin the
+    STRUCTURE the stylesheet depends on (class names and attributes). If one
+    of them changes, the skin silently stops applying — that is what these
+    tests are for.
+    """
+
+    def setUp(self):
+        make_user("shell-admin", role="ADMIN")
+        self.client.login(username="shell-admin", password="Test12345!")
+
+    def test_sidebar_renders_the_structured_navigation(self):
+        resp = self.client.get(reverse("core:dashboard"))
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode()
+        self.assertIn("bb-sidebar", content)
+        self.assertIn("bb-nav-item", content)
+        self.assertIn("bb-nav-icon", content)
+        # exactly one item is the current page
+        self.assertEqual(content.count("bb-nav-item is-active"), 1)
+
+    def test_stat_cards_carry_their_accent(self):
+        resp = self.client.get(reverse("core:dashboard"))
+        content = resp.content.decode()
+        self.assertIn("bb-stat", content)
+        self.assertIn('data-accent="', content)
+
+    def test_nav_item_marks_the_active_page(self):
+        from core.templatetags.core_extras import nav_item
+
+        class FakeRequest:
+            path = "/donors/"
+
+        html = nav_item("donors:list", "Donors", FakeRequest(), "M0 0")
+        self.assertIn("bb-nav-item", html)
+        self.assertIn("is-active", html)
+
+
 class CsrfTests(TestCase):
     def test_login_post_without_csrf_token_is_rejected(self):
         client = Client(enforce_csrf_checks=True)
