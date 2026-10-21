@@ -20,9 +20,11 @@
     {% block auth_backdrop_extra %}{% endblock %}
   </div>
 
-  {# Back-to-home affordance, pinned top-left on every auth page. #}
+  {# Back-to-home affordance on every auth page. `absolute`, not `fixed`: it
+     must scroll away with the page instead of floating over a tall form (the
+     registration stepper) and swallowing clicks on the fields underneath. #}
   <a href="{% url 'core:home' %}"
-     class="fixed top-4 left-4 sm:top-5 sm:left-6 z-20 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-2 text-xs sm:text-sm font-medium text-ink-100 backdrop-blur-md transition hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400">
+     class="absolute top-4 left-4 sm:top-5 sm:left-6 z-20 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-2 text-xs sm:text-sm font-medium text-ink-100 backdrop-blur-md transition hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400">
     <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M11 17l-5-5 5-5M6 12h12"/></svg>
     Back to home
   </a>

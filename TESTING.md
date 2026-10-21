@@ -6,7 +6,7 @@ development database.
 ## 1. Django test suite (authoritative)
 
 ```bash
-python manage.py test                 # 218 tests, ~5-6 min
+python manage.py test                 # 335 tests, ~5-7 min
 python manage.py test inventory       # one app
 python manage.py test audit.tests.AuditImmutabilityTests -v 2
 ```
@@ -19,9 +19,9 @@ Coverage by app (unit + integration + permission/security):
 | App | What is proven |
 |---|---|
 | core | Styled-form machinery, pagination component render (incl. the brace-in-comment regression guard + automated scan of all templates), **CSRF enforced on login POST**, anonymous login/reset pages reachable (middleware path-vs-name regression) |
-| accounts | Dashboard for each of the 4 roles, anonymous redirect, admin-only user list, admin role works without superuser, hashed passwords; self-registration: inactive user + PENDING request + admin in-app alert created, ADMIN/STAFF role escalation refused at form AND service, duplicate username/email (case-insensitive) and non-PH mobile rejected, requester needs organization; review: approve activates + notifies (in-app+SMS channels), reject needs reason + REJECT token re-checked server-side, one-shot re-review refused, self-review refused, pending/rejected login messages only after password match (no status leak, wrong password stays generic), registration pages admin-only for staff/donor/requester/anonymous |
+| accounts | Dashboard for each of the 4 roles, anonymous redirect, admin-only user list, admin role works without superuser, hashed passwords; self-registration: inactive user + PENDING request + admin in-app alert created, ADMIN/STAFF role escalation refused at form AND service, duplicate username/email (case-insensitive) and non-PH mobile rejected, requester needs organization, text fields stored in upper case on submit (username, passwords and narrative notes untouched); review: approve activates + notifies (in-app+SMS channels) and generates the pre-filled donor interview sheet, reject needs reason + REJECT token re-checked server-side, one-shot re-review refused, self-review refused, pending/rejected login messages only after password match (no status leak, wrong password stays generic), registration pages admin-only for staff/donor/requester/anonymous; **pending preview** — a PENDING donor application renders as the interview sheet approval will create (staff 200, real %PDF-, uppercase pre-fill, PREVIEW note), writes no donor/sheet/audit row, donor and requester are denied, a requester registration has no preview (404), and the endpoint 404s once approved; **pre-submission preview** — the review step offers a public POST that renders the same interview sheet from the bound form (`X-Register-Preview: sheet`, uppercase details, declaration ticked, no PDF/download link, no password), writes no user/registration/donor/sheet/audit row, answers with an explanation page (never a document) for a requester or an incomplete application, rejects GET with 405, redirects a signed-in user to the dashboard, and the register page ships the control with `formaction`/`formtarget`; the preview repeats every sign-up answer (S1-S11) in its own table — the official 37 items only carry the answers that settle an item |
 | audit | Append-only: instance update refused, instance delete refused, **bulk queryset delete refused**, snapshot capture |
-| donors | Eligibility engine: configured-rules eligible, missing interval ⇒ REQUIRES_STAFF_REVIEW (fail-safe), interval deferral with next-eligible date, permanent-deferral state, active temp-deferral window, rolling-year cap, age bounds; soft deletion hides from default manager; donor cannot read other donors or the directory |
+| donors | Eligibility engine: configured-rules eligible, missing interval ⇒ REQUIRES_STAFF_REVIEW (fail-safe), interval deferral with next-eligible date, permanent-deferral state, active temp-deferral window, rolling-year cap, age bounds; soft deletion hides from default manager; donor cannot read other donors or the directory; **interview sheet** — generated idempotently for every new donor with one answer row per official item, pre-filled from the donor record (address/blood type) and from declarations worded as the item they answer (Yes and No both transfer; a broader statement only a Yes; a NO never invented), the female-only block is never copied to other donors, completion refuses a blank item / missing CUE / missing signatures, a signed sheet reopens when completion is turned off, a partial save does not blank the pre-filled header, sheet text is stored and printed in upper case, and the role gate holds on the page, print preview and PDF (donor denied the staff sheet and another donor's sheet, donor reads only their own, requester denied); the application preview (`preview_for_application`) is transient (`PREVIEW` reference, rows have no pk), upper-cased, pre-fills the declarations worded as their item (Yes and No; Q07 combines medications + vaccinations) and repeats all 11 sign-up answers in its own S1-S11 table (the signed sheet keeps the official items) |
 | appointments | Slot conflict + DB-level unique open-slot constraint, past-date rejection (model + self-book form), self-book forced to REQUESTED, staff list blocked for donors |
 | donations | Transition machine rejects illegal jumps, collection requires APPROVED, collection creates QUARANTINED bag + closes appointment, view-level guard: DEFERRED without reason refused |
 | inventory | State-machine refusals, terminal states, ledger+audit written, release guard matrix (no required tests configured / missing / unverified / reactive ⇒ blocked; complete verified non-reactive ⇒ released), expired bags cannot re-enter stock, expiry job scope, compatibility engine: no rules = not compatible, rule grants, disallowed rule, component scoping, inactive rule ignored, bag code uniqueness; **open-demand panel** (shortage measured against free stock with live reservations counted as in-flight, unapproved requests excluded, covered items leave the panel, unconfigured rules surfaced not guessed), the one window source for expiring counts, stale-but-usable stock never offered as inventory and warned about on the dashboard, `attention_count` composition, badge endpoint staff-only (donor/requester denied), bag list combined-status + in-date/expiring filters, Allocated-to column names the owning request; **bag detail is a page, not a modal** — an HX-Request still returns a full document (so a reintroduced modal link fails loudly instead of half-rendering), the working surfaces and plain-POST forms are present, no template binds a `bag_detail` link to `hx-get`, and it stays staff-only; **Inventory Statement** (print preview + PDF) — renders the letterhead/signature block, lists every bag, honours the bag filters, its counts match the dashboard's, it states the *configured* expiry window, it warns about usable-but-past-expiry stock, the PDF is a real attachment, and requester/donor are refused on both endpoints |
@@ -39,9 +39,10 @@ python check_templates.py   # compiles all templates (fail-fast syntax)
 python check_e2e.py         # 4-role GET walk: dashboards, every list with its
                             # filters, every detail, every form, all permitted
                             # report pages + CSV/preview/PDF exports
-python check_documents.py   # every report + the inventory statement: print
-                            # preview 200, a real %PDF- body, and 403 for the
-                            # roles that must not have them
+python check_documents.py   # every report + the inventory statement + the donor
+                            # interview sheet + the pending-registration preview:
+                            # print preview 200, a real %PDF- body, and 403 for
+                            # the roles that must not have them
 ```
 
 `check_e2e.py` walks every role's actual pages (dashboards, every list with
@@ -53,13 +54,19 @@ links render with the non-medical disclaimer.
 ## 3. POST workflow smoke (rollback-safe)
 
 ```bash
-python check_e2e_post.py    # 75 assertions, ALL OK
+python check_e2e_post.py    # 134 assertions, ALL OK
 ```
 
 Runs the real view endpoints for the full lifecycle — donation→screening→
 approval→collection→testing→verification→release, request→review→approve→
 allocate→issue→transfuse, notification token responses/retry, appointment
-self-booking, reward redemption, admin quick-set, audit immutability —
+self-booking, reward redemption, admin quick-set, the donor interview sheet
+(draft save → completion → audit → PDF, donor denied the staff page), and the
+public sign-up (pre-submission preview renders the same sheet from the unsaved
+form with every answered item ticked, and writes nothing → lower-case POST
+stored upper case with `sex` → staff previews the
+pending sheet → approval creates the donor + pre-filled sheet with `Donor.sex`
+from the registration → the preview 404s), audit immutability —
 **inside `transaction.atomic()` that always raises a Rollback exception**,
 so the dev database is byte-for-byte unchanged afterwards (it verifies real
 state transitions without persisting demo noise).

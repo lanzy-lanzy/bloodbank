@@ -8,17 +8,20 @@ from django.views import View
 from django.views.generic import ListView
 
 from audit import services as audit
-from core.mixins import AdminRequiredMixin, StaffRequiredMixin, is_htmx
+from core.mixins import (AdminRequiredMixin, DonorRequiredMixin, PrintableDocumentMixin,
+                         StaffRequiredMixin, is_htmx)
 from core.modals import modal_success, render_any
+from donors.documents import build_interview_sheet_spec
 from donors.forms import (
     DonorForm,
+    DonorInterviewSheetForm,
     DonorSelfProfileForm,
     DonorStatusForm,
     ScreeningForm,
     question_forms,
 )
 from donors.models import Donor, DonorScreening, ScreeningQuestion, ScreeningResponse
-from donors.services import DonorEligibilityService
+from donors.services import DonorEligibilityService, InterviewSheetService
 from inventory.models import BloodType
 
 
@@ -95,6 +98,10 @@ class DonorCreateView(StaffRequiredMixin, View):
         form = DonorForm(request.POST)
         if form.is_valid():
             donor = form.save()
+            # A donor record always comes with its interview sheet, so a
+            # counter registration does not start the clinic on a blank form.
+            InterviewSheetService.ensure_for_donor(
+                donor, actor=request.user, request=request)
             audit.log(request, action="DONOR_CREATED", module="donors", obj=donor,
                       description=f"Donor {donor.donor_code} ({donor.full_name}) registered")
             messages.success(request, f"Donor {donor.donor_code} registered.")
@@ -320,3 +327,133 @@ class MyDonorProfileEditView(View):
             messages.success(request, "Profile updated.")
             return modal_success(request, fallback_redirect=reverse("donors:my_profile"))
         return render_any(request, "donors/my_profile_edit.html", {"form": form}, modal_title="Edit profile")
+
+
+# --- Donor interview sheet ---------------------------------------------------------
+class _InterviewSheetMixin(PrintableDocumentMixin):
+    """Shared spec builder for the interview-sheet preview and PDF actions."""
+
+    def get_sheet(self, request, *args, **kwargs):
+        raise NotImplementedError
+
+    def build_document_spec(self, request, *args, **kwargs):
+        return build_interview_sheet_spec(self.get_sheet(request, *args, **kwargs))
+
+
+class _StaffSheetMixin(_InterviewSheetMixin):
+    document_url = "donors:interview_sheet_document"
+    pdf_url = "donors:interview_sheet_pdf"
+    back_url = "donors:interview_sheet"
+
+    def get_sheet(self, request, *args, **kwargs):
+        donor = get_object_or_404(
+            Donor.objects.select_related("blood_type"), pk=kwargs["pk"])
+        return InterviewSheetService.ensure_for_donor(
+            donor, actor=request.user, request=request)
+
+
+class _MySheetMixin(_InterviewSheetMixin):
+    """Donor self-service: only ever the signed-in donor's own sheet."""
+
+    document_url = "donors:my_interview_sheet_document"
+    pdf_url = "donors:my_interview_sheet_pdf"
+    back_url = "donors:my_interview_sheet"
+
+    def get_sheet(self, request, *args, **kwargs):
+        donor = getattr(request.user, "donor_profile", None)
+        if donor is None:
+            raise PermissionDenied("No donor record is linked to this account.")
+        return InterviewSheetService.ensure_for_donor(
+            donor, actor=request.user, request=request)
+
+
+class InterviewSheetView(StaffRequiredMixin, View):
+    """The editable PRC Blood Donor Interview Sheet.
+
+    A full page, not a modal: it is a working surface (37 questionnaire items,
+    header fields, the CUE declaration and two signature blocks) and the
+    screen it belongs to is the donor's record, which stays visible around it.
+    """
+
+    template_name = "donors/interview_sheet.html"
+
+    def _sheet(self, request, pk):
+        donor = get_object_or_404(Donor.objects.select_related("blood_type"), pk=pk)
+        sheet = InterviewSheetService.ensure_for_donor(
+            donor, actor=request.user, request=request)
+        return donor, sheet
+
+    def _context(self, donor, sheet, form):
+        answered, total, remarks = InterviewSheetService.progress(sheet)
+        return {
+            "donor": donor,
+            "sheet": sheet,
+            "form": form,
+            "sections": form.sections(),
+            "answered": answered,
+            "total_items": total,
+            "remarks_count": remarks,
+        }
+
+    def get(self, request, pk):
+        donor, sheet = self._sheet(request, pk)
+        form = DonorInterviewSheetForm(
+            initial=InterviewSheetService.initial_data(sheet), donor=donor)
+        return render(request, self.template_name, self._context(donor, sheet, form))
+
+    def post(self, request, pk):
+        donor, sheet = self._sheet(request, pk)
+        form = DonorInterviewSheetForm(request.POST, donor=donor)
+        if form.is_valid():
+            InterviewSheetService.save(sheet, data=form.cleaned_data,
+                                       actor=request.user, request=request)
+            messages.success(request, "Interview sheet saved.")
+            return redirect("donors:interview_sheet", pk=donor.pk)
+        messages.error(request, "The interview sheet was not saved - see the errors below.")
+        return render(request, self.template_name, self._context(donor, sheet, form))
+
+
+class InterviewSheetDocumentView(StaffRequiredMixin, _StaffSheetMixin, View):
+    """Print preview of the official form (same spec as the PDF)."""
+
+    def get(self, request, pk):
+        return self.document(request, pk=pk)
+
+
+class InterviewSheetPdfView(StaffRequiredMixin, _StaffSheetMixin, View):
+    """The interview sheet as a downloadable PDF file."""
+
+    def get(self, request, pk):
+        return self.pdf(request, pk=pk)
+
+
+class MyInterviewSheetView(DonorRequiredMixin, View):
+    """The donor's own interview sheet, read-only."""
+
+    template_name = "donors/my_interview_sheet.html"
+
+    def get(self, request):
+        donor = getattr(request.user, "donor_profile", None)
+        if donor is None:
+            raise PermissionDenied("No donor record is linked to this account.")
+        sheet = InterviewSheetService.ensure_for_donor(
+            donor, actor=request.user, request=request)
+        answered, total, remarks = InterviewSheetService.progress(sheet)
+        return render(request, self.template_name, {
+            "donor": donor,
+            "sheet": sheet,
+            "groups": InterviewSheetService.section_rows(sheet),
+            "answered": answered,
+            "total_items": total,
+            "remarks_count": remarks,
+        })
+
+
+class MyInterviewSheetDocumentView(DonorRequiredMixin, _MySheetMixin, View):
+    def get(self, request):
+        return self.document(request)
+
+
+class MyInterviewSheetPdfView(DonorRequiredMixin, _MySheetMixin, View):
+    def get(self, request):
+        return self.pdf(request)

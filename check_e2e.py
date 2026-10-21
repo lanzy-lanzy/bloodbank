@@ -22,7 +22,7 @@ from django.test import Client  # noqa: E402
 from django.urls import reverse  # noqa: E402
 
 from appointments.models import Appointment  # noqa: E402
-from donors.models import Donor  # noqa: E402
+from donors.models import Donor, DonorInterviewSheet  # noqa: E402
 from donations.models import Donation  # noqa: E402
 from inventory.models import BloodBag  # noqa: E402
 from notifications.models import Notification, NotificationTemplate  # noqa: E402
@@ -76,6 +76,7 @@ def main():
     my_profile = getattr(requester, "requester_profile", None)
 
     sample_donor = Donor.objects.first()
+    sample_sheet = DonorInterviewSheet.objects.first()
     sample_donation = Donation.objects.exclude(status="CANCELLED").first()
     sample_bag = BloodBag.objects.first()
     sample_request = BloodRequest.objects.first()
@@ -143,6 +144,31 @@ def main():
         admin_pages.append(("registration review",
                             reverse("accounts:registration_review",
                                     kwargs={"pk": sample_registration.pk}), {200}))
+    # A pending donor application that carries a self-declaration can be
+    # previewed as the interview sheet approval will create. Previewing is
+    # read-only (a transient sheet), so it belongs in this walk.
+    pending_reg = (RegistrationRequest.objects
+                   .filter(role="DONOR", status="PENDING", interview__isnull=False)
+                   .order_by("pk").first())
+    pending_preview = pending_pdf = None
+    if pending_reg:
+        pending_preview = reverse("accounts:registration_sheet_preview",
+                                  kwargs={"pk": pending_reg.pk})
+        pending_pdf = reverse("accounts:registration_sheet_pdf",
+                              kwargs={"pk": pending_reg.pk})
+        admin_pages.append(("pending sheet preview", pending_preview, {200}))
+        admin_pages.append(("pending sheet preview pdf", pending_pdf, {200}))
+    if sample_sheet:
+        # The PRC interview sheet: the editable page and both printable outputs.
+        admin_pages.append(("donor interview sheet",
+                            reverse("donors:interview_sheet",
+                                    kwargs={"pk": sample_sheet.donor_id}), {200}))
+        admin_pages.append(("donor interview sheet preview",
+                            reverse("donors:interview_sheet_document",
+                                    kwargs={"pk": sample_sheet.donor_id}), {200}))
+        admin_pages.append(("donor interview sheet pdf",
+                            reverse("donors:interview_sheet_pdf",
+                                    kwargs={"pk": sample_sheet.donor_id}), {200}))
     for key in REPORTS:
         admin_pages.append((f"report {key}", reverse("reports:run", kwargs={"key": key}), {200}))
         admin_pages.append((f"export {key}", reverse("reports:export", kwargs={"key": key}), {200}))
@@ -183,6 +209,18 @@ def main():
     # The inventory statement is a staff document, so staff must get it too.
     staff_pages.append(("inventory statement", reverse("inventory:statement"), {200}))
     staff_pages.append(("inventory statement pdf", reverse("inventory:statement_pdf"), {200}))
+    # The interview sheet is the clinic's working document: staff fill it in.
+    if sample_sheet:
+        staff_pages.append(("donor interview sheet",
+                            reverse("donors:interview_sheet",
+                                    kwargs={"pk": sample_sheet.donor_id}), {200}))
+        staff_pages.append(("donor interview sheet pdf",
+                            reverse("donors:interview_sheet_pdf",
+                                    kwargs={"pk": sample_sheet.donor_id}), {200}))
+    # Staff verify a pending application against the sheet it will create.
+    if pending_reg:
+        staff_pages.append(("pending sheet preview", pending_preview, {200}))
+        staff_pages.append(("pending sheet preview pdf", pending_pdf, {200}))
     # ... but the admin-only audit report stays un-printable for staff.
     staff_pages.append(("audit report document (deny)",
                         reverse("reports:document", kwargs={"key": "audit"}), {403}))
@@ -198,6 +236,9 @@ def main():
         check(donor_user, "donor profile edit", reverse("donors:my_profile_edit"), {200})
         check(donor_user, "donor appointments", reverse("appointments:my_appointments"), {200})
         check(donor_user, "donor history", reverse("donations:my_history"), {200})
+        check(donor_user, "donor interview sheet", reverse("donors:my_interview_sheet"), {200})
+        check(donor_user, "donor interview sheet pdf",
+              reverse("donors:my_interview_sheet_pdf"), {200})
         check(donor_user, "donor rewards", reverse("rewards:my_rewards"), {200})
         check(donor_user, "donor inbox", reverse("notifications:inbox"), {200})
         # negative: no access to other donors / staff areas
@@ -205,6 +246,11 @@ def main():
         other = Donor.objects.exclude(pk=donor.pk).first()
         if other:
             check(donor_user, "other donor detail (deny)", reverse("donors:detail", kwargs={"pk": other.pk}), {403})
+            # The staff-side sheet and its printouts are locked to the owner too.
+            check(donor_user, "other donor interview sheet (deny)",
+                  reverse("donors:interview_sheet", kwargs={"pk": other.pk}), {302, 403})
+            check(donor_user, "other donor interview sheet pdf (deny)",
+                  reverse("donors:interview_sheet_pdf", kwargs={"pk": other.pk}), {302, 403})
         check(donor_user, "inventory (deny)", reverse("inventory:dashboard"), {302, 403})
         check(donor_user, "inventory sidebar badge (deny)", reverse("inventory:badge"), {302, 403})
         check(donor_user, "requests (deny)", reverse("requests:list"), {403})
@@ -213,6 +259,10 @@ def main():
         check(donor_user, "walk-in badge (deny)", reverse("requests:walk_in_badge"), {302, 403})
         check(donor_user, "registrations (deny)", reverse("accounts:registration_list"), {302, 403})
         check(donor_user, "registrations sidebar badge (deny)", reverse("accounts:registration_badge"), {302, 403})
+        if pending_reg:
+            # An applicant's paperwork is never another donor's to read.
+            check(donor_user, "pending sheet preview (deny)", pending_preview, {302, 403})
+            check(donor_user, "pending sheet preview pdf (deny)", pending_pdf, {302, 403})
         check(donor_user, "bag detail (deny)", reverse("inventory:bag_detail", kwargs={"pk": sample_bag.pk}), {302, 403})
         # token respond must work even for donor (their own) — use any donor notification
         dn = Notification.objects.filter(donor=donor).first()
@@ -279,19 +329,30 @@ def main():
     check(requester, "report document (deny)", reverse("reports:document", kwargs={"key": "inventory"}), {302, 403})
     check(requester, "report pdf (deny)", reverse("reports:pdf", kwargs={"key": "inventory"}), {302, 403})
     check(requester, "donors (deny)", reverse("donors:list"), {403})
+    if sample_sheet:
+        check(requester, "donor interview sheet (deny)",
+              reverse("donors:interview_sheet", kwargs={"pk": sample_sheet.donor_id}), {302, 403})
+        check(requester, "donor interview sheet pdf (deny)",
+              reverse("donors:interview_sheet_pdf", kwargs={"pk": sample_sheet.donor_id}), {302, 403})
     check(requester, "reports (deny)", reverse("reports:center"), {302, 403})
     check(requester, "registrations (deny)", reverse("accounts:registration_list"), {302, 403})
+    if pending_reg:
+        check(requester, "pending sheet preview (deny)", pending_preview, {302, 403})
+        check(requester, "pending sheet preview pdf (deny)", pending_pdf, {302, 403})
 
     # ---------- ANONYMOUS: public pages open, private pages bounce to login ----------
     anon = Client()
-    for name, url, expected in [
+    anon_pages = [
         ("public landing", reverse("core:home"), {200}),
         ("public login", reverse("accounts:login"), {200}),
         ("public register", reverse("public_registration:register"), {200}),
         ("register done", reverse("public_registration:register_done"), {200}),
         ("dashboard (redirect)", reverse("core:dashboard"), {302}),
         ("registrations (redirect)", reverse("accounts:registration_list"), {302}),
-    ]:
+    ]
+    if pending_reg:
+        anon_pages.append(("pending sheet preview (redirect)", pending_preview, {302}))
+    for name, url, expected in anon_pages:
         checks += 1
         try:
             code = anon.get(url).status_code

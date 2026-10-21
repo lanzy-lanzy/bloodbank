@@ -10,6 +10,8 @@ from accounts import views as accounts_views
 # exactly in core/middleware.py) but is implemented in the accounts app.
 public_registration_patterns = ([
     path("", accounts_views.RegisterView.as_view(), name="register"),
+    path("preview/", accounts_views.RegisterSheetPreviewView.as_view(),
+         name="register_preview"),
     path("done/", accounts_views.register_done, name="register_done"),
 ], "public_registration")
 

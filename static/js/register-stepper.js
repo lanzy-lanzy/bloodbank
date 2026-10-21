@@ -31,6 +31,21 @@
   var strengthLabel = form.querySelector("[data-strength-label]");
   var passwordInput = form.querySelector("#id_password1");
 
+  /* Pre-submission interview sheet preview. The server renders the same
+   * document staff see from the bound (unsaved) form in
+   * accounts.views.RegisterSheetPreviewView; this script only asks for it and
+   * drops the response into an iframe. The button is a real submit with a
+   * formaction, so without JavaScript the browser posts to the preview URL and
+   * opens it in a new tab. */
+  var previewBlock = form.querySelector("[data-sheet-preview-block]");
+  var previewButton = form.querySelector("[data-sheet-preview-open]");
+  var previewStatus = form.querySelector("[data-sheet-preview-status]");
+  var previewFrameWrap = form.querySelector("[data-sheet-preview-frame]");
+  var previewFrame = form.querySelector("[data-sheet-preview-iframe]");
+  /* Set after an inline preview fails: the next click deliberately falls
+   * through to the browser's own post-to-formaction behaviour. */
+  var previewFallback = false;
+
   /* Which fields the SERVER considered required before the stepper started
    * moving things around. The stepper re-computes "required" per role; this
    * map is the source of truth for what the server insists on. */
@@ -51,6 +66,15 @@
   function selectedRole() {
     var checked = form.querySelector('input[name="role"]:checked');
     return checked ? checked.value : "";
+  }
+
+  /* The female-donor block of the questionnaire is required only when the
+   * applicant is female; sex is a select on the donor-details step. */
+  function selectedSex() {
+    var checked = form.querySelector('input[name="sex"]:checked');
+    if (checked) return checked.value;
+    var select = form.querySelector('select[name="sex"]');
+    return select ? select.value : "";
   }
 
   /* Panels that belong to the selected role, in document order. A panel
@@ -82,10 +106,12 @@
     return panels.indexOf(panel);
   }
 
-  /* A field is required when the server said so, or when it carries the role
-   * it belongs to and that role is the selected one. */
+  /* A field is required when the server said so, when its role is selected, or
+   * when its sex scope ("FEMALE") matches the selected sex. */
   function mustHaveValue(el) {
     if (!el.name || el.type === "radio" || el.type === "hidden") return false;
+    var sexScope = el.getAttribute("data-required-for-sex");
+    if (sexScope) return sexScope === selectedSex();
     var scope = el.getAttribute("data-required-for");
     if (scope) return scope === selectedRole();
     return serverRequired.get(el) === true;
@@ -95,8 +121,10 @@
   function radioGroupInvalid(name) {
     var group = toArray(form.querySelectorAll('input[type="radio"][name="' + name + '"]'));
     if (!group.length) return false;
+    var sexScope = group[0].getAttribute("data-required-for-sex");
     var scope = group[0].getAttribute("data-required-for");
     var needed = serverRequired.get(group[0]) === true ||
+      (!!sexScope && sexScope === selectedSex()) ||
       (!!scope && scope === selectedRole());
     if (!needed) return false;
     for (var i = 0; i < group.length; i++) {
@@ -107,10 +135,13 @@
 
   function syncRequirements() {
     var role = selectedRole();
+    var sex = selectedSex();
     toArray(form.querySelectorAll("input, select, textarea")).forEach(function (el) {
       if (!el.name) return;
+      var sexScope = el.getAttribute("data-required-for-sex");
       var scope = el.getAttribute("data-required-for");
-      var required = scope ? scope === role : serverRequired.get(el) === true;
+      var required = sexScope ? sexScope === sex
+        : scope ? scope === role : serverRequired.get(el) === true;
       if (required) {
         el.setAttribute("required", "required");
       } else {
@@ -195,6 +226,7 @@
     }
     syncRequirements();
     syncReviewScope();
+    syncPreviewScope();
     refreshReview();
   }
 
@@ -292,6 +324,102 @@
   }
 
   /* ------------------------------------------------------------------ *
+   * Interview sheet preview
+   * ------------------------------------------------------------------ */
+
+  function setPreviewStatus(message, tone) {
+    if (!previewStatus) return;
+    previewStatus.textContent = message;
+    previewStatus.hidden = !message;
+    previewStatus.classList.toggle("is-error", tone === "error");
+    previewStatus.classList.toggle("is-stale", tone === "stale");
+  }
+
+  function clearSheetPreview() {
+    if (previewFrameWrap) {
+      previewFrameWrap.hidden = true;
+      previewFrameWrap.classList.remove("is-stale");
+    }
+    if (previewFrame) previewFrame.removeAttribute("srcdoc");
+    setPreviewStatus("", "");
+    previewFallback = false;
+  }
+
+  /* A requester has no interview sheet, so the block only exists for the
+   * donor role (the server refuses the preview for everyone else too). */
+  function syncPreviewScope() {
+    if (!previewBlock) return;
+    var role = selectedRole();
+    var scope = (previewBlock.getAttribute("data-preview-for") || "all").split(/\s+/);
+    var visible = scope.indexOf("all") !== -1 || (role !== "" && scope.indexOf(role) !== -1);
+    previewBlock.hidden = !visible;
+    if (!visible) clearSheetPreview();
+  }
+
+  function markPreviewStale() {
+    if (!previewFrameWrap || previewFrameWrap.hidden) return;
+    previewFrameWrap.classList.add("is-stale");
+    setPreviewStatus("Your details changed - preview again to see the updated sheet.", "stale");
+  }
+
+  function validateEveryPanel() {
+    var scoped = scopedPanels();
+    for (var i = 0; i < scoped.length; i++) {
+      if (!validatePanel(scoped[i], false)) {
+        goTo(i);
+        validatePanel(scoped[i], true);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function requestSheetPreview() {
+    if (!previewButton || !previewFrame || !previewFrameWrap) return;
+    if (!validateEveryPanel()) {
+      setPreviewStatus("Finish every step first - the preview shows exactly what you entered.", "error");
+      return;
+    }
+    var url = previewButton.getAttribute("formaction");
+    if (!url || !window.fetch || !window.FormData) return;
+    previewButton.disabled = true;
+    previewFrameWrap.hidden = false;
+    previewFrameWrap.classList.remove("is-stale");
+    setPreviewStatus("Building your interview sheet...", "");
+    fetch(url, {
+      method: "POST",
+      body: new FormData(form),
+      credentials: "same-origin",
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    }).then(function (response) {
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      var kind = response.headers.get("X-Register-Preview");
+      return response.text().then(function (html) {
+        return { html: html, kind: kind };
+      });
+    }).then(function (result) {
+      /* srcdoc paints synchronously enough that the frame's load event is not
+       * a reliable place to re-enable the button (some browsers fire it before
+       * a listener added in this turn), so settle the UI here. */
+      previewButton.disabled = false;
+      if (result.kind === "unavailable") {
+        /* The document was refused (a detail still needs attention): the
+         * page in the frame lists what to fix. */
+        setPreviewStatus("Some details still need attention - the list in the preview says what to fix.", "error");
+      } else {
+        setPreviewStatus("Preview only - nothing has been submitted yet.", "");
+      }
+      previewFrame.srcdoc = result.html;
+      previewFrame.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }).catch(function () {
+      previewButton.disabled = false;
+      previewFrameWrap.hidden = true;
+      previewFallback = true;
+      setPreviewStatus("This browser could not show the preview inline. Click again to open it in a new tab.", "error");
+    });
+  }
+
+  /* ------------------------------------------------------------------ *
    * Password helpers
    * ------------------------------------------------------------------ */
 
@@ -322,7 +450,7 @@
    * ------------------------------------------------------------------ */
 
   form.addEventListener("change", function (event) {
-    if (event.target && event.target.name === "role") {
+    if (event.target && (event.target.name === "role" || event.target.name === "sex")) {
       syncRequirements();
       render();
     }
@@ -331,6 +459,7 @@
   form.addEventListener("input", function () {
     refreshReview();
     updateStrength();
+    markPreviewStale();
   });
 
   toArray(form.querySelectorAll("[data-step-next]")).forEach(function (button) {
@@ -355,6 +484,16 @@
       goToKey(button.getAttribute("data-step-goto"));
     });
   });
+
+  if (previewButton) {
+    previewButton.addEventListener("click", function (event) {
+      /* Without fetch (or after a failed inline attempt) the button keeps its
+       * native submit: the browser posts to formaction and opens a new tab. */
+      if (previewFallback || !window.fetch || !window.FormData) return;
+      event.preventDefault();
+      requestSheetPreview();
+    });
+  }
 
   /* Enter moves to the next step instead of posting a half-filled form. */
   form.addEventListener("keydown", function (event) {

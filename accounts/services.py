@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from accounts.models import RegistrationInterview, RegistrationRequest, User
 from audit import services as audit
+from core.text import uppercase_fields
 
 logger = logging.getLogger("bloodbank.accounts")
 
@@ -21,6 +22,15 @@ class RegistrationError(Exception):
 
 class RegistrationService:
     ELIGIBLE_ROLES = {User.Role.DONOR, User.Role.REQUESTER}
+
+    # Everything the applicant typed about themselves is stored in upper case,
+    # so the registration, the linked account, the donor record and the printed
+    # interview sheet can never disagree on case. `username` is a login
+    # credential (uppercasing it would change how they sign in) and the
+    # passwords are secrets, so both are left exactly as typed;
+    # `interview_notes` is narrative text that stays readable as written.
+    UPPERCASE_FIELDS = ("first_name", "middle_name", "last_name", "email", "phone",
+                        "address", "municipality", "province", "organization_name")
 
     @staticmethod
     def submit(*, registration, raw_password, request=None, interview_answers=None):
@@ -36,12 +46,21 @@ class RegistrationService:
             raise RegistrationError(
                 "Self-registration is only allowed for DONOR or REQUESTER roles.")
         with transaction.atomic():
+            # Normalise before anything is written: the account and the
+            # registration must be stored in the same case the sheet prints.
+            uppercase_fields(registration, RegistrationService.UPPERCASE_FIELDS)
             user = User.objects.create_user(
                 username=registration.username, password=raw_password,
                 email=registration.email, phone=registration.phone,
                 first_name=registration.first_name, middle_name=registration.middle_name,
                 last_name=registration.last_name, role=registration.role,
                 is_active=False)
+            # create_user() runs Django's normalize_email(), which lower-cases
+            # the domain. The account must show the same value as the
+            # registration the reviewer is reading, so restore it.
+            if user.email != registration.email:
+                user.email = registration.email
+                user.save(update_fields=["email"])
             registration.user = user
             # registration may still be unsaved here (ModelForm commit=False),
             # so this is an INSERT, not a field-limited UPDATE.
@@ -98,26 +117,31 @@ class RegistrationService:
 
         Mirror of `_link_requester_organization`: approval is the authorization
         gate, and the record is built only from data the applicant already
-        supplied on the registration form. `sex` is not collected at signup, so
-        it defaults to UNDISCLOSED (a neutral, non-clinical placeholder staff can
-        correct on the donor form). Returns None when the user already has a
+        supplied on the registration form. `sex` is what the applicant declared
+        at signup (it also decides whether the sheet's female-donor block
+        applies); a registration that predates the sex field keeps UNDISCLOSED,
+        a neutral placeholder staff can correct on the donor form. Returns None
+        when the user already has a
         donor profile, or when a required field (date of birth) is missing —
         leaving the fail-safe "contact staff" dashboard in place rather than
         inventing a value. No eligibility is computed here (agents.md rule 1).
         """
         from donors.models import Donor
+        from donors.services import DONOR_TEXT_FIELDS
 
         if getattr(user, "donor_profile", None) is not None:
             return None
         if registration.date_of_birth is None:
             return None
-        return Donor.objects.create(
+        donor = Donor(
             user=user,
             first_name=registration.first_name,
             middle_name=registration.middle_name,
             last_name=registration.last_name,
             date_of_birth=registration.date_of_birth,
-            sex=Donor.Sex.UNDISCLOSED,
+            # The applicant declared their sex; the donor record and the
+            # female-donor block of the interview sheet follow it.
+            sex=registration.sex or Donor.Sex.UNDISCLOSED,
             contact_number=registration.phone,
             email=registration.email,
             address=registration.address,
@@ -125,6 +149,12 @@ class RegistrationService:
             province=registration.province,
             blood_type=registration.blood_type,
         )
+        # A registration submitted before the upper-case rule (or inserted by an
+        # operator script) must still produce an upper-case donor record: the
+        # sheet generated from it is printed, and the printout is the record.
+        uppercase_fields(donor, DONOR_TEXT_FIELDS)
+        donor.save()
+        return donor
 
     @staticmethod
     def review(registration, *, decision, actor, reason="", request=None):
@@ -166,6 +196,14 @@ class RegistrationService:
                     donor = RegistrationService._link_donor_profile(registration, user)
                     if donor is not None:
                         linked_donor = donor.donor_code
+                        # The interview sheet is part of the registration
+                        # outcome: generated once, pre-filled from the data
+                        # just approved and from the self-declaration the
+                        # applicant signed, so the clinic never starts from a
+                        # blank page. It records answers; it decides nothing.
+                        from donors.services import InterviewSheetService
+                        InterviewSheetService.ensure_for_donor(
+                            donor, registration=registration, actor=actor, request=request)
             audit.log(request, user=actor,
                       action="REGISTRATION_APPROVED" if decision == RegistrationRequest.Status.APPROVED
                       else "REGISTRATION_REJECTED",

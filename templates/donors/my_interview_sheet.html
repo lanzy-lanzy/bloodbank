@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}My Interview Sheet — {{ ORG_NAME }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+  <div>
+    <p class="text-xs font-semibold uppercase tracking-wide text-brand-600">PRC Blood Donor Interview Sheet</p>
+    <div class="mt-1 flex flex-wrap items-center gap-2">
+      <h1 class="text-xl font-bold text-ink-900">{{ donor.full_name }}</h1>
+      {% if sheet.is_completed %}
+      <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+        <span class="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span>Completed
+      </span>
+      {% else %}
+      <span class="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+        <span class="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden="true"></span>In progress
+      </span>
+      {% endif %}
+    </div>
+    <p class="mt-0.5 text-sm text-ink-500">
+      {{ donor.donor_code }} · {{ answered }}/{{ total_items }} YES/NO items answered
+    </p>
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="{% url 'donors:my_interview_sheet_document' %}" class="rounded-xl bg-ink-900 px-4 py-2 text-sm font-medium text-white hover:bg-ink-800">Print preview</a>
+    <a href="{% url 'donors:my_interview_sheet_pdf' %}" class="rounded-xl border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50">Download PDF</a>
+    <a href="{% url 'donors:my_profile' %}" class="rounded-xl border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50">← Back to profile</a>
+  </div>
+</div>
+
+{% if sheet.is_completed %}
+<div class="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+  Your interview was completed and signed on {{ sheet.completed_at|date:"M j, Y" }}.
+  Ask the blood bank staff if any answer on this sheet needs correcting.
+</div>
+{% else %}
+<div class="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+  Your interview sheet has been created from your registration details. Clinic staff complete
+  the questionnaire and signatures during your screening; this page shows the record as it stands.
+</div>
+{% endif %}
+
+<div class="mb-4 rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
+  <h2 class="mb-3 font-semibold text-ink-900">Registration details on this sheet</h2>
+  <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3 lg:grid-cols-4">
+    <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Full name</dt><dd class="text-ink-800">{{ donor.full_name }}</dd></div>
+    <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Date of birth</dt><dd class="text-ink-800">{{ donor.date_of_birth|date:"M j, Y" }}</dd></div>
+    <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Sex</dt><dd class="text-ink-800">{{ donor.get_sex_display }}</dd></div>
+    <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Blood type</dt><dd class="text-ink-800">{% if donor.blood_type %}{{ donor.blood_type.code }}{% else %}<span class="text-ink-400">Not recorded</span>{% endif %}</dd></div>
+    <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Civil status</dt><dd class="text-ink-800">{{ sheet.get_civil_status_display|default:"—" }}</dd></div>
+    <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Contact number</dt><dd class="text-ink-800">{{ donor.contact_number|default:"—" }}</dd></div>
+    <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Email</dt><dd class="text-ink-800">{{ donor.email|default:"—" }}</dd></div>
+    <div class="sm:col-span-2"><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Address</dt><dd class="text-ink-800">{{ donor.registered_address|default:"—" }}</dd></div>
+  </dl>
+</div>
+
+<div class="mb-4 overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
+  <div class="border-b border-ink-100 px-5 py-4">
+    <h2 class="font-semibold text-ink-900">Medical history questionnaire</h2>
+    <p class="mt-1 text-xs text-ink-500">Your recorded answers. This page is read-only.</p>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead class="bg-ink-50">
+        <tr>
+          <th class="w-10 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500">#</th>
+          <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500">Question</th>
+          <th class="w-20 px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-ink-500">Answer</th>
+          <th class="w-64 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500">Remarks</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-ink-100">
+        {% for group in groups %}
+        {% if group.section.title or group.section.note %}
+        <tr class="bg-ink-50/70">
+          <td colspan="4" class="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-ink-600">
+            {% if group.section.title %}{{ group.section.title }}{% endif %}
+            {% if group.section.note %}<span class="ml-1 font-normal normal-case tracking-normal text-ink-400">{{ group.section.note }}</span>{% endif %}
+          </td>
+        </tr>
+        {% endif %}
+        {% for row in group.rows %}
+        <tr class="align-top">
+          <td class="px-3 py-2 text-xs text-ink-400 tabular-nums">{{ row.item.number }}.</td>
+          <td class="px-3 py-2 text-ink-800">{{ row.item.text }}</td>
+          <td class="px-3 py-2 text-center">
+            {% if row.answer == "YES" %}
+            <span class="inline-flex rounded-md border border-brand-200 bg-brand-50 px-2 py-0.5 text-xs font-bold text-brand-700">Yes</span>
+            {% elif row.answer == "NO" %}
+            <span class="inline-flex rounded-md border border-ink-200 bg-ink-50 px-2 py-0.5 text-xs font-bold text-ink-600">No</span>
+            {% else %}
+            <span class="text-ink-300">—</span>
+            {% endif %}
+          </td>
+          <td class="px-3 py-2 text-ink-600">{{ row.remarks|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="mb-4 rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
+  <h2 class="font-semibold text-ink-900">Confidential Unit Exclusion (CUE)</h2>
+  <dl class="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
+    <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Declaration</dt><dd class="text-ink-800">{{ sheet.get_cue_choice_display|default:"Not recorded" }}</dd></div>
+    <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Unit serial no.</dt><dd class="text-ink-800">{{ sheet.cue_unit_serial|default:"—" }}</dd></div>
+    <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Date of donation</dt><dd class="text-ink-800">{{ sheet.cue_date_of_donation|date:"M j, Y"|default:"—" }}</dd></div>
+    <div class="sm:col-span-3"><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Place of donation</dt><dd class="text-ink-800">{{ sheet.cue_place_of_donation|default:"—" }}</dd></div>
+  </dl>
+  <p class="mt-3 text-xs text-ink-500">
+    This declaration is confidential: it stays with the donation record and is not shown to the recipient.
+  </p>
+</div>
+
+<div class="rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
+  <h2 class="mb-3 font-semibold text-ink-900">Signatures</h2>
+  <dl class="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+    <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Donor</dt><dd class="text-ink-800">{{ sheet.donor_signature|default:"Not signed" }} · {{ sheet.donor_signed_on|date:"M j, Y"|default:"—" }}</dd></div>
+    <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Interviewer</dt><dd class="text-ink-800">{{ sheet.interviewer_signature|default:"Not signed" }} · {{ sheet.interviewer_signed_on|date:"M j, Y"|default:"—" }}</dd></div>
+  </dl>
+</div>
+{% endblock %}

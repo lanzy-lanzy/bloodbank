@@ -14,8 +14,9 @@ PUBLIC_PATHS = (
 
 # Exact-match public paths: "/" must NOT go into PUBLIC_PATHS, because
 # startswith("/") would match every URL and disable auth entirely.
-# ("/register/", "/register/done/") are the public self-registration pages.
-PUBLIC_PATHS_EXACT = ("/", "/register/", "/register/done/")
+# ("/register/", "/register/preview/", "/register/done/") are the public
+# self-registration pages; the preview is a POST-only read of an unsaved form.
+PUBLIC_PATHS_EXACT = ("/", "/register/", "/register/preview/", "/register/done/")
 
 
 class LoginRequiredMiddleware:

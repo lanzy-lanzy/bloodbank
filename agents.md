@@ -63,6 +63,49 @@ commands in [README.md](README.md) and [TESTING.md](TESTING.md).
    never invent a figure, and a truncated listing must say it is truncated
    (see `STATEMENT_LIST_LIMIT`). Export endpoints inherit the *same* role gate
    as the page they came from — printing is never a way around `REPORTS[key]["roles"]`.
+9. **One case for the record and the paper.** Identity text is upper-cased on
+   the way in (`core.text.uppercase_fields` — registration submit, donor
+   linking, interview-sheet save) AND at render time (`donors/documents.py`), so
+   a legacy mixed-case row still prints correctly. `username` and passwords must
+   **never** be normalised (they are credentials), and `interview_notes` stays
+   as typed (narrative). A PENDING donor registration previews as the sheet
+   approval will create via `accounts:registration_sheet_preview` / `_pdf`
+   (staff-only, built by `InterviewSheetService.preview_for_registration` from a
+   transient unsaved donor+sheet, writes nothing, 404 once not PENDING). Staff
+   may preview; approve/reject stays `AdminRequiredMixin` — never widen that.
+   The applicant gets the same treatment *before* submitting:
+   `public_registration:register_preview` is a **public POST** on the review
+   step (public registration URLconf, allow-listed exactly in
+   `PUBLIC_PATHS_EXACT`) that validates the bound form, builds the transient
+   sheet with `preview_for_application` and returns the one
+   `form_document.html` with print-only chrome. It writes nothing — a preview
+   must never become a draft the applicant did not submit. Requesters and
+   invalid applications get `accounts/register_preview_unavailable.html`
+   (`X-Register-Preview: unavailable`), never a half-filled document; the
+   stepper embeds the response in an iframe, so keep the button a real submit
+   with `formaction`/`formtarget` for the no-JS path.
+10. **The sign-up asks the sheet's own questionnaire — one field per item.**
+    `RegistrationInterview` has a nullable boolean for every YES/NO item
+    (`q01`…`q33`, `q35`, `q36`), named `item.key.lower()` and labelled with the
+    sheet's text; `QUESTION_FIELDS` is derived from
+    `donors.interview.SIGNUP_FIELDS`, so the form, the review page, the
+    preview and the sheet can never disagree about which item an answer
+    belongs to. Approval copies each answer onto the `InterviewAnswer` of the
+    same key, which is why every answered box prints ticked. Rules:
+    - a blank stays blank — never copy a "No" nobody was asked for, and never
+      infer one item from another;
+    - the two DATE items (Q34, Q37) have no tick column and are not asked at
+      sign-up;
+    - the female block (Q33/Q35/Q36) is asked, required and copied only when
+      `RegistrationRequest.sex == FEMALE` (the browser mirrors that through
+      `data-required-for-sex`, `RegistrationForm.clean()` is the authority) —
+      for anyone else it stays NULL, and `Donor.sex` is seeded from the same
+      declared value at approval;
+    - the eleven legacy columns (`felt_well_today` … `previously_deferred`) are
+      history only (`accounts.0005` copied the exact-match answers); never
+      render, require or re-map them, and never re-introduce a second
+      statement→item table or an S-numbered listing — the official grid
+      carries the answers (D-023).
 
 ## Django/templates gotchas that bit us
 
@@ -112,7 +155,9 @@ commands in [README.md](README.md) and [TESTING.md](TESTING.md).
   combination clips tall cards such as `accounts/register.html` on desktop and
   cuts the footer off on short viewports). Decorative orbs live in a
   `fixed inset-0 overflow-hidden` layer so they can't create horizontal
-  scroll; card padding/type scale via `sm:` variants; width override uses the
+  scroll; the back-to-home pill is `absolute` (NOT `fixed` — a fixed pill
+  floats over a tall form and swallows clicks on the fields beneath it);
+  card padding/type scale via `sm:` variants; width override uses the
   `{% block auth_width %}` block (register uses `max-w-3xl`) and the card
   surface uses `{% block auth_card_class %}` (register/register-done use the
   dark liquid-glass `.bb-glass-card`, everything else keeps the light card).
@@ -170,6 +215,13 @@ commands in [README.md](README.md) and [TESTING.md](TESTING.md).
   - a field that only exists for one role carries `data-required-for="DONOR"`
     (set in `RegistrationForm.__init__`); the browser uses it to mark the
     field required, the server re-checks it in `clean()`
+  - the sheet's female block is the one condition that is not a role: those
+    fields carry `data-required-for-sex="FEMALE"` instead, and the stepper
+    checks it against the selected sex (`input[name="sex"]` radio or
+    `select[name="sex"]`); `clean()` remains the only authority
+  - the interview step renders `form.interview_question_groups()` — the same
+    sections as the printed sheet — but every question is still an ordinary
+    field (`name="q07"`, values `yes`/`no`) of the one form
   - `form.review_rows()` feeds the review step; the stepper refreshes it live
   - `{% block head_extra %}` adds the stepper script AND the one-line
     `document.documentElement.classList.add("bb-js")` that hides the inactive

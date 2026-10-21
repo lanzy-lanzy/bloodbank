@@ -6,7 +6,7 @@ from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from accounts.models import RegistrationRequest, User
+from accounts.models import RegistrationInterview, RegistrationRequest, User
 from core.testing import make_user
 from notifications.models import NotificationTemplate
 
@@ -99,14 +99,10 @@ class ProfilePhoneTests(TestCase):
 
 
 def interview_data(**overrides):
-    """A complete, valid donor interview sheet (YES/NO radios + declaration)."""
-    data = {
-        "felt_well_today": "yes", "on_medication": "no", "recent_illness": "no",
-        "prior_transfusion": "no", "reactive_test": "no", "tattoo_piercing": "no",
-        "dental_procedure": "no", "recent_vaccination": "no", "high_risk_behavior": "no",
-        "pregnant_or_breastfeeding": "no", "previously_deferred": "no",
-        "declaration": "on", "interview_notes": "",
-    }
+    """A complete, valid donor questionnaire: the printed sheet's own items."""
+    data = {name: "no" for name in RegistrationInterview.QUESTION_FIELDS}
+    data["q01"] = "yes"
+    data.update({"declaration": "on", "interview_notes": ""})
     data.update(overrides)
     return data
 
@@ -114,6 +110,7 @@ def interview_data(**overrides):
 def donor_form_data(**overrides):
     data = {"role": "DONOR", "first_name": "Tina", "middle_name": "M", "last_name": "Test",
             "username": "tina.test", "email": "tina@example.test", "phone": "09171234567",
+            "sex": "FEMALE",
             "blood_type": "", "date_of_birth": "1996-02-02", "address": "1 Test St",
             "municipality": "Zamboanga City", "province": "Zamboanga del Sur",
             "organization_name": "", "password1": PASSWORD, "password2": PASSWORD}
@@ -187,6 +184,46 @@ class RegistrationSubmitTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(RegistrationRequest.objects.count(), 0)
 
+    def test_text_fields_are_stored_in_uppercase(self):
+        """Identity data is normalised once, on the way in.
+
+        The registration, the linked account and (after approval) the donor
+        record and the printed interview sheet all read the same values, so the
+        case is fixed here rather than in each screen.
+        """
+        resp = self._submit(first_name="tina", middle_name="m", last_name="test",
+                            email="Tina@Example.test", phone="0917 123 4567",
+                            address="1 test st", municipality="zamboanga city",
+                            province="zamboanga del sur",
+                            interview_notes="mild penicillin allergy.")
+        self.assertRedirects(resp, reverse("public_registration:register_done"))
+        reg = RegistrationRequest.objects.get(username="tina.test")
+        self.assertEqual(reg.first_name, "TINA")
+        self.assertEqual(reg.middle_name, "M")
+        self.assertEqual(reg.last_name, "TEST")
+        self.assertEqual(reg.email, "TINA@EXAMPLE.TEST")
+        self.assertEqual(reg.address, "1 TEST ST")
+        self.assertEqual(reg.municipality, "ZAMBOANGA CITY")
+        self.assertEqual(reg.province, "ZAMBOANGA DEL SUR")
+        # The username is a login credential and keeps its case.
+        self.assertEqual(reg.username, "tina.test")
+        user = User.objects.get(username="tina.test")
+        self.assertEqual(user.first_name, "TINA")
+        self.assertEqual(user.email, "TINA@EXAMPLE.TEST")
+        self.assertEqual(user.phone, "0917 123 4567")
+        # Narrative notes stay readable as the applicant wrote them.
+        from accounts.models import RegistrationInterview
+        self.assertEqual(RegistrationInterview.objects.get(registration=reg).notes,
+                         "mild penicillin allergy.")
+
+    def test_requester_organization_is_stored_in_uppercase(self):
+        resp = self._submit(role="REQUESTER", username="req.caps",
+                            email="req.caps@example.test",
+                            organization_name="test hospital")
+        self.assertRedirects(resp, reverse("public_registration:register_done"))
+        reg = RegistrationRequest.objects.get(username="req.caps")
+        self.assertEqual(reg.organization_name, "TEST HOSPITAL")
+
     def test_requester_requires_organization(self):
         resp = self._submit(role="REQUESTER", username="req.one", email="req@example.test")
         self.assertEqual(resp.status_code, 200)
@@ -230,17 +267,41 @@ class DonorInterviewTests(TestCase):
         from accounts.models import RegistrationInterview
         interview = RegistrationInterview.objects.get(registration=reg)
         # "yes"/"no" radios are normalised to real booleans on save.
-        self.assertTrue(interview.felt_well_today)
-        self.assertFalse(interview.reactive_test)
+        self.assertTrue(interview.q01)
+        self.assertFalse(interview.q23)
         self.assertTrue(interview.declaration)
         self.assertEqual(interview.notes, "Mild penicillin allergy.")
 
     def test_donor_requires_every_answer(self):
         data = donor_form_data()
-        del data["reactive_test"]  # leave one question unanswered
+        del data["q23"]  # leave one question unanswered
         resp = self.client.post(reverse("public_registration:register"), data)
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(RegistrationRequest.objects.filter(username="tina.test").exists())
+
+    def test_sex_is_required_for_donors(self):
+        data = donor_form_data(sex="")
+        resp = self.client.post(reverse("public_registration:register"), data)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Sex is required for donors.")
+        self.assertFalse(RegistrationRequest.objects.exists())
+
+    def test_male_applicant_never_answers_the_female_block(self):
+        data = donor_form_data(sex="MALE")
+        for key in ("q33", "q35", "q36"):
+            data.pop(key)
+        resp = self.client.post(reverse("public_registration:register"), data)
+        self.assertRedirects(resp, reverse("public_registration:register_done"))
+        reg = RegistrationRequest.objects.get(username="tina.test")
+        self.assertEqual(reg.sex, "MALE")
+        self.assertIsNone(reg.interview.q33)
+
+    def test_female_applicant_answers_the_female_block(self):
+        data = donor_form_data(sex="FEMALE")
+        data.pop("q33")
+        resp = self.client.post(reverse("public_registration:register"), data)
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(RegistrationRequest.objects.exists())
 
     def test_donor_requires_declaration(self):
         resp = self._submit(declaration="")  # certification unchecked
@@ -262,7 +323,7 @@ class DonorInterviewTests(TestCase):
         resp = self.client.get(reverse("accounts:registration_review", args=[reg.pk]))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Donor Interview Sheet")
-        self.assertContains(resp, "I feel well and healthy today.")
+        self.assertContains(resp, "1. Do you feel well and healthy today?")
         self.assertContains(resp, "Recent dengue in household.")
 
 
@@ -316,6 +377,92 @@ class RegistrationStepperTests(TestCase):
         self.assertIn('data-required-for="DONOR"', content)
         self.assertIn('data-required-for="REQUESTER"', content)
 
+
+
+@override_settings(SMS_PROVIDER="mock", SMS_API_KEY="")
+class RegisterSheetPreviewTests(TestCase):
+    """The pre-submission preview: the real interview sheet, built from an
+    unsaved application and never written to the database."""
+
+    def setUp(self):
+        make_registration_templates()
+
+    def _preview(self, **overrides):
+        return self.client.post(reverse("public_registration:register_preview"),
+                                donor_form_data(**overrides))
+
+    def test_donor_preview_renders_the_interview_sheet(self):
+        resp = self._preview()
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["X-Register-Preview"], "sheet")
+        content = resp.content.decode()
+        self.assertIn("Blood Donor Interview Sheet", content)
+        self.assertIn("Preview - not yet a donor record", content)
+        self.assertIn("PREVIEW - built from your registration form", content)
+        # The official questionnaire staff review is on the same document.
+        self.assertIn("feel well and healthy today", content)
+        # The form asks the sheet's own items, so every answer lands on its
+        # item; there is no second sign-up listing to print.
+        self.assertIn("In the past 4 WEEKS have you taken any medications", content)
+        self.assertNotIn("Self-declaration recorded at sign-up", content)
+        # A preview is not a record: no PDF download, and never the password.
+        self.assertNotIn("Download PDF", content)
+        self.assertNotIn(PASSWORD, content)
+
+    def test_preview_upper_cases_the_details_like_storage_will(self):
+        content = self._preview(first_name="Tina", address="1 Test St").content.decode()
+        self.assertIn("TINA M TEST", content)
+        self.assertIn("1 TEST ST, ZAMBOANGA CITY, ZAMBOANGA DEL SUR", content)
+        self.assertNotIn("Tina M Test", content)
+
+    def test_prefilled_declaration_is_ticked(self):
+        content = self._preview().content.decode()
+        # The form asks all 35 YES/NO items of the sheet and the applicant
+        # answered every one, so every box carries a tick - YES or NO.
+        self.assertEqual(content.count('<span class="cbox">X</span>'), 35)
+
+    def test_preview_writes_nothing(self):
+        from accounts.models import RegistrationInterview
+        from audit.models import AuditLog
+        from donors.models import Donor, DonorInterviewSheet, InterviewAnswer
+        self._preview()
+        for model in (User, RegistrationRequest, RegistrationInterview, Donor,
+                      DonorInterviewSheet, InterviewAnswer, AuditLog):
+            self.assertEqual(model.objects.count(), 0, model.__name__)
+
+    def test_requester_gets_an_explanation_not_a_sheet(self):
+        resp = self._preview(role="REQUESTER", username="prev-req",
+                             email="prev-req@example.test",
+                             organization_name="Preview Hospital")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["X-Register-Preview"], "unavailable")
+        self.assertContains(resp, "donor registrations only")
+        self.assertNotContains(resp, "Blood Donor Interview Sheet")
+
+    def test_invalid_application_lists_what_to_fix(self):
+        resp = self._preview(declaration="")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["X-Register-Preview"], "unavailable")
+        self.assertContains(resp, "You must certify the interview before submitting.")
+        self.assertContains(resp, "Nothing has been submitted")
+        self.assertFalse(User.objects.exists())
+
+    def test_authenticated_user_is_sent_to_the_dashboard(self):
+        make_user("prev-user", role="DONOR")
+        self.client.login(username="prev-user", password=PASSWORD)
+        resp = self._preview()
+        self.assertRedirects(resp, reverse("core:dashboard"))
+
+    def test_get_is_not_allowed(self):
+        resp = self.client.get(reverse("public_registration:register_preview"))
+        self.assertEqual(resp.status_code, 405)
+
+    def test_register_page_offers_the_preview(self):
+        content = self.client.get(reverse("public_registration:register")).content.decode()
+        self.assertIn("data-sheet-preview-open", content)
+        self.assertIn('formaction="/register/preview/"', content)
+        self.assertIn('formtarget="_blank"', content)
+        self.assertIn('data-preview-for="DONOR"', content)
 
 
 @override_settings(SMS_PROVIDER="mock", SMS_API_KEY="")
@@ -509,13 +656,33 @@ class DonorApprovalLinkTests(TestCase):
         reg = self._donor_reg()
         self._approve(reg)
         donor = Donor.objects.get(user=reg.user)
-        self.assertEqual(donor.first_name, "Dona")
-        self.assertEqual(donor.last_name, "Link")
+        # The registration predates the upper-case rule (it was inserted
+        # directly), and approval still produces the printable form's case.
+        self.assertEqual(donor.first_name, "DONA")
+        self.assertEqual(donor.last_name, "LINK")
         self.assertEqual(str(donor.date_of_birth), "1995-05-05")
         self.assertEqual(donor.contact_number, "09171234567")
-        self.assertEqual(donor.municipality, "Zamboanga City")
+        self.assertEqual(donor.municipality, "ZAMBOANGA CITY")
         # sex is not collected at signup → neutral default, staff edits later
         self.assertEqual(donor.sex, Donor.Sex.UNDISCLOSED)
+
+    def test_approval_generates_the_interview_sheet_prefilled(self):
+        """The approved registration must leave a ready-to-print interview sheet."""
+        from accounts.models import RegistrationInterview
+        from donors.interview import ALL_ITEMS
+        from donors.models import Donor, DonorInterviewSheet
+
+        reg = self._donor_reg(username="dlink-sheet")
+        RegistrationInterview.objects.create(registration=reg, q01=True, q07=True)
+        self._approve(reg)
+        sheet = DonorInterviewSheet.objects.get(donor=Donor.objects.get(user=reg.user))
+        self.assertEqual(sheet.registration_id, reg.pk)
+        self.assertEqual(sheet.address_street,
+                         "1 DONOR ST, ZAMBOANGA CITY, ZAMBOANGA DEL SUR")
+        self.assertEqual(sheet.answers.count(), len(ALL_ITEMS))
+        self.assertEqual(sheet.answer_for("Q01"), "YES")
+        self.assertEqual(sheet.answer_for("Q07"), "YES")
+        self.assertEqual(sheet.answer_for("Q16"), "")      # blank is not "No"
 
     def test_approved_donor_dashboard_no_longer_warns(self):
         reg = self._donor_reg(username="dlink-dash")
@@ -655,3 +822,110 @@ class RegistrationAccessTests(TestCase):
         resp = self.client.post(reverse("accounts:registration_review", args=[1]),
                                 {"action": "approve"})
         self.assertIn(resp.status_code, (403, 302))
+
+
+@override_settings(SMS_PROVIDER="mock", SMS_API_KEY="")
+class RegistrationSheetPreviewTests(TestCase):
+    """A PENDING donor registration can be previewed as the sheet it will
+    create, so staff verify the pre-fill before approval. Nothing is written
+    and the approval decision stays admin-only."""
+
+    def setUp(self):
+        make_registration_templates()
+        self.admin = make_user("prev-admin", role="ADMIN")
+        self.staff = make_user("prev-staff", role="STAFF")
+        self.donor = make_user("prev-donor", role="DONOR")
+        self.requester = make_user("prev-requester", role="REQUESTER")
+        applicant = make_user("prev-applicant", role="DONOR", is_active=False)
+        # Deliberately mixed case: the preview normalises it, so a registration
+        # that predates the upper-case rule still previews correctly.
+        self.reg = RegistrationRequest.objects.create(
+            first_name="nena", middle_name="s", last_name="nakasalin",
+            username="prev-applicant", email="nena@example.test", phone="09171234567",
+            role="DONOR", date_of_birth=date(1998, 4, 4),
+            address="demo street", municipality="zamboanga city",
+            province="zamboanga del sur", user=applicant)
+        from accounts.models import RegistrationInterview
+        RegistrationInterview.objects.create(
+            registration=self.reg, q01=True, q07=True, declaration=True)
+
+    def _url(self, name="accounts:registration_sheet_preview", pk=None):
+        return reverse(name, args=[pk or self.reg.pk])
+
+    def test_staff_preview_shows_the_uppercase_prefill(self):
+        self.client.login(username="prev-staff", password=PASSWORD)
+        resp = self.client.get(self._url())
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode()
+        self.assertIn("NENA S NAKASALIN", content)
+        self.assertIn("DEMO STREET, ZAMBOANGA CITY, ZAMBOANGA DEL SUR", content)
+        self.assertIn("PREVIEW - built from a pending registration", content)
+        # Staff cannot reach the admin-only review screen, so the Close button
+        # must not lead to a 403.
+        self.assertIn(reverse("core:dashboard"), content)
+
+    def test_preview_answers_follow_the_self_declaration(self):
+        from donors.services import InterviewSheetService
+        sheet, answers = InterviewSheetService.preview_for_registration(self.reg)
+        self.assertEqual(answers["Q01"].answer, "YES")
+        self.assertEqual(answers["Q07"].answer, "YES")
+        self.assertNotIn("Q33", answers)                 # female block not asked
+        self.assertEqual(sheet.address_street,
+                         "DEMO STREET, ZAMBOANGA CITY, ZAMBOANGA DEL SUR")
+        self.assertEqual(sheet.donor.donor_code, f"PREVIEW-{self.reg.pk:05d}")
+        self.assertEqual(sheet.donor.sex, "UNDISCLOSED")
+
+    def test_preview_and_pdf_write_nothing(self):
+        from audit.models import AuditLog
+        from donors.models import Donor, DonorInterviewSheet
+
+        self.client.login(username="prev-admin", password=PASSWORD)
+        self.assertEqual(self.client.get(self._url()).status_code, 200)
+        pdf = self.client.get(self._url("accounts:registration_sheet_pdf"))
+        self.assertEqual(pdf.status_code, 200)
+        self.assertEqual(pdf["Content-Type"], "application/pdf")
+        self.assertTrue(pdf.content.startswith(b"%PDF-"))
+        self.assertFalse(Donor.objects.exists())
+        self.assertFalse(DonorInterviewSheet.objects.exists())
+        self.reg.refresh_from_db()
+        self.assertEqual(self.reg.status, "PENDING")
+        self.assertFalse(AuditLog.objects.filter(action="INTERVIEW_SHEET_CREATED").exists())
+
+    def test_review_page_links_to_the_preview(self):
+        self.client.login(username="prev-admin", password=PASSWORD)
+        resp = self.client.get(reverse("accounts:registration_review", args=[self.reg.pk]))
+        self.assertContains(resp, self._url())
+
+    def test_staff_can_preview_but_still_cannot_review(self):
+        self.client.login(username="prev-staff", password=PASSWORD)
+        self.assertEqual(self.client.get(self._url()).status_code, 200)
+        resp = self.client.get(reverse("accounts:registration_review", args=[self.reg.pk]))
+        self.assertEqual(resp.status_code, 403)
+
+    def test_donor_and_requester_are_denied(self):
+        for username in ("prev-donor", "prev-requester"):
+            self.client.login(username=username, password=PASSWORD)
+            for name in ("accounts:registration_sheet_preview",
+                         "accounts:registration_sheet_pdf"):
+                resp = self.client.get(self._url(name))
+                self.assertIn(resp.status_code, (302, 403), f"{username} -> {name}")
+            self.client.logout()
+
+    def test_requester_registration_has_no_preview(self):
+        applicant = make_user("prev-req-applicant", role="REQUESTER", is_active=False)
+        reg = RegistrationRequest.objects.create(
+            first_name="req", last_name="tester", username="prev-req-applicant",
+            email="prev-req@example.test", phone="09171234567", role="REQUESTER",
+            organization_name="prev hospital", user=applicant)
+        self.client.login(username="prev-admin", password=PASSWORD)
+        self.assertEqual(self.client.get(self._url(pk=reg.pk)).status_code, 404)
+
+    def test_approved_registration_is_no_longer_a_preview(self):
+        from accounts.services import RegistrationService
+        RegistrationService.review(self.reg, decision=RegistrationRequest.Status.APPROVED,
+                                   actor=self.admin)
+        self.client.login(username="prev-admin", password=PASSWORD)
+        # After approval the real sheet exists; the preview endpoint stops
+        # answering so it can never shadow the donor's record.
+        self.assertEqual(self.client.get(self._url()).status_code, 404)
+

@@ -316,6 +316,14 @@ DocumentSpec  ──►  render_document(chrome=True)   → print preview page (
   not belong in this template. The on-screen "desk" chrome and the action
   toolbar live behind `{% if chrome %}` and are therefore **structurally**
   impossible to reach a printed page — not merely hidden with CSS.
+- **A second spec for form-shaped documents.** Reports and statements are
+  *listings* (`DocumentSpec` → `document.html`); an official form is a grid of
+  labelled boxes and YES/NO ticks, so it uses `FormDocumentSpec` →
+  `templates/documents/form_document.html`, rendered by the same
+  `render_document()`/`render_document_pdf()` pair, with the same preview/PDF
+  contract and the same xhtml2pdf-safe subset. A module still only describes
+  *what* the form says; `core/documents.py` typesets it and distributes widths
+  (`resolved_header`, `FormRow.resolved_cells`, `signature_width`).
 - **Views are thin.** `core.mixins.PrintableDocumentMixin` gives a view a
   `document()` (preview) and a `pdf()` action from one
   `build_document_spec()` implementation. `reports/views.py` and
@@ -343,6 +351,61 @@ DocumentSpec  ──►  render_document(chrome=True)   → print preview page (
 - **Honest truncation.** The Inventory Statement caps its bag listing at
   `STATEMENT_LIST_LIMIT`; if a filter matches more, the document *says so* in its
   notes. Silently truncating a stock count would be the dangerous option.
+
+**The PRC Blood Donor Interview Sheet.** The official 37-item interview form is
+the first `FormDocumentSpec`: `donors/interview.py` holds the item wording,
+sections and stable `Q01`…`Q37` keys, `donors/documents.py` describes the
+sheet, and `templates/donors/interview_sheet.html` is the editable full page
+staff fill in (`donors:interview_sheet`, staff-only; the donor gets a
+read-only copy at `donors:my_interview_sheet`). The sheet is generated the
+moment a donor record exists (`InterviewSheetService.ensure_for_donor` —
+registration approval inside the same transaction, counter registration,
+`seed_demo`, and lazily on first open) and pre-filled from the donor record
+plus the registration questionnaire. The sign-up form asks the printed
+sheet's own YES/NO items, one field per item (`Q07` -> `q07`;
+`RegistrationInterview.QUESTION_FIELDS` is derived from
+`donors.interview.SIGNUP_FIELDS`), so each answer is copied onto the item it
+answers (`InterviewSheetService._declaration_answers`) and every answered box
+prints ticked. The two DATE items (Q34, Q37) have no sign-up field, and the
+female-donor block (Q33/Q35/Q36) is asked, required and copied only when the
+applicant declared `sex=FEMALE` — for anyone else those items stay blank for
+the interviewer. Nothing is inferred: blank stays blank, because the form
+never prints "No" for a question nobody answered. Saving is a record of
+the interview, not a clinical decision — donor status and eligibility are
+untouched (agents.md rule 1).
+
+Every printed value is upper-cased at render time (`core/text.uppercase`), and
+the same case is written on the way in: the registration form, the linked donor
+record and the sheet's own text fields are stored in upper case, so the record
+and the paper can never disagree about how a name or an address is written.
+`username` and the passwords are deliberately excluded — a login credential is
+not display data. While an application is still PENDING,
+`accounts:registration_sheet_preview` (and its `/pdf/` sibling, staff-only)
+renders the sheet approval *would* create from the submitted data and the
+self-declaration, via `InterviewSheetService.preview_for_registration`: a
+transient `Donor` + `DonorInterviewSheet` that is never saved. Once the
+application is approved the preview answers 404, so it can never shadow the real
+sheet.
+
+Before the application is submitted, the review step offers the same document
+through `public_registration:register_preview` (a public POST): it validates
+the bound `RegistrationForm`, builds the transient donor/sheet from
+`form.cleaned_data` + `form.interview_answers()`
+(`InterviewSheetService.preview_for_application`) and returns
+`templates/documents/form_document.html` with print-only chrome
+(`X-Register-Preview: sheet`). Nothing is saved. The stepper embeds the response
+in an `<iframe srcdoc>`, while the button itself is a real submit carrying
+`formaction`/`formtarget`, so with JavaScript off the browser posts to the same
+URL in a new tab. A requester application (no interview sheet) and an invalid
+one get a short explanation page instead (`X-Register-Preview: unavailable`),
+never a document with blanks filled in for the applicant.
+
+Because the form asks the sheet's own questionnaire, the preview prints the
+official grid with every answered item already ticked — a female applicant's
+submission fills all 35 YES/NO boxes, and a non-female application leaves only
+Q33/Q35/Q36 (plus the two DATE items) blank for the clinic. There is no second
+sign-up listing to print, so the same document is what the applicant verifies
+and what staff later receives (D-023).
 
 Global `@media print` rules in `static/css/input.css` (built into
 `static/css/tailwind.css`) make **any** page printable, not just the documents:

@@ -1,10 +1,13 @@
 import logging
 
+from dataclasses import replace
+
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth import views as auth_views
 from django.core.paginator import Paginator
 from django.db.models import Q
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.urls import reverse_lazy
@@ -22,8 +25,11 @@ from accounts.forms import (
 from accounts.models import RegistrationRequest, User
 from accounts.services import RegistrationError, RegistrationService
 from audit import services as audit
-from core.mixins import AdminRequiredMixin, is_htmx
+from core.documents import render_document
+from core.mixins import AdminRequiredMixin, PrintableDocumentMixin, StaffRequiredMixin, is_htmx
 from core.modals import MODAL_LAYOUT, modal_success, render_any
+from donors.documents import build_interview_sheet_spec
+from donors.services import InterviewSheetService
 
 logger = logging.getLogger("bloodbank.auth")
 
@@ -284,6 +290,55 @@ def register_done(request):
     return render(request, "accounts/register_done.html")
 
 
+class RegisterSheetPreviewView(View):
+    """The interview sheet this application will create - before it is submitted.
+
+    The applicant reviews the *same* printable document staff see (the one
+    approval will generate), built in memory from the bound form: nothing is
+    written, so there is no account, registration, donor or sheet to audit yet
+    (agents.md rule 3 has nothing to append). The real POST still goes through
+    :meth:`RegisterView.post` and :class:`RegistrationService`.
+
+    Rendered as a whole document (not a fragment) so a no-JS submit opens the
+    preview in its own tab, and the page's stylesheet can never leak into the
+    sign-up page; the stepper embeds this response in an iframe instead.
+    """
+
+    http_method_names = ["post"]
+
+    def post(self, request):
+        if request.user.is_authenticated:
+            return redirect("core:dashboard")
+        form = RegistrationForm(request.POST)
+        if not form.is_valid() or form.cleaned_data.get("role") != User.Role.DONOR:
+            # A requester has no interview sheet, and an invalid application
+            # must not be previewed as if it were complete: show what still
+            # needs fixing instead of a document with invented blanks. The
+            # header lets the stepper tell the two outcomes apart (it embeds
+            # this response in an iframe and cannot read its body first).
+            requester = (form.is_valid()
+                         and form.cleaned_data.get("role") == User.Role.REQUESTER)
+            response = render(request, "accounts/register_preview_unavailable.html",
+                              {"form": form, "requester": requester})
+            response["X-Register-Preview"] = "unavailable"
+            return response
+        sheet, answers = InterviewSheetService.preview_for_application(
+            form.cleaned_data, form.interview_answers())
+        spec = build_interview_sheet_spec(
+            sheet, answers=answers, preview=True,
+            preview_note=("PREVIEW - built from your registration form. Nothing has been "
+                          "submitted yet: your account, donor record and interview sheet "
+                          "are created only after an administrator approves the application."),
+        )
+        # Printing stays (the applicant may keep a copy); the PDF download and
+        # the Close link are dropped because this is an on-screen preview of an
+        # application that does not exist as a record yet.
+        spec = replace(spec, toolbar={"pdf": None, "csv": None, "back": None})
+        response = HttpResponse(render_document(request, spec, chrome=True))
+        response["X-Register-Preview"] = "sheet"
+        return response
+
+
 # --- Admin registration review (modal CRUD) ------------------------------------
 class RegistrationListView(AdminRequiredMixin, ListView):
     template_name = "accounts/registration_list.html"
@@ -363,3 +418,54 @@ class RegistrationReviewView(AdminRequiredMixin, View):
         except RegistrationError as exc:
             messages.error(request, str(exc))
         return modal_success(request, fallback_redirect="accounts:registration_list")
+
+
+# --- Preview of the interview sheet a pending registration will create -------------
+class _RegistrationSheetMixin(PrintableDocumentMixin):
+    """Build the sheet a PENDING donor registration will produce at approval.
+
+    The spec comes from the same builder the real sheet uses, so the preview a
+    reviewer checks and the sheet generated at approval cannot diverge. Nothing
+    is written: :meth:`InterviewSheetService.preview_for_registration` builds
+    the donor, the sheet and the pre-filled answers in memory.
+    """
+
+    document_url = "accounts:registration_sheet_preview"
+    pdf_url = "accounts:registration_sheet_pdf"
+    back_url = "accounts:registration_review"
+
+    def build_document_spec(self, request, pk):
+        from donors.documents import build_interview_sheet_spec
+        from donors.services import InterviewSheetService
+
+        registration = get_object_or_404(
+            RegistrationRequest.objects.select_related("blood_type", "interview"), pk=pk)
+        if (registration.role != User.Role.DONOR
+                or registration.status != RegistrationRequest.Status.PENDING
+                or getattr(registration, "interview", None) is None):
+            raise Http404("This registration has no pending donor interview sheet.")
+        sheet, answers = InterviewSheetService.preview_for_registration(registration)
+        return build_interview_sheet_spec(sheet, answers=answers, preview=True)
+
+    def _toolbar(self, kwargs):
+        toolbar = super()._toolbar(kwargs)
+        if self.request.user.role != User.Role.ADMIN:
+            # The review screen is admin-only (approval is a critical action),
+            # so a staff member who opens the preview directly must not land
+            # on a 403 from the Close button.
+            toolbar["back"] = reverse("core:dashboard")
+        return toolbar
+
+
+class RegistrationSheetPreviewView(StaffRequiredMixin, _RegistrationSheetMixin, View):
+    """Print preview of the interview sheet a PENDING registration will create."""
+
+    def get(self, request, pk):
+        return self.document(request, pk=pk)
+
+
+class RegistrationSheetPdfView(StaffRequiredMixin, _RegistrationSheetMixin, View):
+    """The same pending-registration preview as a downloadable PDF."""
+
+    def get(self, request, pk):
+        return self.pdf(request, pk=pk)

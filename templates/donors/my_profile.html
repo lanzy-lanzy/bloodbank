@@ -8,6 +8,7 @@
       {% if donor.blood_type %} · Blood type <strong class="text-ink-700">{{ donor.blood_type.code }}</strong>{% endif %}</p>
   </div>
   <div class="flex items-center gap-2">
+    <a href="{% url 'donors:my_interview_sheet' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">My interview sheet</a>
     <a href="{% url 'rewards:my_rewards' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">My rewards</a>
     <a href="{% url 'appointments:my_appointments' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">My appointments</a>
     <a href="{% url 'donors:my_profile_edit' %}" class="rounded-xl bg-brand-600 text-white text-sm font-semibold px-4 py-2 hover:bg-brand-700 shadow-sm">Edit contact info</a>

@@ -175,6 +175,178 @@ def build_document(*, title, columns, rows, **kwargs) -> DocumentSpec:
     return DocumentSpec(title=title, columns=build_columns(columns, rows), rows=list(rows), **kwargs)
 
 
+# --- Form documents --------------------------------------------------------------
+# A report is a table of rows; an official form is a page of labelled boxes,
+# tick tables and signature lines. Both are printable documents, so both live
+# here and share the preview/PDF path: a module describes the content, this
+# module typesets it. The form template is written to the same xhtml2pdf CSS
+# subset (tables, explicit colours, no flexbox/grid/variables).
+
+FORM_SECTION_KINDS = ("fields", "table")
+
+
+@dataclass(frozen=True)
+class FormField:
+    """One box on a form: a small label above the value it holds."""
+
+    label: str
+    value: str = ""
+    width: int = 0  # % of its row; 0 = share the remainder equally
+    align: str = "left"
+
+
+@dataclass(frozen=True)
+class FormRow:
+    """One line of a fields block: an optional gutter label plus its boxes."""
+
+    label: str = ""
+    label_width: int = 17  # % of the line taken by the gutter label
+    cells: tuple = ()
+
+    def resolved_cells(self) -> tuple:
+        """Cells with the zero-width ones sharing the space the gutter leaves."""
+        fixed = sum(cell.width for cell in self.cells)
+        free = [cell for cell in self.cells if not cell.width]
+        if not free:
+            return self.cells
+        gutter = self.label_width if self.label else 0
+        share = max(1, (100 - gutter - fixed) // len(free))
+        return tuple(cell if cell.width else replace(cell, width=share)
+                     for cell in self.cells)
+
+
+@dataclass(frozen=True)
+class FormSection:
+    """A titled block of a form document.
+
+    ``kind="fields"`` renders ``rows``. ``kind="table"`` renders ``columns``
+    over ``items`` - each item is ``(group_heading, (cell, ...))`` where an
+    empty heading means "no group rule above this row" and each cell is
+    ``(text, alignment)``. Alignment ``"box"`` draws a tick box around the
+    text, so an unanswered cell still prints an empty box to tick by hand.
+    A tick in a YES/NO table is a cell the caller already filled in ("X" or
+    ""), so this module never decides what an answer means.
+    """
+
+    kind: str = "fields"
+    title: str = ""
+    subtitle: str = ""
+    note: str = ""
+    rows: tuple = ()
+    columns: tuple = ()  # tuple[DocumentColumn]
+    items: tuple = ()
+
+
+@dataclass
+class FormDocumentSpec:
+    """Everything needed to typeset one official form.
+
+    ``cue`` is a small, fixed panel shape used by the confidential unit
+    exclusion block:
+        {"title", "body": [paragraph], "question",
+         "options": [(label, checked)], "fields": [(label, value)],
+         "footnote"}
+    It is a dict rather than another dataclass because it is one known panel
+    with a handful of optional parts, not a layout primitive.
+    """
+
+    title: str
+    doc_type: str = "FORM"
+    subtitle: str = ""
+    reference: str = ""
+    header: tuple = ()      # tuple[FormField] - top strip of reference boxes
+    sections: tuple = ()
+    cue: dict = None
+    signatures: tuple = ()  # tuple[(role, printed_name, date_label, date_value)]
+    notes: list = field(default_factory=list)
+    footer_note: str = ""
+    toolbar: dict = None
+    page_size: str = "A4"
+    pdf_filename: str = "form.pdf"
+
+    def resolved_page_size(self) -> str:
+        size = (self.page_size or "A4").upper()
+        return size if size in PAGE_SIZES else "A4"
+
+    def resolved_header(self) -> tuple:
+        """Header boxes with the zero-width ones sharing the full line."""
+        fixed = sum(cell.width for cell in self.header)
+        free = [cell for cell in self.header if not cell.width]
+        if not free:
+            return self.header
+        share = max(1, (100 - fixed) // len(free))
+        return tuple(cell if cell.width else replace(cell, width=share)
+                     for cell in self.header)
+
+    def signature_width(self) -> int:
+        """Width of one signature block, so the blocks split the line evenly."""
+        count = len(self.signatures) or 1
+        return 100 // count
+
+
+def _fold_cell(cell: FormField) -> FormField:
+    return replace(cell, label=pdf_safe_text(cell.label), value=pdf_safe_text(cell.value))
+
+
+def _fold_section(section: FormSection) -> FormSection:
+    return replace(
+        section,
+        title=pdf_safe_text(section.title),
+        subtitle=pdf_safe_text(section.subtitle),
+        note=pdf_safe_text(section.note),
+        rows=tuple(replace(row, label=pdf_safe_text(row.label),
+                           cells=tuple(_fold_cell(cell) for cell in row.cells))
+                   for row in section.rows),
+        columns=tuple(replace(column, label=pdf_safe_text(column.label))
+                      for column in section.columns),
+        items=tuple((pdf_safe_text(heading),
+                     tuple((pdf_safe_text(value), align) for value, align in cells))
+                    for heading, cells in section.items),
+    )
+
+
+def _fold_cue(cue) -> dict:
+    if not cue:
+        return None
+    return {
+        "title": pdf_safe_text(cue.get("title", "")),
+        "body": [pdf_safe_text(paragraph) for paragraph in cue.get("body", [])],
+        "question": pdf_safe_text(cue.get("question", "")),
+        "options": [(pdf_safe_text(label), bool(checked))
+                    for label, checked in cue.get("options", [])],
+        "fields": [(pdf_safe_text(label), pdf_safe_text(value))
+                   for label, value in cue.get("fields", [])],
+        "footnote": pdf_safe_text(cue.get("footnote", "")),
+    }
+
+
+def form_pdf_spec(spec: FormDocumentSpec, **overrides) -> FormDocumentSpec:
+    """A copy of ``spec`` with every printed string folded to the PDF charset."""
+    return replace(
+        spec,
+        toolbar=None,
+        title=pdf_safe_text(spec.title),
+        subtitle=pdf_safe_text(spec.subtitle),
+        reference=pdf_safe_text(spec.reference),
+        header=tuple(_fold_cell(cell) for cell in spec.header),
+        sections=tuple(_fold_section(section) for section in spec.sections),
+        cue=_fold_cue(spec.cue),
+        signatures=tuple((pdf_safe_text(role), pdf_safe_text(name),
+                          pdf_safe_text(date_label), pdf_safe_text(date_value))
+                         for role, name, date_label, date_value in spec.signatures),
+        notes=[pdf_safe_text(note) for note in spec.notes],
+        footer_note=pdf_safe_text(spec.footer_note),
+        **overrides,
+    )
+
+
+def document_template(spec) -> str:
+    """The template that typesets this spec (reports vs official forms)."""
+    if isinstance(spec, FormDocumentSpec):
+        return "documents/form_document.html"
+    return "documents/document.html"
+
+
 # --- Rendering -------------------------------------------------------------------
 def _site(request) -> dict:
     """Institution letterhead, read from the same context processor the UI uses.
@@ -197,7 +369,7 @@ def document_context(request, spec: DocumentSpec) -> dict:
     }
 
 
-def render_document(request, spec: DocumentSpec, *, chrome: bool = True) -> str:
+def render_document(request, spec, *, chrome: bool = True) -> str:
     """HTML for ``spec``.
 
     ``chrome=True`` adds the on-screen desk backdrop and the action toolbar,
@@ -205,7 +377,7 @@ def render_document(request, spec: DocumentSpec, *, chrome: bool = True) -> str:
     which is what the PDF backend consumes — a toolbar must never reach paper.
     """
     return render_to_string(
-        "documents/document.html",
+        document_template(spec),
         {**document_context(request, spec), "chrome": chrome},
         request=request,
     )
@@ -223,7 +395,7 @@ class _QuietCssWarnings(logging.Filter):
         return "does not implement" not in record.getMessage()
 
 
-def render_document_pdf(request, spec: DocumentSpec) -> bytes:
+def render_document_pdf(request, spec) -> bytes:
     """Convert ``spec`` to PDF bytes.
 
     Raises ``DocumentRenderError`` when the backend is unavailable or refuses
@@ -237,7 +409,8 @@ def render_document_pdf(request, spec: DocumentSpec) -> bytes:
             "PDF export needs the 'xhtml2pdf' package (pip install -r requirements.txt)."
         ) from exc
 
-    html = render_document(request, pdf_spec(spec), chrome=False)
+    safe_spec = form_pdf_spec(spec) if isinstance(spec, FormDocumentSpec) else pdf_spec(spec)
+    html = render_document(request, safe_spec, chrome=False)
     for name in ("xhtml2pdf", "xhtml2pdf.parser", "xhtml2pdf.document"):
         target = logging.getLogger(name)
         if not any(isinstance(f, _QuietCssWarnings) for f in target.filters):
@@ -282,7 +455,7 @@ def pdf_spec(spec: DocumentSpec, **overrides) -> DocumentSpec:
     )
 
 
-def pdf_response(request, spec: DocumentSpec) -> HttpResponse:
+def pdf_response(request, spec) -> HttpResponse:
     """A downloadable ``application/pdf`` named after the document."""
     response = HttpResponse(render_document_pdf(request, spec), content_type="application/pdf")
     filename = spec.pdf_filename if spec.pdf_filename.endswith(".pdf") else f"{spec.pdf_filename}.pdf"

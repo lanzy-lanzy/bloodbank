@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interview sheet preview — {{ ORG_NAME }}</title>
+<style>
+  body {
+    margin: 0; padding: 28px 18px; background: #eef1f5;
+    font-family: "Segoe UI", Arial, sans-serif; color: #0f172a;
+  }
+  .notice {
+    max-width: 640px; margin: 0 auto; background: #ffffff;
+    border: 1px solid #dbe3ec; border-radius: 14px; padding: 22px 24px;
+  }
+  h1 { font-size: 17px; margin: 0 0 6px; }
+  p { font-size: 13px; line-height: 1.6; margin: 8px 0; color: #334155; }
+  ul { margin: 10px 0 0; padding-left: 20px; font-size: 13px; line-height: 1.7; color: #9f1239; }
+  .hint { margin-top: 16px; font-size: 12px; color: #64748b; }
+</style>
+</head>
+<body>
+<div class="notice">
+  <h1>Interview sheet preview not available yet</h1>
+  {% if requester %}
+  <p>An interview sheet is filled in for donor registrations only. A requester application is reviewed with the
+    organization details you entered, so there is no sheet to show here.</p>
+  <p class="hint">Nothing has been submitted. Go back to the registration form to continue.</p>
+  {% else %}
+  <p>The preview shows exactly what will be recorded, so it needs every step of the form to be complete and valid.
+    Please fix the following, then preview again:</p>
+  <ul>
+    {% for field in form %}{% for error in field.errors %}<li>{{ field.label }}: {{ error }}</li>{% endfor %}{% endfor %}
+    {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+  </ul>
+  <p class="hint">Nothing has been submitted. Go back to the registration form, correct these details and preview
+    again.</p>
+  {% endif %}
+</div>
+</body>
+</html>

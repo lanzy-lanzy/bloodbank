@@ -105,6 +105,21 @@ class Donor(models.Model):
         return (today - self.date_of_birth).days // 365
 
     @property
+    def registered_address(self):
+        """Street, municipality and province as one line, without repeats.
+
+        The printed interview sheet has a single free-text street box, while
+        the record keeps the parts separate; joining them here keeps every
+        printable document consistent with the form.
+        """
+        parts = []
+        for value in (self.address, self.municipality, self.province):
+            value = (value or "").strip()
+            if value and value.casefold() not in ", ".join(parts).casefold():
+                parts.append(value)
+        return ", ".join(parts)
+
+    @property
     def last_donation(self):
         return self.donations.filter(status__in=["COLLECTED", "RELEASED"]).order_by("-donation_date").first()
 
@@ -199,3 +214,127 @@ class ScreeningResponse(models.Model):
 
     def __str__(self):
         return f"{self.question_id}: {self.answer_text[:40]}"
+
+
+class DonorInterviewSheet(models.Model):
+    """The printable PRC / DOH Blood Donor Interview Sheet for one donor.
+
+    Generated automatically when a donor record is created (i.e. when an
+    administrator approves a donor registration, or staff register a donor at
+    the counter) and pre-filled from data already on file: identity, address,
+    contact details and the declaration the applicant signed at sign-up.
+
+    It is a RECORD of what the donor declared and what the interviewer
+    confirmed. It is deliberately NOT an eligibility engine: no answer is
+    scored, no deferral period is derived, and completing a sheet never
+    changes the donor's status. Clinical decisions stay with staff and the
+    configured screening tables (agents.md rule 1).
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = "DRAFT", "Draft - interview in progress"
+        COMPLETED = "COMPLETED", "Completed and signed"
+
+    class CueChoice(models.TextChoices):
+        SAFE = "SAFE", "SAFE for transfusion"
+        NOT_SAFE = "NOT_SAFE", "NOT SAFE for transfusion"
+
+    class CivilStatus(models.TextChoices):
+        SINGLE = "SINGLE", "Single"
+        MARRIED = "MARRIED", "Married"
+        WIDOWED = "WIDOWED", "Widowed"
+        SEPARATED = "SEPARATED", "Separated"
+        ANNULLED = "ANNULLED", "Annulled"
+
+    donor = models.OneToOneField(Donor, on_delete=models.CASCADE,
+                                 related_name="interview_sheet")
+    # Provenance: the self-registration this sheet was generated from, when
+    # there was one. Staff-registered donors leave it null.
+    registration = models.OneToOneField(
+        "accounts.RegistrationRequest", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="interview_sheet")
+
+    # --- header fields the donor record does not hold -----------------------
+    prc_donor_number = models.CharField(max_length=40, blank=True, verbose_name="PRC blood donor number")
+    doh_barcode = models.CharField(max_length=80, blank=True, verbose_name="DOH NBBets barcode")
+    civil_status = models.CharField(max_length=12, choices=CivilStatus.choices, blank=True)
+    nationality = models.CharField(max_length=60, blank=True)
+    religion = models.CharField(max_length=60, blank=True)
+    education = models.CharField(max_length=80, blank=True)
+    occupation = models.CharField(max_length=80, blank=True)
+    office_address = models.CharField(max_length=255, blank=True)
+    address_no = models.CharField(max_length=60, blank=True, verbose_name="House / lot no.")
+    address_street = models.CharField(max_length=150, blank=True, verbose_name="Street")
+    address_barangay = models.CharField(max_length=120, blank=True, verbose_name="Barangay")
+    address_zip = models.CharField(max_length=10, blank=True, verbose_name="Zip code")
+    telephone_number = models.CharField(max_length=30, blank=True, verbose_name="Telephone no.")
+    id_school = models.CharField(max_length=60, blank=True, verbose_name="School ID")
+    id_company = models.CharField(max_length=60, blank=True, verbose_name="Company ID")
+    id_prc = models.CharField(max_length=60, blank=True, verbose_name="PRC ID")
+    id_drivers = models.CharField(max_length=60, blank=True, verbose_name="Driver's licence")
+    id_sss = models.CharField(max_length=60, blank=True, verbose_name="SSS / GSIS / BIR")
+    id_others = models.CharField(max_length=60, blank=True, verbose_name="Other ID")
+
+    # --- Confidential Unit Exclusion ----------------------------------------
+    cue_choice = models.CharField(max_length=8, choices=CueChoice.choices, blank=True,
+                                  verbose_name="Donor's CUE declaration")
+    cue_unit_serial = models.CharField(max_length=60, blank=True)
+    cue_date_of_donation = models.DateField(null=True, blank=True)
+    cue_place_of_donation = models.CharField(max_length=160, blank=True)
+
+    # --- signatures ---------------------------------------------------------
+    donor_signature = models.CharField(max_length=120, blank=True, verbose_name="Donor signature (printed name)")
+    donor_signed_on = models.DateField(null=True, blank=True)
+    interviewer_signature = models.CharField(max_length=120, blank=True,
+                                             verbose_name="Interviewer signature (printed name)")
+    interviewer_signed_on = models.DateField(null=True, blank=True)
+
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT,
+                              db_index=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    completed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                     null=True, blank=True, related_name="interview_sheets_completed")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Donor interview sheet"
+        verbose_name_plural = "Donor interview sheets"
+
+    def __str__(self):
+        return f"Interview sheet - {self.donor.donor_code}"
+
+    @property
+    def is_completed(self):
+        return self.status == self.Status.COMPLETED
+
+    def answer_map(self):
+        """{item key: InterviewAnswer} for this sheet."""
+        return {answer.item_key: answer for answer in self.answers.all()}
+
+    def answer_for(self, item_key):
+        """'YES' | 'NO' | '' for one item (no answer is not a NO)."""
+        answer = self.answers.filter(item_key=item_key).first()
+        return answer.answer if answer else ""
+
+
+class InterviewAnswer(models.Model):
+    """The donor's answer and the interviewer's remarks for one sheet item."""
+
+    class Answer(models.TextChoices):
+        YES = "YES", "Yes"
+        NO = "NO", "No"
+
+    sheet = models.ForeignKey(DonorInterviewSheet, on_delete=models.CASCADE,
+                              related_name="answers")
+    item_key = models.CharField(max_length=8)  # stable key from donors.interview
+    answer = models.CharField(max_length=3, choices=Answer.choices, blank=True)
+    remarks = models.TextField(blank=True)
+
+    class Meta:
+        unique_together = ("sheet", "item_key")
+        ordering = ["item_key"]
+
+    def __str__(self):
+        return f"{self.sheet_id} {self.item_key}: {self.answer or '-'}"

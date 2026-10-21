@@ -15,6 +15,7 @@
     </div>
   </div>
   <div class="flex flex-wrap items-center gap-2">
+    <a href="{% url 'donors:interview_sheet' donor.pk %}" class="rounded-xl border border-ink-200 bg-white hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-700">Interview sheet</a>
     {% url 'donors:screening_create' donor.pk as scr_create_url %}
     {% url 'donors:edit' donor.pk as donor_edit_url %}
     {% include "components/modal_action.html" with ma_url=scr_create_url ma_label="+ New Screening" ma_icon="M12 5v14M5 12h14" %}

@@ -80,6 +80,12 @@ Open <http://127.0.0.1:8000/> and log in. Each role lands on its own dashboard.
   only — the server still receives one POST and owns every rule.
 - **Full donation lifecycle** as an enforced state machine: registration →
   screening → collection → testing → release.
+- **PRC Blood Donor Interview Sheet** — the official 37-item form as an editable
+  page (`/donors/<id>/interview-sheet/`, staff-only) that is generated and
+  pre-filled automatically the moment a donor record exists: YES/NO + remarks
+  per item, the CUE (Confidential Unit Exclusion) declaration, and
+  donor/interviewer signature blocks, with a print preview and PDF rendered from
+  the same spec. Donors see a read-only copy of their own sheet.
 - **Blood-bag inventory** with a safety-testing ledger, expiry jobs and a
   release guard that blocks unapproved units.
 - **Database-driven compatibility engine** — no hard-coded clinical rules; the
@@ -113,7 +119,7 @@ Open <http://127.0.0.1:8000/> and log in. Each role lands on its own dashboard.
 | `config/` | Settings, root URLs, WSGI/ASGI |
 | `core/` | Base templates, components, mixins, styled-form machinery, dashboards, management commands (`seed_demo`, `cleanup_old_sessions`) |
 | `accounts/` | Custom `User` with roles ADMIN / STAFF / DONOR / REQUESTER, login, lockout, user admin |
-| `donors/` | Donor registry, screening questions/results, eligibility engine |
+| `donors/` | Donor registry, screening questions/results, eligibility engine, the PRC interview sheet (form + printable document) |
 | `appointments/` | Donation appointment scheduling + donor self-booking |
 | `donations/` | Donation lifecycle state machine, collection workflow |
 | `inventory/` | Blood bags, test results, state machine, release guard, ledger, compatibility engine, expiry jobs, printable Inventory Statement |
@@ -141,11 +147,11 @@ Open <http://127.0.0.1:8000/> and log in. Each role lands on its own dashboard.
 
 ## Verification status
 
-- `python manage.py test` — 218 tests, all passing (services, state machines,
+- `python manage.py test` — 305 tests, all passing (services, state machines,
   permissions, security guards).
-- Template compile check + a 142-page GET walk across all four roles plus an
+- Template compile check + a 192-page GET walk across all four roles plus an
   anonymous public/private walk + a
-  75-assertion POST workflow smoke (runs inside a transaction that is always
+  97-assertion POST workflow smoke (runs inside a transaction that is always
   rolled back). See [TESTING.md](TESTING.md).
 
 ## Deliberately NOT claimed

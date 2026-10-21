@@ -165,6 +165,116 @@ no logins), and an unservable walk-in is closed with **cancel** like any other
 request. Traceability is unchanged: the counter staff member is recorded, so the
 release chain still reads staff → issue (token-confirmed) → transfuse/return.
 
+## D-020 — One case for the record and the paper (upper-case text fields)
+The interview sheet is printed from stored data, so two casings would mean two
+answers to "what does the record say". Chosen: identity text is upper-cased once
+on the way in (`core/text.uppercase_fields` — registration submit, donor linking,
+sheet save, including the sheet's own text fields) and again at render time
+(`donors/documents.py`), so a legacy mixed-case row still prints the way the
+clinic files it. `username` and passwords are deliberately excluded: a login
+credential is not display data, and changing its case changes how the applicant
+signs in. `interview_notes` stays as typed (narrative, not an identity field).
+
+The PENDING preview is a read, not a draft record: it builds a transient donor
+(`PREVIEW-00001` code) and sheet in memory and writes nothing, so "verify before
+approving" cannot create a donor that approval did not. It is staff-visible (the
+user's request) while the approve/reject screen stays admin-only, and it returns
+404 once the application leaves PENDING.
+
+## D-021 — The pre-submission preview is the real document, rendered from an unsaved form
+An applicant should see exactly what the clinic will store before committing,
+not a lookalike summary. Chosen: the review step offers a public **POST**
+(`public_registration:register_preview`) that validates the same
+`RegistrationForm`, builds the transient donor/sheet in memory
+(`InterviewSheetService.preview_for_application`) and returns the *same*
+`form_document.html` staff and the PDF use, with print-only chrome
+(`X-Register-Preview: sheet`). Nothing is written, so previewing cannot create
+an account, registration, donor, sheet or audit row.
+
+Rejected alternatives: (a) a second HTML mock of the sheet — two layouts drift,
+and the applicant could "verify" fields the clinic never prints; (b) saving a
+DRAFT application per preview — a preview would become a record the applicant
+did not submit; (c) rendering the document into the page directly — its
+PDF-safe stylesheet would leak into the sign-up page, so the stepper writes the
+response into an `<iframe srcdoc>` instead. The button remains a real submit
+with `formaction`/`formtarget`, so without JavaScript the browser posts to the
+same URL in a new tab.
+
+Coverage gap (as of D-021; **superseded by D-023**): 11 sign-up questions
+could not answer the official 37 items, and inferring the rest would invent
+clinical answers (agents.md rule 1). The preview therefore appended a separate
+**Self-declaration recorded at sign-up** table (S1-S11) repeating every answer
+verbatim, with a note that the remaining items are asked at the interview;
+the signed sheet kept the official items only. D-023 replaced the eleven
+statements with the sheet's own questionnaire, so that table was retired.
+Rejected then and now: ticking official items from unrelated sign-up answers,
+and copying every answer onto all 37 items.
+
+Boundaries: a requester application has no interview sheet, and an invalid one
+must not be previewed as complete — both get a short explanation page
+(`X-Register-Preview: unavailable`), never a document with invented blanks. The
+endpoint rejects GET (405), redirects signed-in users to their dashboard, and
+is allow-listed exactly in `PUBLIC_PATHS_EXACT`.
+
+## D-022 — The self-declaration is worded as the sheet items it pre-fills
+*Superseded by D-023: the form now asks the sheet's own questionnaire, so there
+are no mirrored statements left to word. Kept for the record.*
+
+Operators expect the sheet to carry the answers they gave at sign-up, but the
+original statements were narrower or broader than their items ("not currently
+taking any medication" vs Q07 "in the past 4 weeks"; "no dental procedure in
+72 hours" vs Q13 "in the past 12 months"). Copying those answers would print a
+declaration the donor never made. Chosen: reword the sign-up statements to the
+official item text (same window and scope) and treat them as mirrors, so Yes and
+No both transfer. Q07 is answered by two statements (any Yes wins, No only when
+both are No). Q33 stays Yes-only because the female block is not asked of an
+undetermined sex at sign-up, and items with no statement stay blank for the
+interviewer.
+
+Consequences: the public form's wording changed (`accounts.0004`); the lifetime
+transfusion statement became the 12-month Q12 item, and "shared needles" /
+"breastfeeding" are no longer part of the sign-up statements (staff ask them at
+the interview — Q14/Q21/Q36). Answers already stored keep their booleans under
+the new wording — no data migration is attempted, so a PENDING row created
+before this change is displayed with the reworded statement.
+
+Rejected: ticking items from the old narrower statements (a clinical
+misstatement) and leaving the sheet mostly blank (operators could not verify
+their answers on the sheet).
+
+## D-023 — The sign-up asks the printed questionnaire itself (one field per item)
+The sheet prints 37 numbered lines with a YES/NO box each, but the sign-up form
+asked eleven statements of which only eight could ever answer an official item
+(D-022). A preview therefore showed two or three ticks plus a separate S1-S11
+listing (D-021), and staff could not check most of the applicant's answers on
+the sheet itself. Chosen: the public form asks the sheet's own YES/NO items.
+`donors/interview.py` stays the only source of truth — `SIGNUP_FIELDS` is every
+`YESNO` item (`Q07` -> `q07`), `RegistrationInterview` holds one nullable
+boolean per item (`q01`…`q33`, `q35`, `q36`, exposed as `QUESTION_FIELDS`)
+labelled with the sheet's own question text, and approval copies each answer
+onto the `InterviewAnswer` of the same key. Every box the applicant answered
+prints ticked and nothing is inferred: a blank stays blank.
+
+Consequences: the form collects `sex` (FEMALE / MALE / OTHER / UNDISCLOSED),
+because the female-donor block (Q33/Q35/Q36) applies only to female applicants.
+It is required for donors, stored on `RegistrationRequest.sex`, seeds
+`Donor.sex` at approval and decides whether the block is asked, validated and
+pre-filled; for anyone else those three items are left NULL and are not shown
+ticked on the sheet. The two DATE items (Q34 last childbirth, Q37 last
+menstrual period) have no tick column and are not asked at sign-up. The eleven
+legacy boolean columns are kept (agents.md rule 4) and migration
+`accounts.0005` copies only the exact-match answers into their `q..` field
+(q01, q02, q07, q12, q13, q14, q15, q23); nothing renders them any more. The
+S1-S11 preview table is retired: the official grid now carries every answer on
+the same document the applicant previews, staff review and the clinic prints.
+
+Rejected: keeping a statement-to-item mapping table (two lists drift, and a
+later wording change silently mis-ticks), inferring answers from broader
+statements, and asking the two DATE items as free text at sign-up (the clinic
+takes those at the interview; a typed date would print unverified). Boundaries
+held: requesters answer no questionnaire, the server still requires every
+non-female-block item for donors, and a preview still writes nothing.
+
 ## Open decisions (need the operator)
 - Approval/replacement of every seeded clinical placeholder (D-003 follow-up).
 - Semaphore API key + registered sender name; live-send verification with the

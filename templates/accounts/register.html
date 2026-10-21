@@ -167,10 +167,11 @@
     <section class="bb-panel" data-step-panel data-step-key="donor" data-step-for="DONOR" aria-labelledby="bb-h-donor">
       <div class="bb-panel-head">
         <h3 class="bb-panel-title" id="bb-h-donor" data-step-heading tabindex="-1">Donor details</h3>
-        <p class="bb-panel-lead mt-1">Date of birth and address are required for donors. Blood type is optional —
-          it is confirmed at screening.</p>
+        <p class="bb-panel-lead mt-1">Date of birth, sex and address are required for donors. Blood type is
+          optional — it is confirmed at screening.</p>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {% include "components/field.html" with field=form.sex %}
         {% include "components/field.html" with field=form.blood_type %}
         {% include "components/field.html" with field=form.date_of_birth %}
       </div>
@@ -207,21 +208,28 @@
     <section class="bb-panel" data-step-panel data-step-key="interview" data-step-for="DONOR" aria-labelledby="bb-h-interview">
       <div class="bb-panel-head">
         <h3 class="bb-panel-title" id="bb-h-interview" data-step-heading tabindex="-1">Health interview</h3>
-        <p class="bb-panel-lead mt-1">A short health self-declaration. Answer every question truthfully — your
+        <p class="bb-panel-lead mt-1">The same medical history questionnaire as the printed Blood Donor
+          Interview Sheet — every YES/NO item, asked once here. Answer every question truthfully; your
           answers are <strong class="bb-strong">reviewed by blood bank staff</strong> before approval and confirmed
           again at face-to-face screening. The system does not decide your eligibility from this form.</p>
       </div>
-      <div class="bb-q-list">
-        {% for q in form.interview_question_fields %}
-        <div class="bb-q">
-          <div class="flex-1 min-w-0">
-            <span class="bb-q-text">{{ q.label }}</span>
-            {% for error in q.errors %}<p class="bb-error" role="alert">{{ error }}</p>{% endfor %}
+      {% for group in form.interview_question_groups %}
+      <div class="mt-5">
+        {% if group.title %}<h4 class="text-xs font-semibold uppercase tracking-wide text-white/50">{{ group.title }}</h4>{% endif %}
+        {% if group.note %}<p class="mt-1 text-xs text-white/40">{{ group.note }}</p>{% endif %}
+        <div class="bb-q-list mt-2">
+          {% for q in group.fields %}
+          <div class="bb-q">
+            <div class="flex-1 min-w-0">
+              <span class="bb-q-text">{{ q.label }}</span>
+              {% for error in q.errors %}<p class="bb-error" role="alert">{{ error }}</p>{% endfor %}
+            </div>
+            <div class="bb-q-opts">{{ q }}</div>
           </div>
-          <div class="bb-q-opts">{{ q }}</div>
+          {% endfor %}
         </div>
-        {% endfor %}
       </div>
+      {% endfor %}
       <div class="mt-3">{% include "components/field.html" with field=form.interview_notes %}</div>
       <div class="mt-3 rounded-xl bg-white/5 border border-white/10 p-3">
         <label class="flex items-start gap-2 text-sm">
@@ -305,6 +313,24 @@
           <dd>Set — hidden for your security</dd>
         </div>
       </dl>
+      {# The written interview sheet this registration will create, built from the fields on this page. Donor-only: a requester has no interview sheet. The button is a real submit to a public preview URL, so it still works without JavaScript (a new tab); with JavaScript the stepper fetches it into the iframe instead. #}
+      <div class="bb-sheet-preview" data-sheet-preview-block data-preview-for="DONOR">
+        <div class="bb-sheet-preview-head">
+          <div>
+            <p class="bb-sheet-preview-title">Your interview sheet</p>
+            <p class="bb-sheet-preview-lead">The Blood Donor Interview Sheet this registration will create, filled in
+              with the details and self-declaration above — the same document blood bank staff review. Check it now;
+              nothing is saved until you submit.</p>
+          </div>
+          <button type="submit" class="bb-btn bb-btn-ghost bb-sheet-preview-open"
+                  formaction="{% url 'public_registration:register_preview' %}" formtarget="_blank" formnovalidate
+                  data-sheet-preview-open>Preview interview sheet</button>
+        </div>
+        <p class="bb-sheet-preview-status" data-sheet-preview-status role="status" hidden></p>
+        <div class="bb-sheet-preview-frame" data-sheet-preview-frame hidden>
+          <iframe title="Preview of your Blood Donor Interview Sheet" data-sheet-preview-iframe></iframe>
+        </div>
+      </div>
       <div class="bb-note mt-3">
         <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-1h1v1Zm0-4h-1V8h1v4Zm-1 9a9 9 0 1 1 0-18 9 9 0 0 1 0 18Z"/></svg>
         <p>By submitting you confirm that the information above is accurate. A blood bank administrator reviews

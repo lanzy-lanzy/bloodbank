@@ -22,6 +22,12 @@ urlpatterns = [
     path("users/<int:pk>/toggle-lock/", views.UserLockToggleView.as_view(), name="user_toggle_lock"),
     path("registrations/", views.RegistrationListView.as_view(), name="registration_list"),
     path("registrations/badge/", views.RegistrationBadgeView.as_view(), name="registration_badge"),
+    # The interview sheet approval will create, previewed while the
+    # registration is still PENDING (staff-readable, nothing is written).
+    path("registrations/<int:pk>/interview-sheet/",
+         views.RegistrationSheetPreviewView.as_view(), name="registration_sheet_preview"),
+    path("registrations/<int:pk>/interview-sheet/pdf/",
+         views.RegistrationSheetPdfView.as_view(), name="registration_sheet_pdf"),
     path("registrations/<int:pk>/", views.RegistrationReviewView.as_view(), name="registration_review"),
 ]
 

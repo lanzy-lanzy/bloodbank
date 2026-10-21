@@ -157,7 +157,7 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = RegistrationRequest
         fields = ["role", "first_name", "middle_name", "last_name", "username", "email",
-                  "phone", "blood_type", "date_of_birth", "address", "municipality",
+                  "phone", "sex", "blood_type", "date_of_birth", "address", "municipality",
                   "province", "organization_name"]
         widgets = {"date_of_birth": forms.DateInput(attrs={"type": "date"})}
         labels = {"blood_type": "Blood type (optional)", "organization_name": "Organization"}
@@ -169,11 +169,13 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
         self.fields["blood_type"].queryset = BloodType.objects.filter(is_active=True)
         self.fields["blood_type"].required = False
         self.fields["blood_type"].empty_label = "—"
-        # Donor interview sheet: a YES/NO radio per question + a certification
-        # checkbox. Added as form fields (not on the RegistrationRequest model)
-        # so a single POST drives both records. required is enforced per-role
-        # in clean() (only for DONOR); at field level they stay optional so a
-        # REQUESTER submit without them is still valid.
+        # Donor interview sheet: one YES/NO radio per item of the printed
+        # questionnaire (RegistrationInterview.QUESTION_FIELDS is derived from
+        # donors.interview), plus a certification checkbox. Added as form fields
+        # (not on the RegistrationRequest model) so a single POST drives both
+        # records. required is enforced per-role in clean() (only for DONOR); at
+        # field level they stay optional so a REQUESTER submit without them is
+        # still valid.
         for name in RegistrationInterview.QUESTION_FIELDS:
             label = RegistrationInterview._meta.get_field(name).verbose_name
             self.fields[name] = forms.ChoiceField(
@@ -196,15 +198,28 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
             "rounded border-ink-300 text-brand-600 focus:ring-brand-500/40 h-4 w-4")
         self.fields["interview_notes"].widget.attrs["class"] = INPUT_CLASSES
         self.fields["interview_notes"].widget.attrs["rows"] = 3
+        # Sex decides whether the sheet's female-donor block applies, and the
+        # donor record approval creates. A blank choice is kept so the browser
+        # asks for it (the server requires it for donors in clean()).
+        self.fields["sex"].required = False
+        self.fields["sex"].choices = [("", "Select…")] + list(RegistrationRequest.Sex.choices)
+        self.fields["sex"].initial = ""
         # Role-conditional fields carry the role they belong to. The public
         # stepper reads it to mark them required for the right role in the
         # browser; the server re-checks every one of them in clean() below,
         # so this is a convenience, never the rule.
-        for name in ("date_of_birth", "address", "municipality"):
+        for name in ("date_of_birth", "address", "municipality", "sex"):
             self.fields[name].widget.attrs["data-required-for"] = User.Role.DONOR
         self.fields["organization_name"].widget.attrs["data-required-for"] = User.Role.REQUESTER
+        # The female-donor block is required only when the applicant is female;
+        # the browser mirrors that through data-required-for-sex (clean() is
+        # still the authority).
+        from donors.interview import FEMALE_KEYS
         for name in RegistrationInterview.QUESTION_FIELDS:
-            self.fields[name].widget.attrs["data-required-for"] = User.Role.DONOR
+            if name.upper() in FEMALE_KEYS:
+                self.fields[name].widget.attrs["data-required-for-sex"] = "FEMALE"
+            else:
+                self.fields[name].widget.attrs["data-required-for"] = User.Role.DONOR
         self.fields["declaration"].widget.attrs["data-required-for"] = User.Role.DONOR
         # The password fields carry a show/hide button on their right edge.
         for name in ("password1", "password2"):
@@ -235,22 +250,30 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
         role = cleaned.get("role")
         if role == User.Role.DONOR:
             for key, label in (("date_of_birth", "Date of birth"), ("address", "Address"),
-                               ("municipality", "Municipality")):
+                               ("municipality", "Municipality"), ("sex", "Sex")):
                 if not cleaned.get(key):
                     self.add_error(key, f"{label} is required for donors.")
-            # Donor interview sheet is mandatory for donors. Normalise the
-            # "yes"/"no" radio values to real booleans in cleaned_data so the
-            # service can persist them; a missing answer is a validation error.
+            # Donor interview sheet is mandatory for donors: every item of the
+            # printed questionnaire is asked, except the female-donor block
+            # when the applicant is not female. Normalise the "yes"/"no" radio
+            # values to real booleans in cleaned_data so the service can persist
+            # them; a missing answer is a validation error.
+            female = cleaned.get("sex") == RegistrationRequest.Sex.FEMALE
+            from donors.interview import FEMALE_KEYS
             for key in RegistrationInterview.QUESTION_FIELDS:
                 raw = cleaned.get(key)
                 if raw in ("yes", "no"):
                     cleaned[key] = (raw == "yes")
                 else:
                     cleaned[key] = None
-                    self.add_error(key, "Please answer this question.")
+                    if female or key.upper() not in FEMALE_KEYS:
+                        self.add_error(key, "Please answer this question.")
             if not cleaned.get("declaration"):
                 self.add_error("declaration",
                                "You must certify the interview before submitting.")
+        else:
+            # A requester has no donor record; keep the model column valid.
+            cleaned["sex"] = RegistrationRequest.Sex.UNDISCLOSED
         if role == User.Role.REQUESTER and not (cleaned.get("organization_name") or "").strip():
             self.add_error("organization_name", "Organization is required for a requester.")
         p1, p2 = cleaned.get("password1"), cleaned.get("password2")
@@ -268,6 +291,24 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
         """Bound fields for the interview questions, in questionnaire order."""
         return [self[name] for name in RegistrationInterview.QUESTION_FIELDS]
 
+    def interview_question_groups(self):
+        """The questionnaire grouped exactly as the printed sheet groups it.
+
+        Returns ``[{"title", "note", "female", "fields"}]``; the two DATE items
+        have no sign-up field and are skipped. Grouping is presentation only:
+        every answer is still one field of this one form.
+        """
+        from donors.interview import SECTIONS
+
+        groups = []
+        for section in SECTIONS:
+            fields = [self[item.key.lower()] for item in section.items
+                      if item.key.lower() in self.fields]
+            if fields:
+                groups.append({"title": section.title, "note": section.note,
+                               "female": section.key == "female", "fields": fields})
+        return groups
+
     # (field name, label, role scope) for the review step of the public
     # sign-up. An empty scope means the row applies to every role.
     REVIEW_FIELDS = (
@@ -279,6 +320,7 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
         ("email", "Email address", ""),
         ("phone", "Mobile number", ""),
         ("date_of_birth", "Date of birth", User.Role.DONOR),
+        ("sex", "Sex", User.Role.DONOR),
         ("blood_type", "Blood type", User.Role.DONOR),
         ("address", "Address", User.Role.DONOR),
         ("municipality", "Municipality", User.Role.DONOR),
@@ -306,6 +348,8 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
         if name == "blood_type":
             blood_type = getattr(self, "cleaned_data", {}).get("blood_type")
             return str(blood_type) if blood_type else ""
+        if name == "sex":
+            return dict(RegistrationRequest.Sex.choices).get(raw, "")
         return (raw or "").strip()
 
     def interview_answers(self):

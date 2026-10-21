@@ -396,6 +396,7 @@ class Command(BaseCommand):
         from appointments.models import Appointment
         from donations.services import DonationService
         from donors.models import Donor, DonorScreening
+        from donors.services import InterviewSheetService
         from inventory.models import BloodBag, TestResult
         from inventory.services import InventoryService
         from requests.models import (BloodRequest, Organization, RequestItem,
@@ -426,7 +427,7 @@ class Command(BaseCommand):
 
         # --- donors ----------------------------------------------------------
         donor_defs = [
-            ("Diana", "Donor", "O+", "MALE", today - timedelta(days=30 * 28), "09170000001",
+            ("Diana", "Donor", "O+", "MALE", today - timedelta(days=365 * 28), "09170000001",
              "donor@example.test", "Zamboanga City", Donor.Status.ACTIVE, donor_user),
             ("Jose", "Rizal", "O-", "MALE", today - timedelta(days=365 * 25), "09170000002",
              "jose@example.test", "Zamboanga City", Donor.Status.ACTIVE, None),
@@ -445,9 +446,16 @@ class Command(BaseCommand):
         ]
         donors = {}
         for first, last, type_code, sex, dob, phone, email, muni, status, user in donor_defs:
+            # Look a demo donor up by something stable across days: the linked
+            # account when there is one, else the demo name. The demo DOBs are
+            # relative to today, so including one in the lookup would make a
+            # re-run on a later day create a second donor for the same account
+            # (donors_donor.user_id is unique) and crash the seed.
+            identity = {"user": user} if user else {"first_name": first, "last_name": last}
             donor, _ = Donor.objects.get_or_create(
-                first_name=first, last_name=last, date_of_birth=dob,
+                **identity,
                 defaults={
+                    "first_name": first, "last_name": last, "date_of_birth": dob,
                     "sex": sex, "contact_number": phone, "email": email,
                     "municipality": muni, "province": "Zamboanga del Sur",
                     "address": f"Demo Street, {muni}",
@@ -460,6 +468,9 @@ class Command(BaseCommand):
                 },
             )
             donors[f"{first} {last}"] = donor
+            # The interview sheet exists from day one, pre-filled from the donor
+            # record; the questionnaire itself stays blank until the interview.
+            InterviewSheetService.ensure_for_donor(donor)
         self.stdout.write(f"Donors present: {Donor.objects.count()}")
 
         # --- completed donations -> tested, released bags ---------------------
@@ -657,8 +668,28 @@ class Command(BaseCommand):
             RegistrationRequest.objects.create(
                 first_name="Nena", last_name="Nakasalin", username="pending.donor",
                 email="pending.donor@example.test", phone="09170000009", role="DONOR",
+                sex="FEMALE",
                 date_of_birth=today - timedelta(days=365 * 26),
                 address="Demo Street, Zamboanga City", municipality="Zamboanga City",
                 province="Zamboanga del Sur", user=pending_user)
             self.stdout.write("Created pending demo registration 'pending.donor' "
                               "(inactive user — approve/reject under Registrations).")
+
+        # The pending application carries the donor's self-declaration, so the
+        # interview sheet preview on the review screen has something to show.
+        # Insert-only: an already-seeded registration only gains the missing row.
+        from accounts.models import RegistrationInterview
+
+        pending_reg = RegistrationRequest.objects.filter(username="pending.donor").first()
+        if pending_reg is not None and not RegistrationInterview.objects.filter(
+                registration=pending_reg).exists():
+            # The sign-up form asks the sheet's own 35 YES/NO items; answer them
+            # all so the demo sheet shows a complete declaration.
+            answers = {name: False for name in RegistrationInterview.QUESTION_FIELDS}
+            answers["q01"] = True
+            RegistrationInterview.objects.create(
+                registration=pending_reg, declaration=True,
+                notes="Demo self-declaration attached to the pending application.",
+                **answers)
+            self.stdout.write("Attached the demo interview self-declaration "
+                              "to 'pending.donor'.")

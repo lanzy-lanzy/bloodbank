@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+{# Official FORM printable: label/value boxes, tick tables, CUE panel and #}
+{# signature lines, shared by the print preview and the server-side PDF. #}
+{# Table-based with explicit colours and no flex/grid/variables: this file is #}
+{# written to the xhtml2pdf CSS subset on purpose (see core/documents.py). #}
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ doc.title }} - {{ ORG_NAME }}</title>
+<style type="text/css">
+@page {
+  size: {{ doc.resolved_page_size|lower }} portrait;
+  margin: 1.05cm 1.05cm 1.35cm 1.05cm;
+  @frame doc_footer_frame { -pdf-frame-content: doc_footer; left: 1.05cm; width: 18.9cm; top: 28.35cm; height: 0.5cm; }
+}
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { font-family: Helvetica, Arial, sans-serif; font-size: 8pt; color: #111827; margin: 0; padding: 0; }
+p { margin: 0 0 2pt 0; }
+table { width: 100%; border-collapse: collapse; }
+td { vertical-align: top; }
+
+table.mast { border-bottom: 1.6pt solid #111827; margin-bottom: 3pt; }
+td.mast-l { font-size: 7pt; color: #4b5563; width: 30%; }
+td.mast-c { text-align: center; }
+td.mast-r { text-align: right; font-size: 6.5pt; color: #6b7280; width: 30%; }
+td.doc-title { font-size: 13pt; font-weight: bold; letter-spacing: 0.4pt; color: #111827; }
+td.doc-sub { font-size: 6.8pt; color: #4b5563; }
+
+table.hdr { margin-bottom: 4pt; }
+table.hdr td { border: 0.7pt solid #6b7280; padding: 2pt 3pt; }
+td.hdr-l { font-size: 5.8pt; font-weight: bold; color: #374151; text-transform: uppercase; }
+td.hdr-v { font-size: 8pt; color: #111827; min-height: 10pt; }
+
+p.sec-title { font-size: 8pt; font-weight: bold; color: #111827; margin: 5pt 0 2pt 0; text-transform: uppercase; }
+p.sec-sub { font-size: 6.4pt; font-style: italic; color: #4b5563; margin: 0 0 2pt 0; }
+p.sec-note { font-size: 6.2pt; color: #6b7280; margin: 0 0 2pt 0; }
+
+table.frow { margin-bottom: 1.6pt; }
+td.gutter { font-size: 6.2pt; font-weight: bold; text-transform: uppercase; color: #374151;
+            vertical-align: middle; padding-right: 3pt; line-height: 1.15; }
+td.box { border: 0.7pt solid #6b7280; padding: 1.2pt 2.4pt; height: 17pt; }
+td.box-lbl { font-size: 5.4pt; color: #6b7280; text-transform: uppercase; }
+td.box-val { font-size: 7.6pt; color: #111827; line-height: 1.15; }
+
+table.mh { border: 0.9pt solid #111827; }
+table.mh th { background-color: #e5e7eb; border: 0.6pt solid #6b7280;
+              font-size: 6.4pt; font-weight: bold; color: #111827; padding: 2pt 2pt; text-align: left; }
+table.mh td { border: 0.5pt solid #9ca3af; font-size: 6.8pt; padding: 1.7pt 2.4pt;
+              color: #111827; line-height: 1.15; }
+table.mh td.group { background-color: #f3f4f6; font-size: 6.4pt; font-weight: bold;
+                    color: #111827; padding: 1.6pt 2.4pt; }
+table.mh td.tick { text-align: center; font-weight: bold; }
+table.cue { border: 0.9pt solid #111827; margin-top: 5pt; }
+table.cue td { padding: 2pt 3pt; }
+td.cue-title { text-align: center; font-size: 8pt; font-weight: bold; color: #111827; }
+p.cue-body { font-size: 6.3pt; color: #111827; text-align: center; margin: 0 0 1.5pt 0; }
+td.cue-question { font-size: 6.8pt; font-weight: bold; color: #111827; padding-top: 3pt; }
+table.cue-opts { margin-top: 2pt; }
+td.cue-opt { border: 0.6pt solid #6b7280; font-size: 6.6pt; color: #111827; padding: 2pt 3pt; width: 50%; }
+span.cbox { border: 0.7pt solid #111827; padding: 1pt 3pt; font-size: 7pt;
+           font-weight: bold; color: #111827; margin-right: 3pt; }
+td.cue-field { font-size: 6.5pt; color: #111827; padding: 1.6pt 3pt; }
+span.cue-lbl { font-weight: bold; text-transform: uppercase; font-size: 6pt; color: #374151; }
+div.cue-field { padding: 0 0 1pt 0; margin: 0 0 5pt 0; border-bottom: 0.5pt solid #6b7280; }
+span.cue-val { font-size: 7pt; color: #111827; }
+td.cue-foot { text-align: center; font-size: 6.2pt; font-style: italic; color: #111827; }
+
+table.sign { margin-top: 5pt; }
+table.sign td { padding: 0 10pt 0 0; }
+td.sig-name, .sig-name { border-bottom: 0.7pt solid #111827; font-size: 8pt; font-weight: bold;
+              color: #111827; padding-top: 13pt; text-align: center; }
+td.sig-role, .sig-role { font-size: 5.8pt; color: #374151; text-align: center; padding-top: 1pt;
+              text-transform: uppercase; }
+td.sig-date, .sig-date { font-size: 6.4pt; color: #374151; text-align: center; padding-top: 2pt; }
+
+p.note { font-size: 6.2pt; color: #4b5563; margin: 2pt 0 0 0; }
+p.footnote { font-size: 5.8pt; color: #6b7280; margin-top: 4pt; }
+#doc_footer { display: none; }
+</style>
+{% if chrome %}
+<style type="text/css">
+body { background-color: #eef1f5; padding: 0 0 40pt 0; }
+.paper { width: 210mm; margin: 24px auto; background-color: #ffffff; padding: 12mm 11mm;
+         box-shadow: 0 18px 50px -18px rgba(15, 23, 42, .45); }
+.doc-toolbar { position: sticky; top: 0; z-index: 5; width: 210mm; margin: 0 auto; padding: 13px 16px;
+               background-color: #0f172a; color: #f8fafc; }
+.tb-title { font-size: 13px; font-weight: 700; }
+.tb-hint { font-size: 11px; color: #94a3b8; }
+.tb-actions { margin-top: 8px; }
+.tb-btn { display: inline-block; font-size: 12px; font-weight: 600; padding: 7px 13px;
+          border-radius: 8px; border: 1px solid transparent; cursor: pointer;
+          text-decoration: none; line-height: 1.2; margin-right: 8px; }
+.tb-btn-primary { background-color: #e11d48; color: #ffffff; }
+.tb-btn-primary:hover { background-color: #be123c; }
+.tb-btn-ghost { background-color: transparent; color: #e2e8f0; border-color: #334155; }
+.tb-btn-ghost:hover { background-color: #1e293b; }
+#doc_footer { display: none; }
+@media (max-width: 880px) { .paper, .doc-toolbar { width: auto; margin: 12px; } .paper { padding: 16px; } }
+@media print {
+  body { background-color: #ffffff; padding: 0; }
+  .paper { width: auto; margin: 0; padding: 0; box-shadow: none; }
+  .doc-toolbar { display: none; }
+}
+</style>
+{% endif %}
+</head>
+<body>
+{% if chrome %}
+<div class="doc-toolbar no-print">
+  <div>
+    <div class="tb-title">{{ doc.title }}</div>
+    <div class="tb-hint">Print preview &middot; Official form &middot; {{ doc.resolved_page_size|upper }} portrait</div>
+  </div>
+  <div class="tb-actions">
+    <a class="tb-btn tb-btn-primary" href="#" data-bb-print-now="1">Print</a>
+    {% if doc.toolbar.pdf %}<a class="tb-btn tb-btn-ghost" href="{{ doc.toolbar.pdf }}">Download PDF</a>{% endif %}
+    {% if doc.toolbar.back %}<a class="tb-btn tb-btn-ghost" href="{{ doc.toolbar.back }}">Close</a>{% endif %}
+  </div>
+</div>
+{% endif %}
+<div class="paper">
+<div id="doc_footer">
+  <table>
+    <tr>
+      <td style="font-size:6pt; color:#6b7280;">{{ ORG_NAME }}{% if ORG_CONTACT %} &middot; {{ ORG_CONTACT }}{% endif %}</td>
+      <td style="font-size:6pt; color:#6b7280; text-align:right;">Page <pdf:pagenumber> of <pdf:pagecount> &middot; Confidential</td>
+    </tr>
+  </table>
+</div>
+
+<table class="mast">
+  <tr>
+    <td class="mast-l">{% if doc.reference %}Ref {{ doc.reference }}{% endif %}</td>
+    <td class="mast-c">
+      <div class="doc-title">{{ doc.title }}</div>
+      {% if doc.subtitle %}<div class="doc-sub">{{ doc.subtitle }}</div>{% endif %}
+    </td>
+    <td class="mast-r">{{ ORG_NAME }}</td>
+  </tr>
+</table>
+
+{% if doc.header %}
+<table class="hdr">
+  <tr>
+    {% for field in doc.resolved_header %}
+    <td style="width:{{ field.width }}%">
+      <div class="hdr-l">{{ field.label }}</div>
+      <div class="hdr-v">{{ field.value }}</div>
+    </td>
+    {% endfor %}
+  </tr>
+</table>
+{% endif %}
+
+{% for section in doc.sections %}
+  {% if section.title %}<p class="sec-title">{{ section.title }}</p>{% endif %}
+  {% if section.subtitle %}<p class="sec-sub">{{ section.subtitle }}</p>{% endif %}
+  {% if section.note %}<p class="sec-note">{{ section.note }}</p>{% endif %}
+  {% if section.kind == "table" %}
+  <table class="mh">
+    <thead>
+      <tr>
+        {% for column in section.columns %}
+        <th style="width:{{ column.width }}%; text-align:{{ column.align }};">{{ column.label }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for heading, cells in section.items %}
+        {% if heading %}<tr><td class="group" colspan="{{ section.columns|length }}">{{ heading }}</td></tr>{% endif %}
+        <tr>
+          {% for value, align in cells %}{% if align == "box" %}<td class="tick"><span class="cbox">{% if value %}{{ value }}{% else %}&nbsp;{% endif %}</span></td>{% else %}<td style="text-align:{{ align }};"{% if align == "center" %} class="tick"{% endif %}>{{ value }}</td>{% endif %}{% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    {% for row in section.rows %}
+    <table class="frow">
+      <tr>
+        {% if row.label %}<td class="gutter" style="width:{{ row.label_width }}%">{{ row.label }}</td>{% endif %}
+        {% for cell in row.resolved_cells %}
+        <td class="box" style="width:{{ cell.width }}%">
+          <div class="box-lbl">{{ cell.label }}</div>
+          <div class="box-val">{{ cell.value }}</div>
+        </td>
+        {% endfor %}
+      </tr>
+    </table>
+    {% endfor %}
+  {% endif %}
+{% endfor %}
+
+{% if doc.cue %}
+<table class="cue">
+  <tr><td class="cue-title">{{ doc.cue.title }}</td></tr>
+  <tr>
+    <td>
+      {% for paragraph in doc.cue.body %}<p class="cue-body">{{ paragraph }}</p>{% endfor %}
+      <table>
+        <tr>
+          <td style="width:52%; border:0; padding:0 6pt 0 0;">
+            <div class="cue-question">{{ doc.cue.question }}</div>
+            <table class="cue-opts">
+              <tr>
+                {% for label, checked in doc.cue.options %}
+                <td class="cue-opt"><span class="cbox">{% if checked %}X{% else %}&nbsp;{% endif %}</span>{{ label }}</td>
+                {% endfor %}
+              </tr>
+            </table>
+          </td>
+          <td style="width:48%; border:0; padding:0;">
+            {% for label, value in doc.cue.fields %}
+            <div class="cue-field"><span class="cue-lbl">{{ label }}</span><br><span class="cue-val">{% if value %}{{ value }}{% else %}&nbsp;{% endif %}</span></div>
+            {% endfor %}
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+  {% if doc.cue.footnote %}<tr><td class="cue-foot">{{ doc.cue.footnote }}</td></tr>{% endif %}
+</table>
+{% endif %}
+
+{% if doc.signatures %}
+<table class="sign">
+  <tr>
+    {% for role, name, date_label, date_value in doc.signatures %}
+    <td style="width:{{ doc.signature_width }}%">
+      <div class="sig-name">{% if name %}{{ name }}{% else %}&nbsp;{% endif %}</div>
+      <div class="sig-role">{{ role }} over printed name</div>
+      <div class="sig-date">{{ date_label }}: {{ date_value }}</div>
+    </td>
+    {% endfor %}
+  </tr>
+</table>
+{% endif %}
+
+{% for note in doc.notes %}<p class="note">{{ note }}</p>{% endfor %}
+{% if doc.footer_note %}<p class="footnote">{{ doc.footer_note }}</p>{% endif %}
+
+</div>
+{% if chrome %}
+<script>
+// The "Print" action on the preview re-prints the same document, so the
+// operator never has to go back through the app UI to reach the print dialog.
+document.querySelectorAll('[data-bb-print-now]').forEach(function (el) {
+  el.addEventListener('click', function (evt) {
+    evt.preventDefault();
+    window.print();
+  });
+});
+</script>
+{% endif %}
+</body>
+</html>
