@@ -159,7 +159,14 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
         fields = ["role", "first_name", "middle_name", "last_name", "username", "email",
                   "phone", "sex", "blood_type", "date_of_birth", "address", "municipality",
                   "province", "organization_name"]
-        widgets = {"date_of_birth": forms.DateInput(attrs={"type": "date"})}
+        widgets = {
+            "date_of_birth": forms.DateInput(attrs={"type": "date"}),
+            # Mark the two donor dropdowns so their contrast/styling is a
+            # deliberate part of the form, not an accident of the browser's
+            # native select rendering.
+            "sex": forms.Select(attrs={"class": "bb-select"}),
+            "blood_type": forms.Select(attrs={"class": "bb-select"}),
+        }
         labels = {"blood_type": "Blood type (optional)", "organization_name": "Organization"}
         help_texts = {"organization_name": "Required for requesters (hospital/clinic/organization)."}
 

@@ -377,6 +377,21 @@ class RegistrationStepperTests(TestCase):
         self.assertIn('data-required-for="DONOR"', content)
         self.assertIn('data-required-for="REQUESTER"', content)
 
+    def test_donor_dropdowns_are_populated_and_marked_for_styling(self):
+        # Sex / Blood type must render as real selects with the shared
+        # `.bb-select` marker the stylesheet keys on (dark glass surface,
+        # readable option list) — an unstyled select disappears against the
+        # dark auth card.
+        from core.testing import make_blood_type
+        make_blood_type("O", "POS")
+        content = self._get()
+        self.assertRegex(content, r'<select[^>]*name="sex"[^>]*bb-select')
+        self.assertRegex(content, r'<select[^>]*name="blood_type"[^>]*bb-select')
+        self.assertIn('>Select…</option>', content)
+        self.assertIn('<option value="FEMALE">Female</option>', content)
+        self.assertIn('<option value="MALE">Male</option>', content)
+        self.assertIn('<option value="2">O+</option>', content)
+
 
 
 @override_settings(SMS_PROVIDER="mock", SMS_API_KEY="")

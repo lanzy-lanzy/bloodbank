@@ -31,6 +31,30 @@ class DonorContactValidationTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
 
 
+class DonorFormDropdownTests(TestCase):
+    """The Sex / Blood type dropdowns of the donor registration form.
+
+    They carry the shared `.bb-select` marker so the stylesheet (and the dark
+    glass surface of the public sign-up) can style them deliberately, and
+    their choices must stay populated: DB-configured blood types for the
+    type list, the model's Sex enum for sex.
+    """
+
+    def test_dropdowns_carry_the_shared_select_marker(self):
+        from donors.forms import DonorForm
+        form = DonorForm()
+        for name in ("sex", "blood_type"):
+            self.assertIn("bb-select", form.fields[name].widget.attrs["class"], name)
+
+    def test_dropdown_options_are_populated(self):
+        from donors.forms import DonorForm
+        make_blood_type("O", "POS")
+        form = DonorForm()
+        self.assertEqual([value for value, _ in form.fields["sex"].choices],
+                         ["MALE", "FEMALE", "OTHER", "UNDISCLOSED"])
+        self.assertIn("O+", [str(blood_type) for blood_type in form.fields["blood_type"].queryset])
+
+
 class EligibilityRuleTests(TestCase):
     def setUp(self):
         self.bt = make_blood_type("O", "POS")

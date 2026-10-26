@@ -1,9 +1,11 @@
 from django import forms
+from django.db.models import Q
 
 from core.forms import INPUT_CLASSES, StyledFormMixin, StyledModelForm
 from core.validators import validate_ph_mobile
 from donors.interview import ALL_ITEMS, FEMALE_SECTION, SECTION_BY_KEY
 from donors.models import Donor, DonorInterviewSheet, DonorScreening, ScreeningQuestion
+from inventory.models import BloodType
 
 
 class DonorForm(StyledModelForm):
@@ -19,7 +21,26 @@ class DonorForm(StyledModelForm):
             "contact_number", "email", "address", "municipality", "province",
             "emergency_contact_name", "emergency_contact_phone", "blood_type", "status",
         ]
-        widgets = {"date_of_birth": forms.DateInput(attrs={"type": "date"})}
+        widgets = {
+            "date_of_birth": forms.DateInput(attrs={"type": "date"}),
+            # The two dropdowns are styled as one control family in
+            # static/css/input.css; mark them on both registration surfaces.
+            "sex": forms.Select(attrs={"class": "bb-select"}),
+            "blood_type": forms.Select(attrs={"class": "bb-select"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Self-explanatory placeholders on both dropdowns (a bare "---------"
+        # is neither readable nor accessible), and the type list follows the
+        # public sign-up: active blood types only, plus any type already on
+        # the record so a legacy row can still be re-saved unchanged.
+        self.fields["sex"].choices = [("", "Select…")] + list(Donor.Sex.choices)
+        active_or_current = Q(is_active=True)
+        if self.instance.pk and self.instance.blood_type_id:
+            active_or_current |= Q(pk=self.instance.blood_type_id)
+        self.fields["blood_type"].queryset = BloodType.objects.filter(active_or_current)
+        self.fields["blood_type"].empty_label = "Not on file"
 
 
 class DonorSelfProfileForm(StyledModelForm):

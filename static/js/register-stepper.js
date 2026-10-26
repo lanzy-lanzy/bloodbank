@@ -500,6 +500,9 @@
     if (event.key !== "Enter" || event.shiftKey || event.altKey) return;
     var target = event.target;
     if (!target || target.tagName === "TEXTAREA" || target.tagName === "BUTTON") return;
+    /* Enter is the native "open/confirm" key on a <select>. Do not swallow it
+     * and jump to the next step: the dropdown must stay keyboard-operable. */
+    if (target.tagName === "SELECT") return;
     if (target.type === "checkbox") return;
     var scoped = scopedPanels();
     if (scoped.indexOf(panelByKey(currentKey)) >= scoped.length - 1) return;
