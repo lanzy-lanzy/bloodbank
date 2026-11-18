@@ -197,11 +197,12 @@ class BloodRequestService:
         this: see validate_walk_in()."""
         from audit import services as audit
 
-        if blood_request.is_walk_in:
-            raise RequestError("Walk-in requests are validated at the counter, not approved.")
-        if blood_request.status not in (BloodRequest.Status.SUBMITTED, BloodRequest.Status.UNDER_REVIEW):
-            raise RequestError(f"Cannot approve a request in status {blood_request.status}.")
         with transaction.atomic():
+            blood_request.refresh_from_db(from_queryset=BloodRequest.objects.select_for_update())
+            if blood_request.is_walk_in:
+                raise RequestError("Walk-in requests are validated at the counter, not approved.")
+            if blood_request.status not in (BloodRequest.Status.SUBMITTED, BloodRequest.Status.UNDER_REVIEW):
+                raise RequestError(f"Cannot approve a request in status {blood_request.status}.")
             blood_request.status = BloodRequest.Status.APPROVED
             blood_request.approved_by = actor
             blood_request.approved_at = timezone.now()
@@ -209,25 +210,26 @@ class BloodRequestService:
             audit.log(request, user=actor, action="REQUEST_APPROVED", module="requests", obj=blood_request,
                       description=f"Request {blood_request.request_code} approved")
             BloodRequestService._notify_requester(blood_request, "request_approved")
+            BloodRequestService._sms_request_decision(blood_request)
         return blood_request
 
     @staticmethod
     def reject(blood_request, *, reason, actor=None, request=None):
         from audit import services as audit
 
-        if blood_request.is_walk_in:
-            raise RequestError("Walk-in requests are not approved or rejected — cancel one "
-                               "the counter cannot proceed with.")
-        if blood_request.status in (BloodRequest.Status.FULFILLED, BloodRequest.Status.REJECTED,
-                                    BloodRequest.Status.CANCELLED):
-            raise RequestError(f"Cannot reject a request in status {blood_request.status}.")
         if not reason.strip():
             raise RequestError("A rejection reason is required.")
-        # Release any active reservations first.
-        for allocation in blood_request.allocations.filter(status=Allocation.Status.RESERVED):
-            BloodRequestService.cancel_allocation(allocation, actor=actor, request=request,
-                                                  reason="Request rejected")
         with transaction.atomic():
+            blood_request.refresh_from_db(from_queryset=BloodRequest.objects.select_for_update())
+            if blood_request.is_walk_in:
+                raise RequestError("Walk-in requests are not approved or rejected — cancel one "
+                                   "the counter cannot proceed with.")
+            if blood_request.status in (BloodRequest.Status.FULFILLED, BloodRequest.Status.REJECTED,
+                                        BloodRequest.Status.CANCELLED):
+                raise RequestError(f"Cannot reject a request in status {blood_request.status}.")
+            for allocation in blood_request.allocations.filter(status=Allocation.Status.RESERVED):
+                BloodRequestService.cancel_allocation(allocation, actor=actor, request=request,
+                                                      reason="Request rejected")
             blood_request.status = BloodRequest.Status.REJECTED
             blood_request.rejection_reason = reason
             blood_request.save(update_fields=["status", "rejection_reason", "updated_at"])
@@ -235,6 +237,7 @@ class BloodRequestService:
                       description=f"Request {blood_request.request_code} rejected: {reason}")
             BloodRequestService._notify_requester(
                 blood_request, "request_rejected", {"rejection_reason": reason.strip()})
+            BloodRequestService._sms_request_decision(blood_request)
         return blood_request
 
     @staticmethod
@@ -427,6 +430,40 @@ class BloodRequestService:
                 )
             except Exception:  # noqa: BLE001
                 logger.exception("Requester notification %s failed", template_code)
+
+    @staticmethod
+    def _sms_request_decision(blood_request):
+        from notifications.services import NotificationError, NotificationService
+
+        requester = blood_request.created_by
+        profile = getattr(requester, "requester_profile", None)
+        if (requester is None or requester.role != "REQUESTER" or not requester.is_active
+                or profile is None or not profile.is_authorized
+                or profile.organization_id != blood_request.organization_id):
+            return
+        context = {"request_id": blood_request.request_code}
+        if blood_request.status == BloodRequest.Status.APPROVED:
+            available = any(
+                CompatibilityService.find_compatible_inventory(
+                    item.blood_type, item.component, 1, approved_only=True,
+                )[0]
+                for item in blood_request.items.select_related("blood_type", "component")
+                if item.reservable_units > 0
+            )
+            context["stock_message"] = (
+                "Compatible stock is available and subject to allocation."
+                if available else "Compatible stock availability has not been confirmed."
+            )
+            code = "request_approved_sms"
+        else:
+            code = "request_rejected_sms"
+        try:
+            NotificationService.send_to_user(
+                requester, code, context, channels=["sms"], blood_request=blood_request,
+                after_commit=True,
+            )
+        except NotificationError:
+            logger.exception("Requester SMS template unavailable for %s", code)
 
     @staticmethod
     def expire_overdue(actor=None, request=None):

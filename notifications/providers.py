@@ -115,12 +115,12 @@ class SemaphoreSMSProvider(NotificationProvider):
 
     channel = "sms"
     label = "Semaphore SMS"
-    FAILED_STATUSES = {"Failed", "Refunded"}
+    ACCEPTED_STATUSES = {"queued", "pending", "sent"}
 
     @property
     def api_url(self):
         # Overridable via SMS_API_URL if Semaphore's hosted base ever moves.
-        return getattr(settings, "SMS_API_URL", "https://semaphore.co/api/v4/messages")
+        return getattr(settings, "SMS_API_URL", "https://api.semaphore.co/api/v4/messages")
 
     @property
     def timeout_seconds(self):
@@ -147,11 +147,15 @@ class SemaphoreSMSProvider(NotificationProvider):
         except ValueError:
             return False, f"Semaphore returned an unparseable response: {excerpt}"
         reports = payload if isinstance(payload, list) else [payload]
+        if not reports:
+            return False, "Semaphore returned no message acknowledgement"
         for item in reports:
             status = str(item.get("status", "")) if isinstance(item, dict) else ""
-            if status in self.FAILED_STATUSES:
-                return False, f"Semaphore reported delivery status '{status}'"
-        logger.info("Semaphore SMS queued for %s", number)
+            if status.lower() not in self.ACCEPTED_STATUSES:
+                return False, f"Semaphore reported unrecognized or failed status '{status}'"
+            if not item.get("message_id"):
+                return False, "Semaphore returned no message ID"
+        logger.info("Semaphore accepted SMS notification %s", notification.pk)
         return True, ""
 
     def _post(self, fields: dict) -> tuple[int, str]:

@@ -75,7 +75,7 @@ def target_for(user, notification):
 class NotificationService:
     @staticmethod
     def send_to_donor(donor, template_code, context, *, blood_request=None,
-                      channels=None, actor=None, request=None):
+                      channels=None, actor=None, request=None, after_commit=False):
         """Render a template and dispatch on each configured channel.
         One Notification row per channel; delivery outcomes recorded per row."""
         from audit import services as audit
@@ -93,7 +93,7 @@ class NotificationService:
                 channel=channel, subject=subject, body=body,
                 delivery_status=Notification.DeliveryStatus.PENDING,
             )
-            NotificationService.dispatch(notification)
+            NotificationService._dispatch_created(notification, after_commit=after_commit)
             created.append(notification)
 
         audit.log(request, user=actor, action="NOTIFICATION_SENT", module="notifications",
@@ -103,7 +103,7 @@ class NotificationService:
 
     @staticmethod
     def send_to_user(user, template_code, context, *, channels=None, actor=None, request=None,
-                     blood_request=None):
+                     blood_request=None, after_commit=False):
         template = NotificationTemplate.objects.filter(code=template_code, is_active=True).first()
         if template is None:
             raise NotificationError(f"No active notification template with code '{template_code}'.")
@@ -115,9 +115,16 @@ class NotificationService:
                 user=user, template=template, channel=channel, subject=subject, body=body,
                 blood_request=blood_request,
             )
-            NotificationService.dispatch(notification)
+            NotificationService._dispatch_created(notification, after_commit=after_commit)
             created.append(notification)
         return created
+
+    @staticmethod
+    def _dispatch_created(notification, *, after_commit):
+        if after_commit:
+            transaction.on_commit(lambda: NotificationService.dispatch(notification), robust=True)
+        else:
+            NotificationService.dispatch(notification)
 
     @staticmethod
     def dispatch(notification) -> Notification:

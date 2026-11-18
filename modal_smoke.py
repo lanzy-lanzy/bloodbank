@@ -44,7 +44,7 @@ def check(label, ok):
 def fragment(client, url, label, *, expect_contains=()):
     r = client.get(url, HTTP_HX_REQUEST="true")
     body = r.content.decode("utf-8", "replace")
-    ok = r.status_code == 200 and "bbModal()" in body and "<!DOCTYPE" not in body
+    ok = r.status_code == 200 and "<dialog x-data x-init=" in body and "<!DOCTYPE" not in body
     for needle in expect_contains:
         ok = ok and needle in body
     check(f"modal fragment {label} {url}", ok)
@@ -115,7 +115,7 @@ def main():
             check(f"bag detail stays a full page even for HX-Request "
                   f"/inventory/bags/{bag.pk}/",
                   r.status_code == 200 and "<!DOCTYPE" in body
-                  and "bbModal()" not in body)
+                  and "<dialog x-data x-init=" not in body)
             fullpage(c, f"/inventory/bags/{bag.pk}/", "bag detail")
         fragment(c, "/inventory/bags/register/", "bag register")
         fragment(c, "/requests/create/", "request create")
@@ -142,7 +142,7 @@ def main():
         # invalid hx-post re-renders the modal with errors (still a fragment)
         bad = c.get("/donors/create/", HTTP_HX_REQUEST="true")
         r = c.post("/donors/create/", {}, HTTP_HX_REQUEST="true")
-        frag_ok = r.status_code == 200 and "bbModal()" in r.content.decode("utf-8", "replace")
+        frag_ok = r.status_code == 200 and "<dialog x-data x-init=" in r.content.decode("utf-8", "replace")
         check("invalid hx-post re-renders modal fragment (was "
               f"{bad.status_code} GET)", frag_ok)
 

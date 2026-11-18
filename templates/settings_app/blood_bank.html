@@ -234,20 +234,5 @@
 </div>
 
 {# Page-level destructive confirmation modal (no native confirm dialogs). #}
-<div x-data="{ open: false, title: '', text: '', url: '' }"
-     @bb-confirm-delete.window="open = true; title = $event.detail.title; text = $event.detail.text; url = $event.detail.url"
-     x-show="open" x-cloak class="fixed inset-0 z-[98] flex items-center justify-center p-4" role="dialog" aria-modal="true">
-  <div class="fixed inset-0 bg-ink-950/50" @click="open = false" x-transition.opacity></div>
-  <div class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" x-transition>
-    <h3 class="text-base font-semibold text-ink-900" x-text="title">Delete?</h3>
-    <p class="text-sm text-ink-500 mt-1" x-text="text"></p>
-    <div class="mt-6 flex justify-end gap-2">
-      <button type="button" @click="open = false" class="px-4 py-2 text-sm font-medium rounded-xl border border-ink-200 hover:bg-ink-50 text-ink-700">Cancel</button>
-      <form method="post" :action="url" @submit.prevent="open = false; $el.submit()">
-        {% csrf_token %}
-        <button type="submit" class="px-4 py-2 text-sm font-semibold rounded-xl bg-red-600 text-white hover:bg-red-700 shadow-sm">Delete</button>
-      </form>
-    </div>
-  </div>
-</div>
+{% include "components/settings_delete_dialog.html" %}
 {% endblock %}

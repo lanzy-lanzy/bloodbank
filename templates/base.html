@@ -38,20 +38,20 @@
     }
   });
 
-  // --- Modal controller -------------------------------------------------------
-  // Modals are injected into #modal-root by htmx (hx-get on a Create/Edit/
-  // Detail/Delete trigger). Each fragment is a self-contained Alpine dialog.
+  var modalTrigger;
+  document.body.addEventListener('htmx:beforeRequest', function (evt) {
+    var detail = evt.detail;
+    if (detail.target.id === 'modal-root' && !detail.target.querySelector('dialog[open]')) {
+      modalTrigger = detail.elt;
+    }
+  });
   window.bbCloseModal = function () {
     var root = document.getElementById('modal-root');
-    if (root) root.innerHTML = '';
-    document.body.classList.remove('bb-modal-open');
-  };
-  window.bbModal = function () {
-    return {
-      show: false,
-      open() { this.show = true; document.body.classList.add('bb-modal-open'); },
-      close() { this.show = false; setTimeout(window.bbCloseModal, 160); },
-    };
+    var dialog = root.querySelector('dialog[open]');
+    if (dialog) dialog.close();
+    root.replaceChildren();
+    if (modalTrigger && modalTrigger.isConnected) modalTrigger.focus();
+    modalTrigger = null;
   };
   // A successful hx-post form returns HX-Trigger: bb:modal-success. Close the
   // modal and re-fetch the current page content in place (keeps list filters,

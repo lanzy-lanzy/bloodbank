@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.utils import timezone
 from django.views import View
@@ -11,6 +12,7 @@ from django.views.generic import ListView
 
 from appointments.forms import AppointmentForm, AppointmentSelfBookForm
 from appointments.models import Appointment
+from appointments.services import notify_confirmation
 from audit import services as audit
 from core.mixins import StaffRequiredMixin, is_htmx
 from core.modals import modal_success, render_any
@@ -96,6 +98,7 @@ class AppointmentCreateView(StaffRequiredMixin, View):
         return render_any(request, self.template_name, {"form": form, "creating": True},
                           modal_title="Schedule Appointment")
 
+    @transaction.atomic
     def post(self, request):
         form = AppointmentForm(request.POST)
         if form.is_valid():
@@ -105,6 +108,7 @@ class AppointmentCreateView(StaffRequiredMixin, View):
             audit.log(request, action="APPOINTMENT_CREATED", module="appointments", obj=appointment,
                       description=f"Appointment for donor {appointment.donor.donor_code} on "
                                   f"{appointment.date} {appointment.time:%H:%M}")
+            notify_confirmation(appointment, request=request)
             messages.success(request, "Appointment scheduled.")
             return modal_success(request, fallback_redirect=reverse("appointments:list"))
         return render_any(request, self.template_name, {"form": form, "creating": True},
@@ -120,13 +124,16 @@ class AppointmentUpdateView(StaffRequiredMixin, View):
                           {"form": AppointmentForm(instance=appointment), "appointment": appointment},
                           modal_title="Edit Appointment")
 
+    @transaction.atomic
     def post(self, request, pk):
-        appointment = get_object_or_404(Appointment, pk=pk)
+        appointment = get_object_or_404(Appointment.objects.select_for_update(), pk=pk)
+        previous_status = appointment.status
         form = AppointmentForm(request.POST, instance=appointment)
         if form.is_valid():
             form.save()
             audit.log(request, action="APPOINTMENT_UPDATED", module="appointments", obj=appointment,
                       description=f"Appointment {appointment.pk} updated")
+            notify_confirmation(appointment, previous_status=previous_status, request=request)
             messages.success(request, "Appointment updated.")
             return modal_success(request, fallback_redirect=reverse("appointments:list"))
         return render_any(request, self.template_name, {"form": form, "appointment": appointment},
@@ -149,8 +156,9 @@ class AppointmentStatusView(StaffRequiredMixin, View):
                           {"appointment": appointment, "new_status": new_status},
                           modal_title=f"Mark appointment {new_status.replace('_', '-').lower()}?")
 
+    @transaction.atomic
     def post(self, request, pk):
-        appointment = get_object_or_404(Appointment, pk=pk)
+        appointment = get_object_or_404(Appointment.objects.select_for_update(), pk=pk)
         new_status = request.POST.get("status", "")
         fallback = request.META.get("HTTP_REFERER") or reverse("appointments:list")
         if new_status not in VALID_STATUS_MOVES.get(appointment.status, []):
@@ -162,6 +170,7 @@ class AppointmentStatusView(StaffRequiredMixin, View):
         audit.log(request, action=f"APPOINTMENT_{new_status}", module="appointments", obj=appointment,
                   before={"status": old}, after={"status": new_status},
                   description=f"Appointment for {appointment.donor.donor_code}: {old} → {new_status}")
+        notify_confirmation(appointment, previous_status=old, request=request)
         messages.success(request, f"Appointment marked {new_status.replace('_', ' ').lower()}.")
         return modal_success(request, fallback_redirect=fallback)
 

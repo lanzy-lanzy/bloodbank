@@ -153,7 +153,57 @@
   }
 }
 
-body.bb-modal-open { overflow: hidden; }
+body:has(.bb-dialog[open]) { overflow: hidden; }
+
+.bb-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: calc(100% - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--color-ink-200);
+  border-radius: 1rem;
+  background: var(--color-ink-50);
+  color: var(--color-ink-900);
+  box-shadow: 0 24px 64px rgb(15 23 42 / 28%);
+}
+
+.bb-dialog::backdrop {
+  background: rgb(15 23 42 / 62%);
+  backdrop-filter: blur(4px);
+}
+
+.bb-dialog-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .5rem 1rem;
+  background: white;
+  border-bottom: 1px solid var(--color-ink-200);
+  font-weight: 600;
+}
+
+.bb-dialog-close {
+  display: grid;
+  flex: none;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border-radius: .75rem;
+  color: var(--color-ink-600);
+}
+
+.bb-dialog-close:hover { background: var(--color-ink-100); }
+.bb-dialog :focus-visible { outline: 2px solid var(--color-brand-600); outline-offset: 2px; }
+.bb-dialog-confirmation { padding: clamp(1rem, 4vw, 1.5rem); }
+.bb-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; margin-top: 1.5rem; }
+.bb-dialog-actions button { min-height: 2.75rem; }
 /* The panel body is a light surface so the templates' own white cards render
    identically inside a modal as they do on the full page. */
 .modal-body { background: var(--color-ink-50); border-radius: 1rem; padding: 1.25rem; }

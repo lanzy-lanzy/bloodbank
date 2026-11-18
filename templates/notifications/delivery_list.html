@@ -4,7 +4,7 @@
 <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
   <div>
     <h1 class="text-xl font-bold text-ink-900">Delivery Overview</h1>
-    <p class="text-sm text-ink-500 mt-0.5">Every notification record and its delivery status. Failed sends can be retried.</p>
+    <p class="text-sm text-ink-500 mt-0.5">SMS processing can include a gateway queue or a development mock. Failed sends can be retried.</p>
   </div>
   {% if user.role == "ADMIN" %}
     <a href="{% url 'notifications:template_list' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Message templates</a>
@@ -47,7 +47,7 @@
           <th class="px-4 py-3 text-left">Subject / Body</th>
           <th class="px-4 py-3 text-left">Channel</th>
           <th class="px-4 py-3 text-left">Status</th>
-          <th class="px-4 py-3 text-left">Sent</th>
+          <th class="px-4 py-3 text-left">Processed at</th>
           <th class="px-4 py-3 text-left">Created</th>
           <th class="px-4 py-3 text-right">Actions</th>
         </tr>
@@ -75,7 +75,7 @@
             <td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-1 rounded-full bg-ink-100 text-ink-600">{{ n.get_channel_display }}</span></td>
             <td class="px-4 py-3">
               {% if n.delivery_status == "SENT" or n.delivery_status == "DELIVERED" %}
-                <span class="text-xs font-semibold px-2 py-1 rounded-full bg-emerald-50 text-emerald-700">{{ n.get_delivery_status_display }}</span>
+                <span class="text-xs font-semibold px-2 py-1 rounded-full bg-emerald-50 text-emerald-700">{% if n.channel == "sms" and n.delivery_status == "SENT" %}Processed{% else %}{{ n.get_delivery_status_display }}{% endif %}</span>
               {% elif n.delivery_status == "FAILED" %}
                 <span class="text-xs font-semibold px-2 py-1 rounded-full bg-red-50 text-red-700">Failed{% if n.retry_count %} · {{ n.retry_count }}x{% endif %}</span>
               {% else %}

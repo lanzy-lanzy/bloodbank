@@ -1,8 +1,9 @@
 """Requests: lifecycle, organization scoping, allocation safety, fulfillment."""
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -265,6 +266,37 @@ class RequesterNotificationTests(TestCase):
         notification = self._for("request_rejected").first()
         self.assertIsNotNone(notification)
         self.assertIn("no matching indication", notification.body)
+
+    def test_approval_sms_reports_unavailable_stock(self):
+        blood_request = self._request()
+        BloodRequestService.approve(blood_request, actor=self.staff)
+        sms = self._for("request_approved_sms").get(channel="sms")
+        self.assertEqual(sms.blood_request, blood_request)
+        self.assertIn("Compatible stock availability has not been confirmed", sms.body)
+
+    @override_settings(SMS_PROVIDER="semaphore", SMS_API_KEY="test-key")
+    def test_approval_sms_sends_available_stock_to_requester(self):
+        self.requester.phone = "09171234567"
+        self.requester.save(update_fields=["phone"])
+        make_compat_rule(self.bt, self.bt, component=self.comp)
+        make_bag(blood_type=self.bt, component=self.comp, status="AVAILABLE")
+        blood_request = self._request()
+        with patch("notifications.providers.SemaphoreSMSProvider._post") as send:
+            send.return_value = 200, '[{"message_id": 1, "status": "Queued"}]'
+            with self.captureOnCommitCallbacks(execute=True):
+                BloodRequestService.approve(blood_request, actor=self.staff)
+                send.assert_not_called()
+            send.assert_called_once()
+            fields = send.call_args.args[0]
+        self.assertEqual(fields["number"], self.requester.phone)
+        self.assertIn("Compatible stock is available and subject to allocation", fields["message"])
+
+    def test_rejection_sms_omits_the_internal_reason(self):
+        blood_request = self._request()
+        BloodRequestService.reject(blood_request, reason="Clinical details", actor=self.staff)
+        sms = self._for("request_rejected_sms").get(channel="sms")
+        self.assertIn(blood_request.request_code, sms.body)
+        self.assertNotIn("Clinical details", sms.body)
 
     def test_missing_template_never_blocks_the_decision(self):
         """Fail-safe: notification is a side effect, the approval must stand."""

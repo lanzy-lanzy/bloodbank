@@ -1,0 +1,17 @@
+<dialog x-data="{ open: false, title: '', text: '', url: '' }"
+        @bb-confirm-delete.window="open = true; title = $event.detail.title; text = $event.detail.text; url = $event.detail.url"
+        x-effect="open ? $el.showModal() : $el.close()"
+        @cancel.prevent="open = false" @click.self="open = false"
+        class="bb-dialog w-full max-w-md" aria-labelledby="settings-delete-title">
+  <div class="bb-dialog-confirmation">
+    <h3 id="settings-delete-title" class="text-base font-semibold text-ink-900" x-text="title">Delete?</h3>
+    <p class="text-sm text-ink-500 mt-1" x-text="text"></p>
+    <div class="bb-dialog-actions">
+      <button type="button" autofocus @click="open = false" class="px-4 py-2 text-sm font-medium rounded-xl border border-ink-200 hover:bg-ink-50 text-ink-700">Cancel</button>
+      <form method="post" :action="url" @submit.prevent="open = false; $el.submit()">
+        {% csrf_token %}
+        <button type="submit" class="px-4 py-2 text-sm font-semibold rounded-xl bg-red-600 text-white hover:bg-red-700 shadow-sm">Delete</button>
+      </form>
+    </div>
+  </div>
+</dialog>

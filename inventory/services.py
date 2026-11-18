@@ -445,11 +445,13 @@ class CompatibilityService:
         return donor_type.pk in allowed_ids
 
     @staticmethod
-    def find_compatible_inventory(blood_type, component, quantity):
+    def find_compatible_inventory(blood_type, component, quantity, *, approved_only=False):
         """Return (bags, shortage) — AVAILABLE, unexpired bags compatible with the
         requested type/component, ordered by earliest expiry (FIFO), limited to
         what is needed. `shortage` = quantity - len(bags)."""
-        allowed_ids, _ = CompatibilityService.compatible_donor_types(blood_type, component)
+        allowed_ids, rules = CompatibilityService.compatible_donor_types(blood_type, component)
+        if approved_only:
+            allowed_ids = set(rules.filter(approved_at__isnull=False).values_list("donor_type_id", flat=True))
         if not allowed_ids:
             # No configured rules → nothing may be considered compatible.
             return list(), quantity

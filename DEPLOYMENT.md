@@ -27,7 +27,7 @@ PostgreSQL behind Gunicorn/Uvicorn + a reverse proxy (HTTPS).
    EMAIL_HOST=... EMAIL_HOST_USER=... EMAIL_HOST_PASSWORD=... EMAIL_USE_TLS=True
    SMS_PROVIDER=semaphore                     # or "mock" for development only
    SMS_API_KEY=                               # Semaphore key — env only, never commit
-   SMS_SENDER_NAME=                           # registered sender name/number
+   SMS_SENDER_NAME=                           # optional active sender name, blank uses account default
    ```
 
    (`MEDIA_ROOT` is fixed at `<project>/media` in settings — place the whole
@@ -37,6 +37,10 @@ PostgreSQL behind Gunicorn/Uvicorn + a reverse proxy (HTTPS).
    `python manage.py collectstatic` at deploy time.
 
 4. **Migrations.** `python manage.py migrate` — additive schema only.
+   This also installs the appointment confirmation and request decision SMS
+   templates. These messages go to the donor contact number or the requesting
+   user's account phone after the decision commits. Delivery Overview records
+   gateway acceptance and failures. A Semaphore acceptance may still be queued.
    **Never** run `migrate` with `--fake`/reset on the production DB; take a
    `pg_dump` before upgrading. This codebase contains no destructive
    migrations by policy.
