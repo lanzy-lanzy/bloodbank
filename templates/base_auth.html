@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}{{ ORG_NAME }}{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="{% static_v 'css/tailwind.css' %}">
   <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" defer></script>
   {# Optional extra <head> content (scripts/styles) for a specific auth page. #}
@@ -12,17 +15,17 @@
 </head>
 {# Scroll-safe auth shell: normal document flow, no overflow-hidden, and the card is centred with auto margins so a tall card (e.g. the registration stepper) pushes the page down instead of overflowing above the fold. #}
 <body class="min-h-full bg-ink-950 text-ink-800 antialiased"
-      style="background-image: radial-gradient(ellipse 80% 60% at 15% -10%, rgba(225,29,72,0.22), transparent 60%), radial-gradient(ellipse 70% 55% at 110% 110%, rgba(56,89,199,0.25), transparent 60%), linear-gradient(160deg, #0b1120 0%, #0f172a 50%, #170a14 100%); background-attachment: fixed;">
-  {# Decorative blurred orbs behind the card, clipped by the viewport only. #}
+      style="background-image: radial-gradient(ellipse 75% 55% at 15% -5%, rgba(155,17,34,0.18), transparent 62%), radial-gradient(ellipse 70% 55% at 105% 105%, rgba(30,58,138,0.16), transparent 60%), linear-gradient(180deg, #090e1a 0%, #0d1526 55%, #090e1a 100%); background-attachment: fixed;">
+  {# Decorative subtle orbs behind the card, clipped by the viewport only. #}
   <div aria-hidden="true" class="pointer-events-none fixed inset-0 overflow-hidden -z-0">
-    <div class="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-brand-600/20 blur-3xl"></div>
-    <div class="absolute -bottom-32 -right-16 w-[28rem] h-[28rem] rounded-full bg-sky-600/15 blur-3xl"></div>
+    <div class="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-brand-700/15 blur-3xl"></div>
+    <div class="absolute -bottom-32 -right-16 w-[28rem] h-[28rem] rounded-full bg-slate-700/15 blur-3xl"></div>
     {% block auth_backdrop_extra %}{% endblock %}
   </div>
 
   {# Back-to-home affordance; `absolute`, not `fixed`, so it scrolls away instead of floating over a tall form. #}
   <a href="{% url 'core:home' %}"
-     class="absolute top-4 left-4 sm:top-5 sm:left-6 z-20 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-2 text-xs sm:text-sm font-medium text-ink-100 backdrop-blur-md transition hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400">
+     class="absolute top-4 left-4 sm:top-5 sm:left-6 z-20 inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/[0.06] px-3.5 py-2 text-xs sm:text-sm font-medium text-ink-200 backdrop-blur-md transition hover:bg-white/[0.12] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400">
     <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M11 17l-5-5 5-5M6 12h12"/></svg>
     Back to home
   </a>

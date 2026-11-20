@@ -1,14 +1,25 @@
+{% load core_extras %}
 {% if messages %}
 <div class="space-y-2 mb-4" x-data>
   {% for message in messages %}
   <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 6000)" x-transition
-       class="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-sm
-       {% if message.tags == 'error' %}bg-brand-50 border-brand-200 text-brand-800
-       {% elif message.tags == 'success' %}bg-emerald-50 border-emerald-200 text-emerald-800
-       {% elif message.tags == 'warning' %}bg-amber-50 border-amber-200 text-amber-800
-       {% else %}bg-sky-50 border-sky-200 text-sky-800{% endif %}" role="alert">
+       class="flex items-start gap-3 rounded-lg border border-l-4 px-4 py-3 text-sm shadow-2xs
+       {% if message.tags == 'error' %}bg-brand-50 border-brand-200 border-l-brand-600 text-brand-900
+       {% elif message.tags == 'success' %}bg-emerald-50 border-emerald-200 border-l-emerald-600 text-emerald-900
+       {% elif message.tags == 'warning' %}bg-amber-50 border-amber-200 border-l-amber-600 text-amber-900
+       {% else %}bg-sky-50 border-sky-200 border-l-sky-600 text-sky-900{% endif %}" role="alert">
+    <span class="mt-0.5 shrink-0
+      {% if message.tags == 'error' %}text-brand-600
+      {% elif message.tags == 'success' %}text-emerald-600
+      {% elif message.tags == 'warning' %}text-amber-600
+      {% else %}text-sky-600{% endif %}">
+      {% if message.tags == 'error' %}{% icon 'x-circle' 'w-4 h-4' %}
+      {% elif message.tags == 'success' %}{% icon 'check-circle' 'w-4 h-4' %}
+      {% elif message.tags == 'warning' %}{% icon 'alert' 'w-4 h-4' %}
+      {% else %}{% icon 'info' 'w-4 h-4' %}{% endif %}
+    </span>
     <span class="flex-1">{{ message }}</span>
-    <button @click="show = false" class="opacity-60 hover:opacity-100" aria-label="Dismiss">&times;</button>
+    <button @click="show = false" class="opacity-60 hover:opacity-100 leading-none text-base" aria-label="Dismiss">&times;</button>
   </div>
   {% endfor %}
 </div>

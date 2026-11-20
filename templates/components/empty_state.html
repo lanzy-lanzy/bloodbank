@@ -1,8 +1,8 @@
 {# Generic empty state. Pass: empty_title, empty_text, optional empty_icon #}
-<div class="flex flex-col items-center justify-center py-16 text-center">
-  <div class="w-16 h-16 rounded-2xl bg-ink-100 flex items-center justify-center mb-4">
-    <svg class="w-8 h-8 text-ink-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7m16 0v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5m16 0h-2.586a1 1 0 0 0-.707.293l-2.414 2.414a1 1 0 0 1-.707.293h-3.172a1 1 0 0 1-.707-.293l-2.414-2.414A1 1 0 0 0 6.586 13H4"/>
+<div class="flex flex-col items-center justify-center py-14 text-center">
+  <div class="w-12 h-12 rounded-xl bg-ink-100 border border-ink-200 flex items-center justify-center mb-3.5 text-ink-400">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 13.5h3.86a2.25 2.25 0 0 1 2.012 1.244l.256.512a2.25 2.25 0 0 0 2.013 1.244h3.218a2.25 2.25 0 0 0 2.013-1.244l.256-.512a2.25 2.25 0 0 1 2.013-1.244h3.859m-19.5.338V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 0 0-2.15-1.588H6.911a2.25 2.25 0 0 0-2.15 1.588L2.35 13.177a2.25 2.25 0 0 0-.1.661Z"/>
     </svg>
   </div>
   <h3 class="text-base font-semibold text-ink-700">{{ empty_title|default:"No records found" }}</h3>

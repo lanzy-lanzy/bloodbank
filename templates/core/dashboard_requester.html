@@ -28,13 +28,13 @@
 {# ---- Status stats ---- #}
 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
   {% url 'requests:list' as requests_url %}
-  {% include "components/stat_card.html" with stat_label="Pending" stat_value=pending stat_sub="draft, submitted or under review" stat_color="amber" stat_href=requests_url %}
-  {% include "components/stat_card.html" with stat_label="Approved" stat_value=approved stat_sub="approved or partially fulfilled" stat_color="sky" stat_href=requests_url %}
-  {% include "components/stat_card.html" with stat_label="Fulfilled" stat_value=fulfilled stat_color="emerald" stat_href=requests_url %}
-  {% include "components/stat_card.html" with stat_label="Rejected" stat_value=rejected stat_color="slate" stat_href=requests_url %}
+  {% include "components/stat_card.html" with stat_label="Pending" stat_value=pending stat_sub="draft, submitted or under review" stat_color="amber" stat_href=requests_url stat_icon_name="clock" %}
+  {% include "components/stat_card.html" with stat_label="Approved" stat_value=approved stat_sub="approved or partially fulfilled" stat_color="sky" stat_href=requests_url stat_icon_name="check-circle" %}
+  {% include "components/stat_card.html" with stat_label="Fulfilled" stat_value=fulfilled stat_color="emerald" stat_href=requests_url stat_icon_name="shield-check" %}
+  {% include "components/stat_card.html" with stat_label="Rejected" stat_value=rejected stat_color="slate" stat_href=requests_url stat_icon_name="x-circle" %}
 </div>
 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-  {% include "components/stat_card.html" with stat_label="Emergency / Critical" stat_value=emergency stat_sub="open high-urgency requests" stat_color="rose" stat_href=requests_url %}
+  {% include "components/stat_card.html" with stat_label="Emergency / Critical" stat_value=emergency stat_sub="open high-urgency requests" stat_color="rose" stat_href=requests_url stat_icon_name="alert" %}
 </div>
 
 {# ---- Recent requests ---- #}

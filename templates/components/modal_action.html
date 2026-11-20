@@ -1,10 +1,10 @@
 {# Trigger button that loads ma_url into #modal-root as a modal. Pass: ma_url, ma_label, ma_style (primary|secondary|danger|ghost), optional ma_classes, optional ma_icon (svg path 'd' string). #}
 <button type="button" hx-get="{{ ma_url }}" hx-target="#modal-root" hx-swap="innerHTML"
-        class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition shadow-sm
-        {% if ma_style == 'secondary' %}border border-ink-200 bg-white hover:bg-ink-50 text-ink-700
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition shadow-xs
+        {% if ma_style == 'secondary' %}border border-ink-300 bg-white hover:bg-ink-50 text-ink-700 hover:text-ink-900
         {% elif ma_style == 'danger' %}border border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100
-        {% elif ma_style == 'ghost' %}text-ink-600 hover:bg-ink-100 shadow-none
+        {% elif ma_style == 'ghost' %}text-ink-600 hover:bg-ink-100 hover:text-ink-900 shadow-none
         {% else %}bg-brand-600 text-white hover:bg-brand-700{% endif %} {{ ma_classes }}">
-  {% if ma_icon %}<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ ma_icon }}"/></svg>{% endif %}
+  {% if ma_icon %}<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="{{ ma_icon }}"/></svg>{% endif %}
   {{ ma_label }}
 </button>

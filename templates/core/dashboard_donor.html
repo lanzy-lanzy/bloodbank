@@ -39,24 +39,24 @@
 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
   {% url 'donations:my_history' as my_donations_url %}
   {% with volume_sub=lifetime_volume|stringformat:"d mL lifetime volume" %}
-  {% include "components/stat_card.html" with stat_label="Donations" stat_value=total_donations stat_sub=volume_sub stat_color="rose" stat_href=my_donations_url %}
+  {% include "components/stat_card.html" with stat_label="Donations" stat_value=total_donations stat_sub=volume_sub stat_color="rose" stat_href=my_donations_url stat_icon_name="droplet" %}
   {% endwith %}
   {% url 'rewards:my_rewards' as my_rewards_url %}
-  {% include "components/stat_card.html" with stat_label="Points" stat_value=points_balance stat_sub="rewards points balance" stat_color="violet" stat_href=my_rewards_url %}
+  {% include "components/stat_card.html" with stat_label="Points" stat_value=points_balance stat_sub="rewards points balance" stat_color="violet" stat_href=my_rewards_url stat_icon_name="sparkles" %}
   {% if current_tier %}
     {% with tier_sub=current_tier.min_points|stringformat:"d+ points tier" %}
-    {% include "components/stat_card.html" with stat_label="Current Tier" stat_value=current_tier.name stat_sub=tier_sub stat_color="amber" stat_href=my_rewards_url %}
+    {% include "components/stat_card.html" with stat_label="Current Tier" stat_value=current_tier.name stat_sub=tier_sub stat_color="amber" stat_href=my_rewards_url stat_icon_name="award" %}
     {% endwith %}
   {% else %}
-    {% include "components/stat_card.html" with stat_label="Current Tier" stat_value="—" stat_sub="no tier reached yet" stat_color="slate" stat_href=my_rewards_url %}
+    {% include "components/stat_card.html" with stat_label="Current Tier" stat_value="—" stat_sub="no tier reached yet" stat_color="slate" stat_href=my_rewards_url stat_icon_name="award" %}
   {% endif %}
   {% url 'appointments:my_appointments' as my_appointments_url %}
   {% if eligibility.next_eligible_date %}
     {% with next_date=eligibility.next_eligible_date|date:"M j, Y" %}
-    {% include "components/stat_card.html" with stat_label="Next Eligible Date" stat_value=next_date stat_sub="earliest date you may donate again" stat_color="emerald" stat_href=my_appointments_url %}
+    {% include "components/stat_card.html" with stat_label="Next Eligible Date" stat_value=next_date stat_sub="earliest date you may donate again" stat_color="emerald" stat_href=my_appointments_url stat_icon_name="calendar" %}
     {% endwith %}
   {% else %}
-    {% include "components/stat_card.html" with stat_label="Next Eligible Date" stat_value="—" stat_sub="no interval restriction on record" stat_color="emerald" stat_href=my_appointments_url %}
+    {% include "components/stat_card.html" with stat_label="Next Eligible Date" stat_value="—" stat_sub="no interval restriction on record" stat_color="emerald" stat_href=my_appointments_url stat_icon_name="calendar" %}
   {% endif %}
 </div>
 

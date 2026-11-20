@@ -17,20 +17,20 @@
 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
   {% url 'donors:list' as donors_url %}
   {% with active_sub=active_donors|stringformat:"d active donors" %}
-  {% include "components/stat_card.html" with stat_label="Registered Donors" stat_value=total_donors stat_sub=active_sub stat_color="sky" stat_href=donors_url %}
+  {% include "components/stat_card.html" with stat_label="Registered Donors" stat_value=total_donors stat_sub=active_sub stat_color="sky" stat_href=donors_url stat_icon_name="users" %}
   {% endwith %}
   {% url 'donations:list' as donations_url %}
-  {% include "components/stat_card.html" with stat_label="Donations This Month" stat_value=donations_this_month stat_color="violet" stat_href=donations_url %}
+  {% include "components/stat_card.html" with stat_label="Donations This Month" stat_value=donations_this_month stat_color="violet" stat_href=donations_url stat_icon_name="droplet" %}
   {% url 'inventory:bag_list' as bags_url %}
-  {% include "components/stat_card.html" with stat_label="Bags Available" stat_value=bags_available stat_sub="ready for issue" stat_color="emerald" stat_href=bags_url %}
+  {% include "components/stat_card.html" with stat_label="Bags Available" stat_value=bags_available stat_sub="ready for issue" stat_color="emerald" stat_href=bags_url stat_icon_name="cube" %}
   {% url 'requests:list' as requests_url %}
-  {% include "components/stat_card.html" with stat_label="Pending Requests" stat_value=pending_requests stat_sub="draft, submitted or under review" stat_color="amber" stat_href=requests_url %}
+  {% include "components/stat_card.html" with stat_label="Pending Requests" stat_value=pending_requests stat_sub="draft, submitted or under review" stat_color="amber" stat_href=requests_url stat_icon_name="clipboard" %}
 </div>
 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-  {% include "components/stat_card.html" with stat_label="Emergency Requests" stat_value=emergency_requests stat_sub="open emergency / critical" stat_color="rose" stat_href=requests_url %}
-  {% include "components/stat_card.html" with stat_label="Expiring Soon" stat_value=bags_expiring_soon stat_sub="available bags expiring within 7 days" stat_color="amber" stat_href=bags_url %}
-  {% include "components/stat_card.html" with stat_label="Quarantined / Testing" stat_value=bags_quarantined stat_sub="not yet released" stat_color="slate" stat_href=bags_url %}
-  {% include "components/stat_card.html" with stat_label="Fulfilled Requests" stat_value=fulfilled_requests stat_color="emerald" stat_href=requests_url %}
+  {% include "components/stat_card.html" with stat_label="Emergency Requests" stat_value=emergency_requests stat_sub="open emergency / critical" stat_color="rose" stat_href=requests_url stat_icon_name="alert" %}
+  {% include "components/stat_card.html" with stat_label="Expiring Soon" stat_value=bags_expiring_soon stat_sub="available bags expiring within 7 days" stat_color="amber" stat_href=bags_url stat_icon_name="clock" %}
+  {% include "components/stat_card.html" with stat_label="Quarantined / Testing" stat_value=bags_quarantined stat_sub="not yet released" stat_color="slate" stat_href=bags_url stat_icon_name="beaker" %}
+  {% include "components/stat_card.html" with stat_label="Fulfilled Requests" stat_value=fulfilled_requests stat_color="emerald" stat_href=requests_url stat_icon_name="check-circle" %}
 </div>
 
 {# ---- Low stock alert ---- #}
@@ -249,13 +249,13 @@
 (function () {
   var charts = [
     { id: "donationsChart", url: "{% url 'core:chart_data' 'donations_over_time' %}", type: "line",
-      color: "#e11d48", label: "Donations" },
+      color: "#9b1122", label: "Donations" },
     { id: "inventoryChart", url: "{% url 'core:chart_data' 'inventory_by_type' %}", type: "bar",
-      color: "#0ea5e9", label: "Available bags" },
+      color: "#0369a1", label: "Available bags" },
     { id: "componentChart", url: "{% url 'core:chart_data' 'component_distribution' %}", type: "doughnut",
-      palette: ["#e11d48", "#0ea5e9", "#10b981", "#f59e0b", "#8b5cf6", "#64748b"], label: "Bags" },
+      palette: ["#9b1122", "#0369a1", "#047857", "#b45309", "#5b21b6", "#475569"], label: "Bags" },
     { id: "urgencyChart", url: "{% url 'core:chart_data' 'requests_by_urgency' %}", type: "bar",
-      color: "#f59e0b", label: "Requests" }
+      color: "#b45309", label: "Requests" }
   ];
 
   function build(spec, data) {

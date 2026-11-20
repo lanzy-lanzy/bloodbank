@@ -19,11 +19,15 @@ the print layout, so it does not belong here.
 Layout knobs are data (``DocumentSpec``), never template edits: a module decides
 *what* the document says, this module decides how it is typeset.
 """
+import base64
+import functools
 import io
 import logging
 import re
 from dataclasses import dataclass, field, replace
+from pathlib import Path
 
+from django.conf import settings
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 
@@ -358,6 +362,21 @@ def _site(request) -> dict:
     return site_settings(request)
 
 
+@functools.lru_cache(maxsize=1)
+def _document_logo_data_uri() -> str:
+    """Return the official seal as an inline PNG data URI for preview and PDF.
+
+    Embedding the pre-matted RGB PNG inline guarantees that xhtml2pdf renders
+    the exact same logo as the browser print preview without needing an HTTP
+    round-trip or custom link_callback.
+    """
+    logo_path = Path(settings.BASE_DIR) / "static" / "images" / "dumingag-seal-pdf.png"
+    if not logo_path.is_file():
+        return ""
+    encoded = base64.b64encode(logo_path.read_bytes()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
+
 def document_context(request, spec: DocumentSpec) -> dict:
     """Template context for one document."""
     site = _site(request)
@@ -366,6 +385,7 @@ def document_context(request, spec: DocumentSpec) -> dict:
         "ORG_NAME": site["ORG_NAME"],
         "ORG_ADDRESS": site["ORG_ADDRESS"],
         "ORG_CONTACT": site["ORG_CONTACT"],
+        "DOC_LOGO_DATA_URI": _document_logo_data_uri(),
     }
 
 

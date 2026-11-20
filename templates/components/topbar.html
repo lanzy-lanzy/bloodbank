@@ -3,8 +3,8 @@
   <button @click="sidebarOpen = !sidebarOpen" class="lg:hidden p-2 rounded-lg hover:bg-ink-100 text-ink-600" aria-label="Toggle navigation">
     <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
   </button>
-  <a href="{% url 'core:dashboard' %}" class="min-w-0 flex items-center" aria-label="Back to dashboard">
-    <span class="font-bold text-ink-900 text-lg truncate">{% section_title request %}</span>
+  <a href="{% url 'core:dashboard' %}" class="min-w-0 flex items-center gap-2.5" aria-label="Back to dashboard">
+    <span class="font-semibold text-ink-900 text-base sm:text-lg tracking-tight truncate">{% section_title request %}</span>
   </a>
   <div class="flex-1"></div>
   {# Notifications: the bell opens a dropdown with the newest items; each row posts to notifications:open, which marks it read and redirects to the page the notification is about. #}
@@ -12,8 +12,8 @@
     <button type="button" @click="open = !open" :aria-expanded="open" aria-haspopup="true"
             aria-label="Notifications"
             hx-get="{% url 'notifications:inbox_dropdown' %}" hx-trigger="click" hx-target="#notif-dropdown-body" hx-swap="innerHTML"
-            class="relative inline-flex items-center justify-center w-9 h-9 rounded-xl hover:bg-ink-100 text-ink-500 transition">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.86 20H9.14a.5.5 0 0 1-.45-.72l.7-1.39A5.99 5.99 0 0 1 6 13V8a6 6 0 1 1 12 0v5c0 1.78-.86 3.36-2.39 4.89l.7 1.39a.5.5 0 0 1-.45.72Z"/><path stroke-linecap="round" d="M10 20a2 2 0 0 0 4 0"/></svg>
+            class="relative inline-flex items-center justify-center w-9 h-9 rounded-lg border border-transparent hover:border-ink-200 hover:bg-ink-50 text-ink-500 hover:text-ink-800 transition">
+      <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"/></svg>
       <span id="notif-count" class="absolute inset-0" hx-get="{% url 'notifications:inbox_badge' %}" hx-trigger="load, every 60s" hx-swap="innerHTML"></span>
     </button>
     <div x-show="open" x-cloak @click.outside="open = false"
@@ -23,31 +23,33 @@
       </div>
     </div>
   </div>
+  <span class="hidden sm:block h-6 w-px bg-ink-200" aria-hidden="true"></span>
   <div x-data="{ open: false }" class="relative">
-    <button @click="open = !open" class="flex items-center gap-2 p-1.5 rounded-xl hover:bg-ink-100" aria-haspopup="menu" :aria-expanded="open">
-      <span class="bb-avatar w-8 h-8 rounded-lg flex items-center justify-center text-sm font-semibold">
+    <button @click="open = !open" class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg border border-transparent hover:border-ink-200 hover:bg-ink-50 transition" aria-haspopup="menu" :aria-expanded="open">
+      <span class="bb-avatar w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold tracking-wide">
         {{ user.get_initials|default:"U" }}
       </span>
       <span class="hidden md:block text-left leading-tight">
-        <span class="block text-sm font-semibold text-ink-800">{{ user.get_full_name|default:user.username }}</span>
-        <span class="block text-[11px] text-ink-500 uppercase tracking-wide">{{ user.get_role_display }}</span>
+        <span class="block text-sm font-semibold text-ink-900">{{ user.get_full_name|default:user.username }}</span>
+        <span class="block text-[10px] font-medium text-ink-500 uppercase tracking-wider mt-0.5">{{ user.get_role_display }}</span>
       </span>
       <svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m6 9 6 6 6-6"/></svg>
     </button>
     <div x-show="open" x-cloak @click.outside="open = false" x-transition
          class="bb-dropdown absolute right-0 mt-2 w-56 z-50 overflow-hidden py-1.5">
       <a href="{% url 'accounts:profile' %}" hx-get="{% url 'accounts:profile' %}" hx-target="#modal-root" hx-swap="innerHTML"
-         class="flex items-center gap-2 px-4 py-2 text-sm text-ink-700 hover:bg-ink-50">
-        <svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+         class="flex items-center gap-2.5 px-4 py-2 text-sm text-ink-700 hover:bg-ink-50 hover:text-ink-900 transition">
+        <svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
         My Profile</a>
       <a href="{% url 'accounts:password_change' %}" hx-get="{% url 'accounts:password_change' %}" hx-target="#modal-root" hx-swap="innerHTML"
-         class="flex items-center gap-2 px-4 py-2 text-sm text-ink-700 hover:bg-ink-50">
-        <svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+         class="flex items-center gap-2.5 px-4 py-2 text-sm text-ink-700 hover:bg-ink-50 hover:text-ink-900 transition">
+        <svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg>
         Change Password</a>
+      <div class="my-1 border-t border-ink-100"></div>
       <form method="post" action="{% url 'accounts:logout' %}">
         {% csrf_token %}
-        <button type="submit" class="w-full flex items-center gap-2 px-4 py-2 text-sm text-brand-700 hover:bg-brand-50">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14 5-5-5-5m5 5H9"/></svg>
+        <button type="submit" class="w-full flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-brand-700 hover:bg-brand-50 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"/></svg>
           Sign out</button>
       </form>
     </div>

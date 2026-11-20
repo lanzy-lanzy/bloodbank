@@ -7,10 +7,10 @@
     <h3 id="settings-delete-title" class="text-base font-semibold text-ink-900" x-text="title">Delete?</h3>
     <p class="text-sm text-ink-500 mt-1" x-text="text"></p>
     <div class="bb-dialog-actions">
-      <button type="button" autofocus @click="open = false" class="px-4 py-2 text-sm font-medium rounded-xl border border-ink-200 hover:bg-ink-50 text-ink-700">Cancel</button>
+      <button type="button" autofocus @click="open = false" class="px-4 py-2 text-sm font-medium rounded-lg border border-ink-300 bg-white hover:bg-ink-50 text-ink-700">Cancel</button>
       <form method="post" :action="url" @submit.prevent="open = false; $el.submit()">
         {% csrf_token %}
-        <button type="submit" class="px-4 py-2 text-sm font-semibold rounded-xl bg-red-600 text-white hover:bg-red-700 shadow-sm">Delete</button>
+        <button type="submit" class="px-4 py-2 text-sm font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-700 shadow-xs">Delete</button>
       </form>
     </div>
   </div>

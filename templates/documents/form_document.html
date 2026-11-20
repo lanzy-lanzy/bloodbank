@@ -91,8 +91,8 @@ body { background-color: #eef1f5; padding: 0 0 40pt 0; }
 .tb-btn { display: inline-block; font-size: 12px; font-weight: 600; padding: 7px 13px;
           border-radius: 8px; border: 1px solid transparent; cursor: pointer;
           text-decoration: none; line-height: 1.2; margin-right: 8px; }
-.tb-btn-primary { background-color: #e11d48; color: #ffffff; }
-.tb-btn-primary:hover { background-color: #be123c; }
+.tb-btn-primary { background-color: #9b1122; color: #ffffff; }
+.tb-btn-primary:hover { background-color: #7f0d1b; }
 .tb-btn-ghost { background-color: transparent; color: #e2e8f0; border-color: #334155; }
 .tb-btn-ghost:hover { background-color: #1e293b; }
 #doc_footer { display: none; }
@@ -131,12 +131,15 @@ body { background-color: #eef1f5; padding: 0 0 40pt 0; }
 
 <table class="mast">
   <tr>
-    <td class="mast-l">{% if doc.reference %}Ref {{ doc.reference }}{% endif %}</td>
-    <td class="mast-c">
+    <td class="mast-l" style="vertical-align:middle;">
+      {% if DOC_LOGO_DATA_URI %}<img src="{{ DOC_LOGO_DATA_URI }}" width="32" height="32" alt="Official Seal" style="vertical-align:middle; margin-right:5pt;">{% endif %}
+      {% if doc.reference %}Ref {{ doc.reference }}{% endif %}
+    </td>
+    <td class="mast-c" style="vertical-align:middle;">
       <div class="doc-title">{{ doc.title }}</div>
       {% if doc.subtitle %}<div class="doc-sub">{{ doc.subtitle }}</div>{% endif %}
     </td>
-    <td class="mast-r">{{ ORG_NAME }}</td>
+    <td class="mast-r" style="vertical-align:middle;">{{ ORG_NAME }}</td>
   </tr>
 </table>
 
