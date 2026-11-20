@@ -94,3 +94,48 @@ class ConfirmationSMSTests(TestCase):
         sms = Notification.objects.get(donor=donor, channel="sms")
         self.assertEqual(sms.delivery_status, Notification.DeliveryStatus.SENT)
         self.assertIn("9:00 AM", sms.body)
+
+
+class CalendarAndBadgeTests(TestCase):
+    def setUp(self):
+        self.staff = make_user("cal-staff", role="STAFF")
+        self.donor_user = make_user("cal-donor", role="DONOR")
+        self.donor = make_donor(user=self.donor_user, first_name="Clara", last_name="Diaz")
+
+    def test_calendar_is_default_shows_requested_dates_and_day_panel_via_htmx(self):
+        target = timezone.localdate() + timedelta(days=2)
+        Appointment.objects.create(
+            donor=self.donor, date=target, time=dtime(10, 30), status="REQUESTED",
+        )
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("appointments:list"), {"date": target.isoformat()})
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        self.assertIn("Requested Appointment Dates Awaiting Confirmation", body)
+        self.assertIn("Clara", body)
+        self.assertIn("10:30 AM", body)
+
+        # Clicking a day via HTMX returns only the selected day panel
+        panel = self.client.get(
+            reverse("appointments:list"),
+            {"date": target.isoformat(), "scope": "month", "panel": "day"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(panel.status_code, 200)
+        self.assertIn('id="day-schedule-panel"', panel.content.decode())
+        self.assertIn("CLARA DIAZ", panel.content.decode().upper())
+
+    def test_appointments_sidebar_badge_counts_open_and_denies_donor(self):
+        target = timezone.localdate() + timedelta(days=1)
+        Appointment.objects.create(
+            donor=self.donor, date=target, time=dtime(9, 0), status="REQUESTED",
+        )
+        self.client.force_login(self.staff)
+        badge = self.client.get(reverse("appointments:badge"))
+        self.assertEqual(badge.status_code, 200)
+        self.assertIn("bb-nav-badge", badge.content.decode())
+        self.assertIn(">1<", badge.content.decode())
+
+        self.client.force_login(self.donor_user)
+        denied = self.client.get(reverse("appointments:badge"))
+        self.assertEqual(denied.status_code, 403)

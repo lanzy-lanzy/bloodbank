@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.utils import timezone
 from django.views import View
@@ -32,6 +33,22 @@ def _parse_date(value, default):
         return default
 
 
+def _shift_month(day: date, delta: int) -> date:
+    """Return the first day of the month offset by ``delta`` (-1 or +1)."""
+    month = day.month - 1 + delta
+    year = day.year + month // 12
+    month = month % 12 + 1
+    return date(year, month, 1)
+
+
+class AppointmentBadgeView(StaffRequiredMixin, View):
+    """Sidebar counter badge: open appointments (requested, confirmed, checked-in)."""
+
+    def get(self, request):
+        count = Appointment.objects.filter(status__in=Appointment.OPEN_STATUSES).count()
+        return render(request, "components/nav_badge.html", {"count": count})
+
+
 class AppointmentListView(StaffRequiredMixin, ListView):
     template_name = "appointments/list.html"
     context_object_name = "appointments"
@@ -42,7 +59,8 @@ class AppointmentListView(StaffRequiredMixin, ListView):
         day = _parse_date(self.request.GET.get("date"), timezone.localdate())
         self.day = day
         status = self.request.GET.get("status", "")
-        scope = self.request.GET.get("scope", "day")
+        self.status_filter = status
+        scope = self.request.GET.get("scope") or "month"
         self.scope = scope
         if scope == "day":
             qs = qs.filter(date=day)
@@ -57,30 +75,77 @@ class AppointmentListView(StaffRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        selected_qs = Appointment.objects.select_related("donor", "created_by").filter(date=self.day)
+        if self.status_filter:
+            selected_qs = selected_qs.filter(status=self.status_filter)
+        selected_appointments = list(selected_qs.order_by("time"))
+
+        requested_dates = list(
+            Appointment.objects.filter(status=Appointment.Status.REQUESTED)
+            .values("date")
+            .annotate(count=Count("id"))
+            .order_by("date")[:12]
+        )
+
         ctx.update({
-            "day": self.day, "scope": self.scope,
-            "status_filter": self.request.GET.get("status", ""),
+            "day": self.day,
+            "today": timezone.localdate(),
+            "scope": self.scope,
+            "status_filter": self.status_filter,
             "statuses": Appointment.Status.choices,
-            "month_grid": _month_grid(self.day) if self.scope == "month" else None,
+            "month_grid": _month_grid(self.day, self.status_filter) if self.scope == "month" else None,
+            "prev_month": _shift_month(self.day, -1),
+            "next_month": _shift_month(self.day, 1),
+            "selected_appointments": selected_appointments,
+            "requested_dates": requested_dates,
+            "requested_total": Appointment.objects.filter(status=Appointment.Status.REQUESTED).count(),
         })
         return ctx
 
+    def render_to_response(self, context, **kwargs):
+        if is_htmx(self.request) and self.request.GET.get("panel") == "day":
+            return render(self.request, "appointments/_day_panel.html", context)
+        return super().render_to_response(context, **kwargs)
 
-def _month_grid(day):
-    """Calendar month grid with per-day appointment counts."""
-    first_weekday = pycalendar.monthrange(day.year, day.month)
-    qs = Appointment.objects.filter(date__year=day.year, date__month=day.month)
-    counts = {}
-    for appt in qs.only("date", "status"):
-        counts.setdefault(appt.date, {"total": 0, "open": 0})
-        counts[appt.date]["total"] += 1
+
+def _month_grid(day, status_filter=""):
+    """Sunday-first calendar month grid with per-day appointment counts & previews."""
+    first_weekday, num_days = pycalendar.monthrange(day.year, day.month)
+    # monthrange uses Monday=0..Sunday=6; shift so Sunday=0..Saturday=6.
+    start_offset = (first_weekday + 1) % 7
+    qs = Appointment.objects.select_related("donor").filter(
+        date__year=day.year, date__month=day.month
+    )
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+    by_day = {}
+    for appt in qs.order_by("time"):
+        bucket = by_day.setdefault(appt.date, {
+            "total": 0, "open": 0, "requested": 0, "previews": [],
+        })
+        bucket["total"] += 1
         if appt.status in Appointment.OPEN_STATUSES:
-            counts[appt.date]["open"] += 1
+            bucket["open"] += 1
+        if appt.status == Appointment.Status.REQUESTED:
+            bucket["requested"] += 1
+        if len(bucket["previews"]) < 2:
+            bucket["previews"].append({
+                "time": appt.time,
+                "name": appt.donor.first_name or appt.donor.donor_code,
+                "status": appt.status,
+            })
+
+    today = timezone.localdate()
     weeks = []
-    week = [None] * first_weekday[0]
-    for d in range(1, first_weekday[1] + 1):
+    week = [None] * start_offset
+    for d in range(1, num_days + 1):
         current = date(day.year, day.month, d)
-        week.append({"date": current, "counts": counts.get(current), "is_today": current == timezone.localdate()})
+        week.append({
+            "date": current,
+            "counts": by_day.get(current),
+            "is_today": current == today,
+            "is_selected": current == day,
+        })
         if len(week) == 7:
             weeks.append(week)
             week = []

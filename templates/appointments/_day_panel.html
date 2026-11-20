@@ -1,0 +1,85 @@
+{% load core_extras %}
+{# Selected day appointment schedule panel, swapped via HTMX when clicking a calendar date. #}
+<div id="day-schedule-panel" class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+  <div class="px-5 py-4 border-b border-ink-200 bg-ink-50/70 flex flex-wrap items-center justify-between gap-2">
+    <div class="min-w-0">
+      <div class="flex items-center gap-2">
+        <span class="h-3.5 w-1 rounded-full bg-brand-600" aria-hidden="true"></span>
+        <h3 class="text-sm font-bold text-ink-900">{{ day|date:"l, M j, Y" }}</h3>
+        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums
+          {% if selected_appointments %}bg-brand-600 text-white{% else %}bg-ink-200 text-ink-600{% endif %}">
+          {{ selected_appointments|length }}
+        </span>
+      </div>
+      <p class="text-xs text-ink-500 mt-0.5">
+        {% if selected_appointments %}
+          {{ selected_appointments|length }} appointment{{ selected_appointments|length|pluralize }} scheduled on this date
+        {% else %}
+          No appointments scheduled on this date
+        {% endif %}
+      </p>
+    </div>
+    <a href="{% url 'appointments:create' %}?date={{ day|date:'Y-m-d' }}"
+       hx-get="{% url 'appointments:create' %}?date={{ day|date:'Y-m-d' }}" hx-target="#modal-root" hx-swap="innerHTML"
+       class="inline-flex items-center gap-1 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 shadow-2xs transition">
+      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
+      Add
+    </a>
+  </div>
+
+  <div class="divide-y divide-ink-100 max-h-[560px] overflow-y-auto">
+    {% for a in selected_appointments %}
+      <div class="p-4 hover:bg-ink-50/50 transition">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="inline-flex items-center rounded-md bg-ink-100 border border-ink-200 px-2 py-0.5 text-xs font-bold text-ink-800 tabular-nums">
+                {{ a.time|time:"g:i A" }}
+              </span>
+              {% include "components/status_badge.html" with status=a.status %}
+            </div>
+            <p class="mt-2 text-sm font-semibold text-ink-900">
+              <a href="{% url 'donors:detail' pk=a.donor.pk %}" hx-get="{% url 'donors:detail' pk=a.donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML"
+                 class="hover:text-brand-700 transition">{{ a.donor.full_name }}</a>
+            </p>
+            <p class="text-xs text-ink-500 mt-0.5">
+              <span class="font-mono">{{ a.donor.donor_code }}</span>
+              {% if a.location %} &middot; {{ a.location }}{% endif %}
+            </p>
+            {% if a.notes %}
+              <p class="mt-1.5 text-xs text-ink-500 line-clamp-2">{{ a.notes }}</p>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="mt-3 flex flex-wrap items-center gap-1.5">
+          {% if a.status == "REQUESTED" %}
+            <button type="button" hx-get="{% url 'appointments:status' pk=a.pk %}?to=CONFIRMED" hx-target="#modal-root" hx-swap="innerHTML"
+                    class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition">Confirm</button>
+          {% elif a.status == "CONFIRMED" %}
+            <button type="button" hx-get="{% url 'appointments:status' pk=a.pk %}?to=CHECKED_IN" hx-target="#modal-root" hx-swap="innerHTML"
+                    class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700 transition">Check in</button>
+          {% elif a.status == "CHECKED_IN" %}
+            <a href="{% url 'donations:create' %}?appointment={{ a.pk }}" hx-get="{% url 'donations:create' %}?appointment={{ a.pk }}" hx-target="#modal-root" hx-swap="innerHTML"
+               class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition">Start donation</a>
+            <button type="button" hx-get="{% url 'appointments:status' pk=a.pk %}?to=COMPLETED" hx-target="#modal-root" hx-swap="innerHTML"
+                    class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-ink-900 text-white hover:bg-ink-800 transition">Completed</button>
+          {% endif %}
+          {% if a.status == "REQUESTED" or a.status == "CONFIRMED" or a.status == "CHECKED_IN" %}
+            <button type="button" hx-get="{% url 'appointments:status' pk=a.pk %}?to=NO_SHOW" hx-target="#modal-root" hx-swap="innerHTML"
+                    class="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-ink-200 bg-white hover:bg-ink-50 text-ink-600 transition">No-show</button>
+            <button type="button" hx-get="{% url 'appointments:status' pk=a.pk %}?to=CANCELLED" hx-target="#modal-root" hx-swap="innerHTML"
+                    class="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-ink-200 bg-white hover:bg-ink-50 text-ink-600 transition">Cancel</button>
+            <a href="{% url 'appointments:edit' pk=a.pk %}" hx-get="{% url 'appointments:edit' pk=a.pk %}" hx-target="#modal-root" hx-swap="innerHTML"
+               class="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-ink-200 bg-white hover:bg-ink-50 text-ink-700 transition">Edit</a>
+          {% endif %}
+        </div>
+      </div>
+    {% empty %}
+      <div class="px-5 py-12 text-center">
+        <p class="text-sm font-medium text-ink-700">No appointments on {{ day|date:"M j, Y" }}</p>
+        <p class="text-xs text-ink-500 mt-1">Select any highlighted date on the calendar or click Add to schedule one.</p>
+      </div>
+    {% endfor %}
+  </div>
+</div>

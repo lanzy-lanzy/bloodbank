@@ -1,66 +1,174 @@
 {% extends "base.html" %}
+{% load core_extras %}
 {% block title %}Appointments — {{ ORG_NAME }}{% endblock %}
 {% block content %}
 <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
   <div>
-    <h1 class="text-xl font-bold text-ink-900">Appointments</h1>
-    <p class="text-sm text-ink-500 mt-0.5">Donation schedule and check-in workflow.</p>
+    <h1 class="text-xl sm:text-2xl font-bold text-ink-900 tracking-tight">Appointments</h1>
+    <p class="text-sm text-ink-500 mt-0.5">Donation schedule calendar, requested dates, and check-in workflow.</p>
   </div>
   {% url 'appointments:create' as appt_add_url %}
-  {% include "components/modal_action.html" with ma_url=appt_add_url ma_label="+ Schedule Appointment" ma_icon="M12 5v14M5 12h14" %}
+  {% include "components/modal_action.html" with ma_url=appt_add_url ma_label="Schedule Appointment" ma_icon="M12 5v14M5 12h14" %}
 </div>
 
-<div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4">
+{# ---- Requested appointment dates quick-jump bar ---- #}
+{% if requested_dates %}
+<div class="mb-4 rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3.5 shadow-2xs">
+  <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+    <div class="flex items-center gap-2">
+      <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1.5 text-[11px] font-bold text-white tabular-nums">{{ requested_total }}</span>
+      <h2 class="text-xs font-bold uppercase tracking-wider text-amber-900">Requested Appointment Dates Awaiting Confirmation</h2>
+    </div>
+    <span class="text-[11px] text-amber-800">Click any date to inspect and confirm</span>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    {% for item in requested_dates %}
+      <a href="?date={{ item.date|date:'Y-m-d' }}&amp;scope=month{% if status_filter %}&amp;status={{ status_filter }}{% endif %}"
+         class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition
+         {% if item.date == day %}border-brand-600 bg-brand-600 text-white shadow-xs{% else %}border-amber-300 bg-white text-ink-800 hover:border-brand-400 hover:bg-brand-50{% endif %}">
+        <span>{{ item.date|date:"D, M j, Y" }}</span>
+        <span class="inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums
+          {% if item.date == day %}bg-white/20 text-white{% else %}bg-brand-600 text-white{% endif %}">
+          {{ item.count }}
+        </span>
+      </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# ---- Filters ---- #}
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-5">
   <form method="get" class="flex flex-wrap items-end gap-3">
     <div>
-      <label class="block text-xs font-medium text-ink-500 mb-1">Date</label>
-      <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500">
+      <label for="appt-date" class="block text-[11px] font-semibold uppercase tracking-wide text-ink-500 mb-1">Date</label>
+      <input id="appt-date" type="date" name="date" value="{{ day|date:'Y-m-d' }}"
+             class="rounded-lg border border-ink-300 px-3 py-2 text-sm focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20">
     </div>
     <div>
-      <label class="block text-xs font-medium text-ink-500 mb-1">Range</label>
-      <select name="scope" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500">
-        <option value="day" {% if scope == "day" %}selected{% endif %}>Single day</option>
-        <option value="week" {% if scope == "week" %}selected{% endif %}>Whole week</option>
+      <label for="appt-scope" class="block text-[11px] font-semibold uppercase tracking-wide text-ink-500 mb-1">View</label>
+      <select id="appt-scope" name="scope"
+              class="rounded-lg border border-ink-300 px-3 py-2 text-sm focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20">
         <option value="month" {% if scope == "month" %}selected{% endif %}>Month calendar</option>
+        <option value="day" {% if scope == "day" %}selected{% endif %}>Single day list</option>
+        <option value="week" {% if scope == "week" %}selected{% endif %}>Whole week list</option>
       </select>
     </div>
     <div>
-      <label class="block text-xs font-medium text-ink-500 mb-1">Status</label>
-      <select name="status" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500">
+      <label for="appt-status" class="block text-[11px] font-semibold uppercase tracking-wide text-ink-500 mb-1">Status</label>
+      <select id="appt-status" name="status"
+              class="rounded-lg border border-ink-300 px-3 py-2 text-sm focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20">
         <option value="">Any status</option>
         {% for value, label in statuses %}
           <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </div>
-    <button type="submit" class="rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2">Go</button>
+    <button type="submit" class="rounded-lg bg-ink-900 text-white text-sm font-semibold px-4 py-2 hover:bg-ink-800 transition">Apply</button>
+    {% if status_filter or scope != "month" %}
+      <a href="{% url 'appointments:list' %}" class="rounded-lg border border-ink-200 bg-white px-3.5 py-2 text-sm font-medium text-ink-600 hover:bg-ink-50 transition">Reset</a>
+    {% endif %}
   </form>
 </div>
 
 {% if month_grid %}
-  {# ---- Month calendar ---- #}
-  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 overflow-x-auto">
-    <h2 class="font-bold text-ink-900 text-sm mb-3">{{ day|date:"F Y" }}</h2>
-    <div class="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-ink-400 mb-1">
-      <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+  {# ---- Interactive Month Calendar + Selected Day Panel ---- #}
+  <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+    <div class="xl:col-span-8 bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-ink-200 bg-ink-50/70 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5">
+          <span class="h-4 w-1 rounded-full bg-brand-600" aria-hidden="true"></span>
+          <h2 class="font-bold text-ink-900 text-base tracking-tight">{{ day|date:"F Y" }}</h2>
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5">
+          <a href="?date={{ prev_month|date:'Y-m-d' }}&amp;scope=month{% if status_filter %}&amp;status={{ status_filter }}{% endif %}"
+             class="inline-flex items-center gap-1 rounded-lg border border-ink-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50 transition">
+            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/></svg>
+            Prev
+          </a>
+          <a href="?date={{ today|date:'Y-m-d' }}&amp;scope=month{% if status_filter %}&amp;status={{ status_filter }}{% endif %}"
+             class="inline-flex items-center rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50 transition">
+            Today
+          </a>
+          <a href="?date={{ next_month|date:'Y-m-d' }}&amp;scope=month{% if status_filter %}&amp;status={{ status_filter }}{% endif %}"
+             class="inline-flex items-center gap-1 rounded-lg border border-ink-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50 transition">
+            Next
+            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <div class="p-4 overflow-x-auto">
+        <div class="min-w-[540px]">
+          <div class="grid grid-cols-7 gap-1.5 text-center text-[11px] font-bold uppercase tracking-wider text-ink-500 mb-2">
+            <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+          </div>
+          <div class="grid grid-cols-7 gap-1.5">
+            {% for week in month_grid %}
+              {% for cell in week %}
+                {% if cell %}
+                  <a href="?date={{ cell.date|date:'Y-m-d' }}&amp;scope=month{% if status_filter %}&amp;status={{ status_filter }}{% endif %}"
+                     hx-get="?date={{ cell.date|date:'Y-m-d' }}&amp;scope=month&amp;panel=day{% if status_filter %}&amp;status={{ status_filter }}{% endif %}"
+                     hx-target="#day-schedule-panel"
+                     hx-swap="outerHTML"
+                     hx-push-url="?date={{ cell.date|date:'Y-m-d' }}&amp;scope=month{% if status_filter %}&amp;status={{ status_filter }}{% endif %}"
+                     class="group relative flex flex-col min-h-[86px] rounded-xl border p-2 text-left transition
+                     {% if cell.is_selected %}border-brand-600 bg-brand-50/70 ring-2 ring-brand-600/20
+                     {% elif cell.counts and cell.counts.requested %}border-amber-300 bg-amber-50/50 hover:border-brand-400
+                     {% elif cell.counts %}border-ink-300 bg-white hover:border-brand-400 shadow-2xs
+                     {% elif cell.is_today %}border-brand-300 bg-brand-50/30 hover:border-brand-400
+                     {% else %}border-ink-200/70 bg-ink-50/40 hover:border-ink-300 hover:bg-white{% endif %}">
+                    <div class="flex items-center justify-between gap-1">
+                      <span class="inline-flex h-6 w-6 items-center justify-center rounded-md text-xs font-bold tabular-nums
+                        {% if cell.is_today %}bg-brand-600 text-white{% elif cell.is_selected %}text-brand-800{% else %}text-ink-700{% endif %}">
+                        {{ cell.date|date:"j" }}
+                      </span>
+                      {% if cell.counts %}
+                        <span title="{{ cell.counts.total }} appointment{{ cell.counts.total|pluralize }}"
+                              class="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums shadow-2xs
+                              {% if cell.counts.requested %}bg-brand-600 text-white
+                              {% elif cell.counts.open %}bg-ink-900 text-white
+                              {% else %}bg-ink-200 text-ink-700{% endif %}">
+                          {{ cell.counts.total }}
+                        </span>
+                      {% endif %}
+                    </div>
+
+                    {% if cell.counts %}
+                      <div class="mt-1.5 space-y-1">
+                        {% for item in cell.counts.previews %}
+                          <div class="truncate rounded px-1.5 py-0.5 text-[10px] font-medium leading-tight
+                            {% if item.status == 'REQUESTED' %}bg-amber-100/90 text-amber-900
+                            {% elif item.status == 'CONFIRMED' %}bg-emerald-50 text-emerald-800
+                            {% elif item.status == 'CHECKED_IN' %}bg-sky-50 text-sky-800
+                            {% else %}bg-ink-100 text-ink-600{% endif %}">
+                            <span class="tabular-nums font-semibold">{{ item.time|time:"H:i" }}</span> {{ item.name }}
+                          </div>
+                        {% endfor %}
+                        {% if cell.counts.total > 2 %}
+                          <div class="text-[10px] font-semibold text-brand-700 px-1">+{{ cell.counts.total|add:"-2" }} more</div>
+                        {% endif %}
+                      </div>
+                    {% endif %}
+                  </a>
+                {% else %}
+                  <div class="min-h-[86px] rounded-xl bg-ink-50/20"></div>
+                {% endif %}
+              {% endfor %}
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="px-5 py-3 border-t border-ink-100 bg-ink-50/50 flex flex-wrap items-center gap-4 text-[11px] text-ink-500">
+        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-brand-600"></span> Requested (needs confirmation)</span>
+        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-ink-900"></span> Confirmed / Checked-in</span>
+        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-ink-300"></span> Closed</span>
+      </div>
     </div>
-    <div class="grid grid-cols-7 gap-1">
-      {% for week in month_grid %}
-        {% for cell in week %}
-          {% if cell %}
-            <a href="?date={{ cell.date|date:'Y-m-d' }}&scope=day"
-               class="min-h-[64px] rounded-xl border p-1.5 text-left text-xs hover:border-brand-400 {% if cell.is_today %}border-brand-400 bg-brand-50/60{% else %}border-ink-100 bg-ink-50/40{% endif %}">
-              <span class="font-semibold text-ink-700">{{ cell.date|date:"j" }}</span>
-              {% if cell.counts %}
-                <span class="block mt-1 text-[10px] leading-tight text-ink-500">{{ cell.counts.total }} appt{% if cell.counts.total != 1 %}s{% endif %}</span>
-                {% if cell.counts.open %}<span class="block text-[10px] text-emerald-600 font-semibold">{{ cell.counts.open }} open</span>{% endif %}
-              {% endif %}
-            </a>
-          {% else %}
-            <div class="min-h-[64px] rounded-xl"></div>
-          {% endif %}
-        {% endfor %}
-      {% endfor %}
+
+    <div class="xl:col-span-4">
+      {% include "appointments/_day_panel.html" %}
     </div>
   </div>
 {% else %}
@@ -68,7 +176,7 @@
   <div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
     <div class="overflow-x-auto">
       <table class="min-w-full text-sm">
-        <thead class="bg-ink-50 text-xs uppercase tracking-wide text-ink-500">
+        <thead>
           <tr>
             <th class="px-4 py-3 text-left">When</th>
             <th class="px-4 py-3 text-left">Donor</th>
@@ -83,7 +191,7 @@
             <tr class="hover:bg-ink-50/60 align-top">
               <td class="px-4 py-3 whitespace-nowrap">
                 <span class="font-medium text-ink-800">{{ a.date|date:"D, M j" }}</span>
-                <span class="block text-xs text-ink-400">{{ a.time|time:"g:i A" }}</span>
+                <span class="block text-xs text-ink-400 tabular-nums">{{ a.time|time:"g:i A" }}</span>
               </td>
               <td class="px-4 py-3">
                 <a href="{% url 'donors:detail' pk=a.donor.pk %}" hx-get="{% url 'donors:detail' pk=a.donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML"
@@ -92,12 +200,7 @@
               </td>
               <td class="px-4 py-3 text-ink-600">{{ a.location|default:"—" }}</td>
               <td class="px-4 py-3">
-                <span class="text-[11px] font-semibold px-2 py-1 rounded-full
-                  {% if a.status == "CONFIRMED" %}bg-emerald-50 text-emerald-700
-                  {% elif a.status == "REQUESTED" %}bg-amber-50 text-amber-700
-                  {% elif a.status == "CHECKED_IN" %}bg-blue-50 text-blue-700
-                  {% elif a.status == "COMPLETED" %}bg-ink-100 text-ink-600
-                  {% else %}bg-red-50 text-red-600{% endif %}">{{ a.get_status_display }}</span>
+                {% include "components/status_badge.html" with status=a.status %}
               </td>
               <td class="px-4 py-3 text-xs text-ink-500 max-w-xs">{{ a.notes|truncatechars:80|default:"—" }}</td>
               <td class="px-4 py-3 text-right whitespace-nowrap">
@@ -106,20 +209,20 @@
                           class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Confirm</button>
                 {% elif a.status == "CONFIRMED" %}
                   <button type="button" hx-get="{% url 'appointments:status' pk=a.pk %}?to=CHECKED_IN" hx-target="#modal-root" hx-swap="innerHTML"
-                          class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Check in</button>
+                          class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700">Check in</button>
                 {% elif a.status == "CHECKED_IN" %}
                   <a href="{% url 'donations:create' %}?appointment={{ a.pk }}" hx-get="{% url 'donations:create' %}?appointment={{ a.pk }}" hx-target="#modal-root" hx-swap="innerHTML"
                      class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-brand-600 text-white hover:bg-brand-700 inline-block">Start donation</a>
                   <button type="button" hx-get="{% url 'appointments:status' pk=a.pk %}?to=COMPLETED" hx-target="#modal-root" hx-swap="innerHTML"
-                          class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-ink-700 text-white hover:bg-ink-600">Completed</button>
+                          class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-ink-900 text-white hover:bg-ink-800">Completed</button>
                 {% endif %}
                 {% if a.status == "REQUESTED" or a.status == "CONFIRMED" or a.status == "CHECKED_IN" %}
                   <button type="button" hx-get="{% url 'appointments:status' pk=a.pk %}?to=NO_SHOW" hx-target="#modal-root" hx-swap="innerHTML"
-                          class="text-xs px-2.5 py-1.5 rounded-lg border border-ink-200 hover:bg-ink-50 text-ink-500">No-show</button>
+                          class="text-xs px-2.5 py-1.5 rounded-lg border border-ink-200 bg-white hover:bg-ink-50 text-ink-600">No-show</button>
                   <button type="button" hx-get="{% url 'appointments:status' pk=a.pk %}?to=CANCELLED" hx-target="#modal-root" hx-swap="innerHTML"
-                          class="text-xs px-2.5 py-1.5 rounded-lg border border-ink-200 hover:bg-ink-50 text-ink-500">Cancel</button>
+                          class="text-xs px-2.5 py-1.5 rounded-lg border border-ink-200 bg-white hover:bg-ink-50 text-ink-600">Cancel</button>
                   <a href="{% url 'appointments:edit' pk=a.pk %}" hx-get="{% url 'appointments:edit' pk=a.pk %}" hx-target="#modal-root" hx-swap="innerHTML"
-                     class="text-xs px-2.5 py-1.5 rounded-lg border border-ink-200 hover:bg-ink-50 text-ink-600">Edit</a>
+                     class="text-xs px-2.5 py-1.5 rounded-lg border border-ink-200 bg-white hover:bg-ink-50 text-ink-700">Edit</a>
                 {% endif %}
               </td>
             </tr>
@@ -133,8 +236,8 @@
       <div class="border-t border-ink-100 px-4 py-3 flex items-center justify-between text-sm">
         <span class="text-ink-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
         <div class="flex gap-2">
-          {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&date={{ day|date:'Y-m-d' }}&scope={{ scope }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="rounded-lg border border-ink-200 px-3 py-1.5 hover:bg-ink-50">← Prev</a>{% endif %}
-          {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&date={{ day|date:'Y-m-d' }}&scope={{ scope }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="rounded-lg border border-ink-200 px-3 py-1.5 hover:bg-ink-50">Next →</a>{% endif %}
+          {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&date={{ day|date:'Y-m-d' }}&scope={{ scope }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="rounded-lg border border-ink-200 bg-white px-3 py-1.5 hover:bg-ink-50">← Prev</a>{% endif %}
+          {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&date={{ day|date:'Y-m-d' }}&scope={{ scope }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="rounded-lg border border-ink-200 bg-white px-3 py-1.5 hover:bg-ink-50">Next →</a>{% endif %}
         </div>
       </div>
     {% endif %}

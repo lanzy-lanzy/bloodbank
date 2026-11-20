@@ -6,6 +6,7 @@ app_name = "appointments"
 
 urlpatterns = [
     path("", views.AppointmentListView.as_view(), name="list"),
+    path("badge/", views.AppointmentBadgeView.as_view(), name="badge"),
     path("create/", views.AppointmentCreateView.as_view(), name="create"),
     path("<int:pk>/edit/", views.AppointmentUpdateView.as_view(), name="edit"),
     path("<int:pk>/status/", views.AppointmentStatusView.as_view(), name="status"),
