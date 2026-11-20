@@ -8,7 +8,12 @@
       {% if unread %}{{ unread }} unread{% else %}You're all caught up.{% endif %}
     </p>
   </div>
-  {% if user.role == "ADMIN" or user.role == "STAFF" %}
+  {% if user.role == "DONOR" %}
+    <a href="{% url 'notifications:donor_requests' %}"
+       class="inline-flex items-center gap-2 rounded-lg bg-brand-600 text-white text-sm font-semibold px-4 py-2 hover:bg-brand-700 shadow-xs transition">
+      Donor Request Alerts
+    </a>
+  {% elif user.role == "ADMIN" or user.role == "STAFF" %}
     <div class="flex items-center gap-2">
       <a href="{% url 'notifications:delivery_list' %}"
          class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Delivery overview</a>

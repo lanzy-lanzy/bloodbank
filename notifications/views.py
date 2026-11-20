@@ -10,12 +10,14 @@ from django.views.generic import ListView
 
 from audit import services as audit
 from core.forms import StyledModelForm
-from core.mixins import AdminRequiredMixin, StaffRequiredMixin, is_htmx
+from core.mixins import AdminRequiredMixin, RoleRequiredMixin, StaffRequiredMixin, is_htmx
 from core.modals import modal_success, render_any
 from notifications.models import KNOWN_VARIABLES, Notification, NotificationTemplate
 from notifications.services import (
     NotificationError,
     NotificationService,
+    donor_request_notifications,
+    donor_request_pending_count,
     target_for,
     visible_notifications,
 )
@@ -92,6 +94,49 @@ class InboxBadgeView(View):
             Q(user=request.user) | (Q(donor=donor) if donor else Q(pk__in=[]))
         ).count()
         return render(request, "notifications/_badge.html", {"count": count})
+
+
+class DonorRequestNotificationsView(RoleRequiredMixin, View):
+    """Dedicated view for blood-request alerts sent to the signed-in donor."""
+
+    roles = ["DONOR"]
+    template_name = "notifications/donor_requests.html"
+
+    def get(self, request):
+        base_qs = donor_request_notifications(request.user).select_related(
+            "blood_request", "blood_request__organization", "template"
+        ).prefetch_related("blood_request__items__blood_type", "blood_request__items__component")
+        total_count = base_qs.count()
+        pending_count = base_qs.filter(
+            Q(donor_response__isnull=True) | Q(donor_response="")
+        ).count()
+        responded_count = total_count - pending_count
+
+        state = request.GET.get("state", "")
+        qs = base_qs
+        if state == "pending":
+            qs = qs.filter(Q(donor_response__isnull=True) | Q(donor_response=""))
+        elif state == "responded":
+            qs = qs.exclude(Q(donor_response__isnull=True) | Q(donor_response=""))
+
+        return render(request, self.template_name, {
+            "notifications": qs.order_by("-created_at")[:100],
+            "state": state,
+            "total_count": total_count,
+            "pending_count": pending_count,
+            "responded_count": responded_count,
+        })
+
+
+class DonorRequestBadgeView(RoleRequiredMixin, View):
+    """Sidebar counter badge: blood-request alerts awaiting the donor's response."""
+
+    roles = ["DONOR"]
+
+    def get(self, request):
+        return render(request, "components/nav_badge.html", {
+            "count": donor_request_pending_count(request.user),
+        })
 
 
 class NotificationReadView(View):

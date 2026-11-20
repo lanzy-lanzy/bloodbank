@@ -29,6 +29,25 @@ def visible_notifications(user):
     )
 
 
+def donor_request_notifications(user):
+    """In-app blood-request notifications addressed specifically to the signed-in donor."""
+    donor = getattr(user, "donor_profile", None)
+    if donor is None:
+        return Notification.objects.none()
+    return Notification.objects.filter(
+        channel=Notification.Channel.IN_APP,
+        donor=donor,
+        blood_request__isnull=False,
+    )
+
+
+def donor_request_pending_count(user) -> int:
+    """Number of donor blood-request alerts still awaiting the donor's response."""
+    return donor_request_notifications(user).filter(
+        Q(donor_response__isnull=True) | Q(donor_response="")
+    ).count()
+
+
 def target_for(user, notification):
     """(url, label) of the page a notification is about, or (None, None).
 

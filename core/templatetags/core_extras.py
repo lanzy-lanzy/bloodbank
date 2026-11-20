@@ -95,7 +95,10 @@ def nav_item(url_name, label, request, icon_path, badge_url=""):
     except NoReverseMatch:
         return ""
     current = request.path
-    active = current == url or (url != "/" and current.startswith(url))
+    if url_name == "notifications:inbox":
+        active = current == url
+    else:
+        active = current == url or (url != "/" and current.startswith(url))
     cls = "bb-nav-item" + (" is-active" if active else "")
     icon = format_html(
         '<span class="bb-nav-icon"><svg class="w-[17px] h-[17px]" fill="none" stroke="currentColor" '
@@ -142,6 +145,7 @@ _SECTION_BY_NAME = {
     "inventory:bag_list": "Blood Bags",
     "notifications:delivery_list": "Delivery Overview",
     "notifications:template_list": "Message Templates",
+    "notifications:donor_requests": "Donor Requests",
     "settings_app:blood_bank": "Blood Bank Configuration",
     "accounts:profile": "My Profile",
     "accounts:user_list": "Users",

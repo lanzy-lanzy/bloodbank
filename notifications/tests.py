@@ -286,3 +286,58 @@ class NotificationDropdownTests(TestCase):
         # the donor may not open the request record — they respond to it
         self.assertEqual(url, reverse("notifications:respond", kwargs={"pk": n.pk}))
 
+
+class DonorRequestNotificationsTests(TestCase):
+    """Dedicated donor blood-request notifications view, counter badge, and role gates."""
+
+    def setUp(self):
+        from core.testing import make_org, make_request
+
+        self.donor_user = make_user("dr-donor", role="DONOR")
+        self.donor = make_donor(user=self.donor_user, first_name="Elena", last_name="Cruz")
+        self.other_donor = make_donor(first_name="Other", last_name="Donor")
+        self.staff = make_user("dr-staff", role="STAFF")
+        self.requester = make_user("dr-req", role="REQUESTER")
+        self.org = make_org("Dumingag General Hospital")
+        self.req = make_request(self.org)
+
+    def test_donor_sees_only_own_blood_request_notifications_and_badge_counts_pending(self):
+        pending_alert = Notification.objects.create(
+            donor=self.donor, blood_request=self.req, channel="in_app",
+            subject="Urgent O+ Needed", body="Please donate if available.",
+        )
+        # Non-request donor notification and another donor's request notification must be excluded
+        Notification.objects.create(
+            donor=self.donor, channel="in_app", subject="General Notice", body="Welcome",
+        )
+        Notification.objects.create(
+            donor=self.other_donor, blood_request=self.req, channel="in_app",
+            subject="Other Donor Alert", body="Not yours",
+        )
+
+        self.client.force_login(self.donor_user)
+        resp = self.client.get(reverse("notifications:donor_requests"))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        self.assertIn("Urgent O+ Needed", body)
+        self.assertNotIn("General Notice", body)
+        self.assertNotIn("Other Donor Alert", body)
+
+        badge = self.client.get(reverse("notifications:donor_requests_badge"))
+        self.assertEqual(badge.status_code, 200)
+        self.assertIn("bb-nav-badge", badge.content.decode())
+        self.assertIn(">1<", badge.content.decode())
+
+        # Responding decrements the pending counter badge to zero
+        NotificationService.record_response(pending_alert, Notification.DonorResponse.AVAILABLE)
+        badge_after = self.client.get(reverse("notifications:donor_requests_badge"))
+        self.assertEqual(badge_after.status_code, 200)
+        self.assertNotIn("bb-nav-badge", badge_after.content.decode())
+
+    def test_non_donors_are_denied(self):
+        for user in (self.staff, self.requester):
+            self.client.force_login(user)
+            for name in ("notifications:donor_requests", "notifications:donor_requests_badge"):
+                resp = self.client.get(reverse(name))
+                self.assertEqual(resp.status_code, 403, f"{user.role} should be denied {name}")
+
