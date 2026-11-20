@@ -6,6 +6,9 @@ app_name = "donors"
 
 urlpatterns = [
     path("", views.DonorListView.as_view(), name="list"),
+    path("print/", views.DonorDirectoryDocumentView.as_view(), name="directory_document"),
+    path("export.pdf", views.DonorDirectoryPdfView.as_view(), name="directory_pdf"),
+    path("export.csv", views.DonorDirectoryCsvView.as_view(), name="directory_csv"),
     path("create/", views.DonorCreateView.as_view(), name="create"),
     path("my/", views.MyDonorProfileView.as_view(), name="my_profile"),
     path("my/edit/", views.MyDonorProfileEditView.as_view(), name="my_profile_edit"),

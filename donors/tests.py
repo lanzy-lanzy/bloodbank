@@ -538,3 +538,55 @@ class InterviewSheetDocumentTests(TestCase):
                if cells[1][0].startswith("Do you feel well")]
         self.assertEqual(q01[0][2], ("X", "box"))   # YES ticked
         self.assertEqual(q01[0][3], ("", "box"))    # NO still an empty box
+
+
+class DonorDirectoryExportTests(TestCase):
+    """Print preview, PDF export, CSV export, filter propagation, and role gates."""
+
+    def setUp(self):
+        self.staff = make_user("dir-staff", role="STAFF")
+        self.donor_user = make_user("dir-donor", role="DONOR")
+        self.requester = make_user("dir-req", role="REQUESTER")
+        self.bt_o = make_blood_type("O", "POS")
+        self.bt_a = make_blood_type("A", "NEG")
+        self.d1 = make_donor(
+            first_name="Maria", last_name="Santos", blood_type=self.bt_o,
+            municipality="Dumingag", status="ACTIVE",
+        )
+        self.d2 = make_donor(
+            first_name="Jose", last_name="Reyes", blood_type=self.bt_a,
+            municipality="Pagadian", status="INACTIVE",
+        )
+
+    def test_staff_can_view_print_preview_and_filters_propagate(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("donors:directory_document"), {"municipality": "Dumingag"})
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        self.assertIn("MARIA SANTOS", body)
+        self.assertNotIn("JOSE REYES", body)
+        self.assertIn("Donor Registry", body)
+
+    def test_staff_can_export_real_pdf(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("donors:directory_pdf"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("application/pdf", resp["Content-Type"])
+        self.assertTrue(resp.content.startswith(b"%PDF-"))
+
+    def test_staff_can_export_filtered_csv(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("donors:directory_csv"), {"status": "ACTIVE"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("text/csv", resp["Content-Type"])
+        body = resp.content.decode("utf-8-sig")
+        self.assertIn("Donor Code,Full Name,Blood Type", body)
+        self.assertIn("MARIA SANTOS", body)
+        self.assertNotIn("JOSE REYES", body)
+
+    def test_donor_and_requester_are_denied(self):
+        for user in (self.donor_user, self.requester):
+            self.client.force_login(user)
+            for name in ("donors:directory_document", "donors:directory_pdf", "donors:directory_csv"):
+                resp = self.client.get(reverse(name))
+                self.assertEqual(resp.status_code, 403, f"{user.role} should be denied {name}")

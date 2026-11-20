@@ -70,6 +70,11 @@ def main():
         probe(f"{username} report run",
               c.get(reverse("reports:run", kwargs={"key": "inventory"})))
 
+        probe(f"{username} donor directory", c.get(reverse("donors:directory_document")))
+        probe(f"{username} donor directory.pdf", c.get(reverse("donors:directory_pdf")),
+              want_pdf="application/pdf")
+        probe(f"{username} donor directory.csv", c.get(reverse("donors:directory_csv")))
+
         # The donor interview sheet is a printable document too: preview and PDF
         # must both render the same spec (seed_demo generates one per donor).
         sheet = DonorInterviewSheet.objects.first()
@@ -109,7 +114,8 @@ def main():
         for name in ("reports:document", "reports:pdf"):
             probe(f"donor denied {name}", c.get(reverse(name, kwargs={"key": "inventory"})),
                   want_status=403)
-        for name in ("inventory:statement", "inventory:statement_pdf"):
+        for name in ("inventory:statement", "inventory:statement_pdf",
+                     "donors:directory_document", "donors:directory_pdf", "donors:directory_csv"):
             probe(f"donor denied {name}", c.get(reverse(name)), want_status=403)
         if pending:
             # A donor never reads another applicant's paperwork - not even the
@@ -142,6 +148,11 @@ def main():
 
     requester = User.objects.filter(role="REQUESTER").first()
     sheet = DonorInterviewSheet.objects.first()
+    if requester:
+        c = Client()
+        c.login(username=requester.username, password=PASSWORD)
+        for name in ("donors:directory_document", "donors:directory_pdf", "donors:directory_csv"):
+            probe(f"requester denied {name}", c.get(reverse(name)), want_status=403)
     if requester and sheet:
         c = Client()
         c.login(username=requester.username, password=PASSWORD)

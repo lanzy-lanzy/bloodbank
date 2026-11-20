@@ -1,7 +1,10 @@
 """Donor views: management (staff/admin), self-service (donor), screening."""
+import csv
+
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.utils import timezone
 from django.views import View
@@ -11,7 +14,9 @@ from audit import services as audit
 from core.mixins import (AdminRequiredMixin, DonorRequiredMixin, PrintableDocumentMixin,
                          StaffRequiredMixin, is_htmx)
 from core.modals import modal_success, render_any
-from donors.documents import build_interview_sheet_spec
+from donors.documents import (DONOR_DIRECTORY_COLUMNS, build_donor_directory_spec,
+                              build_interview_sheet_spec, donor_directory_rows,
+                              filter_donor_queryset)
 from donors.forms import (
     DonorForm,
     DonorInterviewSheetForm,
@@ -25,27 +30,11 @@ from donors.services import DonorEligibilityService, InterviewSheetService
 from inventory.models import BloodType
 
 
-def _filter_donors(qs, params):
-    q = params.get("q", "").strip()
-    if q:
-        qs = qs.filter(
-            Q(donor_code__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q)
-            | Q(middle_name__icontains=q) | Q(contact_number__icontains=q) | Q(email__icontains=q)
-        )
-    for key, field in (("status", "status"), ("blood_type", "blood_type_id"), ("municipality", "municipality")):
-        value = params.get(key)
-        if value:
-            qs = qs.filter(**{f"{field}__icontains" if field == "municipality" else field: value})
-    last_from, last_to = params.get("last_donation_from"), params.get("last_donation_to")
-    if last_from or last_to:
-        donations_filter = Q(donations__status__in=["COLLECTED", "RELEASED"])
-        if last_from:
-            donations_filter &= Q(donations__donation_date__gte=last_from)
-        if last_to:
-            donations_filter &= Q(donations__donation_date__lte=last_to)
-        qs = qs.filter(donations_filter).distinct()
-    eligibility = params.get("eligibility")
-    return qs, q, eligibility
+def _url_without_page(request, url_name: str) -> str:
+    """Reverse ``url_name`` preserving active filter params, dropping ``page``."""
+    url = reverse(url_name)
+    kept = [p for p in request.GET.urlencode().split("&") if p and not p.startswith("page=")]
+    return f"{url}?{'&'.join(kept)}" if kept else url
 
 
 class DonorListView(StaffRequiredMixin, ListView):
@@ -54,16 +43,7 @@ class DonorListView(StaffRequiredMixin, ListView):
     paginate_by = 15
 
     def get_queryset(self):
-        qs, self.q, self.eligibility_filter = _filter_donors(
-            Donor.objects.select_related("blood_type"), self.request.GET
-        )
-        self.qs_for_count = qs
-        if self.eligibility_filter:
-            # Eligibility is computed, so filter in Python over a bounded set.
-            ids = [d.pk for d in qs[:500]
-                   if DonorEligibilityService.evaluate(d).status == self.eligibility_filter]
-            qs = qs.filter(pk__in=ids)
-        return qs.order_by("last_name", "first_name")
+        return filter_donor_queryset(self.request.GET)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -78,6 +58,10 @@ class DonorListView(StaffRequiredMixin, ListView):
             "eligibilities": {d.pk: DonorEligibilityService.evaluate(d) for d in ctx["donors"]},
             "municipalities": Donor.objects.exclude(municipality="").values_list(
                 "municipality", flat=True).distinct().order_by("municipality")[:100],
+            "print_url": _url_without_page(self.request, "donors:directory_document"),
+            "pdf_url": _url_without_page(self.request, "donors:directory_pdf"),
+            "csv_url": _url_without_page(self.request, "donors:directory_csv"),
+            "is_htmx": is_htmx(self.request),
         })
         return ctx
 
@@ -85,6 +69,49 @@ class DonorListView(StaffRequiredMixin, ListView):
         if is_htmx(self.request):
             return render(self.request, "donors/_table.html", context)
         return super().render_to_response(context, **kwargs)
+
+
+class _DonorDirectoryMixin(PrintableDocumentMixin):
+    document_url = "donors:directory_document"
+    pdf_url = "donors:directory_pdf"
+    csv_url = "donors:directory_csv"
+    back_url = "donors:list"
+
+    def build_document_spec(self, request, *args, **kwargs):
+        return build_donor_directory_spec(request)
+
+
+class DonorDirectoryDocumentView(StaffRequiredMixin, _DonorDirectoryMixin, View):
+    """Print preview of the filtered Donor Registry (same spec as the PDF)."""
+
+    def get(self, request):
+        return self.document(request)
+
+
+class DonorDirectoryPdfView(StaffRequiredMixin, _DonorDirectoryMixin, View):
+    """Filtered Donor Registry as a downloadable PDF file."""
+
+    def get(self, request):
+        return self.pdf(request)
+
+
+class DonorDirectoryCsvView(StaffRequiredMixin, View):
+    """Filtered Donor Registry as a downloadable UTF-8 CSV file."""
+
+    def get(self, request):
+        donors = list(filter_donor_queryset(request.GET))
+        rows, _ = donor_directory_rows(donors)
+        generated = timezone.localtime()
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = (
+            f'attachment; filename="donors_{generated:%Y%m%d_%H%M}.csv"'
+        )
+        # UTF-8 BOM so Excel opens non-ASCII names cleanly.
+        response.write("\ufeff")
+        writer = csv.writer(response)
+        writer.writerow(DONOR_DIRECTORY_COLUMNS)
+        writer.writerows(rows)
+        return response
 
 
 class DonorCreateView(StaffRequiredMixin, View):

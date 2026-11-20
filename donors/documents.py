@@ -8,10 +8,29 @@ The spec is a *record*: it prints the answers that exist and leaves the rest
 blank. An unanswered item stays an empty YES/NO pair, never an implied "No",
 and the spec contains no clinical interpretation (agents.md rule 1).
 """
+from django.db.models import Q
+from django.utils import timezone
+
 from core.documents import (DocumentColumn, FormDocumentSpec, FormField, FormRow,
-                            FormSection)
+                            FormSection, build_document)
 from core.text import uppercase
 from donors.interview import SECTIONS
+
+# Bounded row cap for the printable/PDF donor directory (Rule 8: a truncated
+# listing must explicitly say it is truncated).
+DONOR_LIST_LIMIT = 500
+
+DONOR_DIRECTORY_COLUMNS = [
+    "Donor Code",
+    "Full Name",
+    "Blood Type",
+    "Contact",
+    "Municipality",
+    "Last Donation",
+    "Status",
+    "Eligibility",
+    "Points",
+]
 
 
 def _date(value) -> str:
@@ -198,4 +217,143 @@ def build_interview_sheet_spec(sheet, *, answers=None, preview=False,
         footer_note=("Confidential - contains personal health information. "
                      "Keep with the donor's record."),
         pdf_filename=f"blood-donor-interview-{donor.donor_code}.pdf",
+    )
+
+
+def filter_donor_queryset(params):
+    """Apply DonorListView's filter parameters to the Donor queryset.
+
+    Shared by the HTML list, the print preview, the PDF export, and the CSV
+    export so every output reflects the exact same filtered set of donors.
+    """
+    from donors.models import Donor
+    from donors.services import DonorEligibilityService
+
+    qs = Donor.objects.select_related("blood_type")
+    q = (params.get("q") or "").strip()
+    if q:
+        qs = qs.filter(
+            Q(donor_code__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q)
+            | Q(middle_name__icontains=q) | Q(contact_number__icontains=q) | Q(email__icontains=q)
+        )
+    for key, field in (("status", "status"), ("blood_type", "blood_type_id"), ("municipality", "municipality")):
+        value = params.get(key)
+        if value:
+            qs = qs.filter(**{f"{field}__icontains" if field == "municipality" else field: value})
+    last_from, last_to = params.get("last_donation_from"), params.get("last_donation_to")
+    if last_from or last_to:
+        donations_filter = Q(donations__status__in=["COLLECTED", "RELEASED"])
+        if last_from:
+            donations_filter &= Q(donations__donation_date__gte=last_from)
+        if last_to:
+            donations_filter &= Q(donations__donation_date__lte=last_to)
+        qs = qs.filter(donations_filter).distinct()
+    eligibility = params.get("eligibility") or ""
+    if eligibility:
+        ids = [d.pk for d in qs[:DONOR_LIST_LIMIT]
+               if DonorEligibilityService.evaluate(d).status == eligibility]
+        qs = qs.filter(pk__in=ids)
+    return qs.order_by("last_name", "first_name")
+
+
+def _active_donor_scope(params) -> str:
+    """Human-readable summary of the active filters for the printed header."""
+    from donors.models import Donor
+    from inventory.models import BloodType
+
+    parts = []
+    if (params.get("q") or "").strip():
+        parts.append(f"Search: {params['q'].strip()}")
+    if params.get("status"):
+        status_map = dict(Donor.Status.choices)
+        parts.append(f"Status: {status_map.get(params['status'], params['status'])}")
+    if params.get("blood_type"):
+        bt = BloodType.objects.filter(pk=params["blood_type"]).first()
+        parts.append(f"Blood type: {bt.code if bt else params['blood_type']}")
+    if params.get("municipality"):
+        parts.append(f"Municipality: {params['municipality']}")
+    if params.get("eligibility"):
+        parts.append(f"Eligibility: {params['eligibility'].replace('_', ' ').title()}")
+    if params.get("last_donation_from") or params.get("last_donation_to"):
+        parts.append(
+            f"Last donation: {params.get('last_donation_from') or '...'} to "
+            f"{params.get('last_donation_to') or '...'}"
+        )
+    return "; ".join(parts) if parts else "All registered donors"
+
+
+def donor_directory_rows(donors) -> tuple[list, dict]:
+    """Format donor instances into table rows and real summary counters."""
+    from donors.services import DonorEligibilityService
+
+    rows = []
+    counts = {"active": 0, "eligible": 0, "deferred_or_ineligible": 0}
+    for d in donors:
+        elig = DonorEligibilityService.evaluate(d)
+        if d.status == "ACTIVE":
+            counts["active"] += 1
+        if elig.status == "ELIGIBLE":
+            counts["eligible"] += 1
+        elif elig.status in ("DEFERRED", "NOT_ELIGIBLE"):
+            counts["deferred_or_ineligible"] += 1
+        last_don = d.last_donation
+        rows.append([
+            uppercase(d.donor_code),
+            uppercase(d.full_name),
+            d.blood_type.code if d.blood_type_id else "-",
+            d.contact_number or d.email or "-",
+            uppercase(d.municipality) if d.municipality else "-",
+            last_don.donation_date.strftime("%d %b %Y") if last_don else "-",
+            d.get_status_display(),
+            elig.status.replace("_", " ").title(),
+            str(d.points_balance),
+        ])
+    return rows, counts
+
+
+def build_donor_directory_spec(request):
+    """Build the formal DocumentSpec for the Donor Registry preview and PDF."""
+    qs = filter_donor_queryset(request.GET)
+    total = qs.count()
+    donors = list(qs[:DONOR_LIST_LIMIT])
+    rows, counts = donor_directory_rows(donors)
+
+    generated = timezone.localtime()
+    user = request.user
+    full_name = (getattr(user, "get_full_name", lambda: "")() or "").strip()
+    prepared_by = f"{full_name} ({user.get_username()})" if full_name else user.get_username()
+    scope = _active_donor_scope(request.GET)
+
+    notes = [
+        f"Scope applied - {scope}.",
+        "Eligibility status is evaluated live against configured blood bank rules.",
+    ]
+    if total > DONOR_LIST_LIMIT:
+        notes.append(
+            f"Listing truncated to the first {DONOR_LIST_LIMIT:,} of {total:,} matching donors. "
+            "Narrow the filters or export CSV for the complete set."
+        )
+
+    return build_document(
+        title="Donor Registry",
+        doc_type="DIRECTORY",
+        subtitle="Registered blood donors, blood group, contact details, status and current eligibility.",
+        columns=DONOR_DIRECTORY_COLUMNS,
+        rows=rows,
+        meta=[
+            ("Generated on", generated.strftime("%d %b %Y, %H:%M")),
+            ("Generated by", prepared_by),
+            ("Matched donors", f"{total:,}"),
+            ("Scope", scope),
+        ],
+        summary=[
+            ("Total Matched", f"{total:,}"),
+            ("Active (Shown)", f"{counts['active']:,}"),
+            ("Eligible (Shown)", f"{counts['eligible']:,}"),
+            ("Deferred / Ineligible", f"{counts['deferred_or_ineligible']:,}"),
+        ],
+        landscape=True,
+        notes=notes,
+        prepared_by=prepared_by,
+        pdf_filename=f"donors_{generated:%Y%m%d_%H%M}.pdf",
     )

@@ -1,4 +1,5 @@
 {# HTMX swap fragment — does NOT extend base.html #}
+{% if is_htmx %}{% include "donors/_export_actions.html" with oob=True %}{% endif %}
 <div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
   <div class="overflow-x-auto">
     <table class="min-w-full text-sm divide-y divide-ink-100">

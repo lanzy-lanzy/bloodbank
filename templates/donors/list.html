@@ -6,8 +6,11 @@
     <h1 class="text-xl font-bold text-ink-900">Donors</h1>
     <p class="text-sm text-ink-500 mt-0.5">Registered donors, eligibility and contact records.</p>
   </div>
-  {% url 'donors:create' as donor_add_url %}
-  {% include "components/modal_action.html" with ma_url=donor_add_url ma_label="+ Register Donor" ma_icon="M12 5v14M5 12h14" %}
+  <div class="flex flex-wrap items-center gap-2">
+    {% include "donors/_export_actions.html" %}
+    {% url 'donors:create' as donor_add_url %}
+    {% include "components/modal_action.html" with ma_url=donor_add_url ma_label="Register Donor" ma_icon="M12 5v14M5 12h14" %}
+  </div>
 </div>
 
 <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4">
