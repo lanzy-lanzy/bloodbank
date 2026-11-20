@@ -12,12 +12,17 @@
 {% block auth_backdrop_extra %}<div class="bb-aurora"></div>{% endblock %}
 {% block auth_content %}
 <div class="bb-glass-form">
-  <div class="mb-5">
-    <p class="bb-eyebrow">Public registration</p>
-    <h2 class="bb-title">Create your account</h2>
-    <p class="bb-muted">A few short steps — most people finish in about a minute. Your account stays
-      <strong class="bb-strong">pending until a blood bank administrator approves it</strong>, and you will be
-      notified by SMS and in-app once it has been reviewed.</p>
+  <div class="mb-6 pb-5 border-b border-white/10 flex flex-wrap items-center gap-4">
+    <div class="shrink-0 rounded-full bg-white p-1 shadow-md ring-2 ring-white/15">
+      <img src="{% static 'images/dumingag-seal.png' %}" alt="Municipality of Dumingag Official Seal"
+           class="h-14 w-14 rounded-full object-contain">
+    </div>
+    <div class="min-w-0 flex-1">
+      <p class="bb-eyebrow">Official Registration &middot; {{ ORG_NAME }}</p>
+      <h2 class="bb-title">Create your account</h2>
+      <p class="bb-muted">Complete the guided steps below to submit your application. New accounts remain
+        <strong class="bb-strong">pending until an administrator approves them</strong>, with status updates sent via SMS and in-app notification.</p>
+    </div>
   </div>
 
   {% if form.non_field_errors %}

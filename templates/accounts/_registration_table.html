@@ -3,44 +3,46 @@
 <div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
   <div class="overflow-x-auto">
     <table class="min-w-full divide-y divide-ink-200 text-sm">
-      <thead class="bg-ink-50 text-left text-xs font-semibold uppercase tracking-wide text-ink-500">
+      <thead>
         <tr>
-          <th class="px-4 py-3">Applicant</th>
-          <th class="px-4 py-3">Role</th>
-          <th class="px-4 py-3">Contact</th>
-          <th class="px-4 py-3">Status</th>
-          <th class="px-4 py-3">Submitted</th>
-          <th class="px-4 py-3 text-right">Actions</th>
+          <th class="px-4 py-3 text-left">Applicant</th>
+          <th class="px-4 py-3 text-left">Role</th>
+          <th class="px-4 py-3 text-left">Contact</th>
+          <th class="px-4 py-3 text-left">Status</th>
+          <th class="px-4 py-3 text-left">Submitted</th>
+          <th class="px-4 py-3 text-right">Action</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-ink-100">
         {% for reg in registrations %}
-        <tr class="hover:bg-ink-50/60">
+        <tr class="hover:bg-ink-50/70">
           <td class="px-4 py-3">
-            <div class="font-medium text-ink-900">{{ reg.full_name }}</div>
-            <div class="text-xs text-ink-500">@{{ reg.username }}</div>
-          </td>
-          <td class="px-4 py-3"><span class="inline-flex rounded-md bg-ink-100 px-2 py-0.5 text-xs font-semibold text-ink-700">{{ reg.get_role_display }}</span></td>
-          <td class="px-4 py-3 text-ink-600">
-            <div>{{ reg.email }}</div>
-            <div class="text-xs text-ink-400">{{ reg.phone }}</div>
+            <div class="font-semibold text-ink-900">{{ reg.full_name }}</div>
+            <div class="text-xs text-ink-500 font-mono">@{{ reg.username }}</div>
           </td>
           <td class="px-4 py-3">
-            {% if reg.status == "PENDING" %}<span class="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-700">Pending</span>
-            {% elif reg.status == "APPROVED" %}<span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">Approved</span>
-            {% else %}<span class="inline-flex items-center gap-1 rounded-full bg-red-50 border border-red-200 px-2.5 py-0.5 text-xs font-semibold text-red-700">Rejected</span>{% endif %}
+            <span class="inline-flex rounded-md bg-ink-100 border border-ink-200 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-ink-700">{{ reg.get_role_display }}</span>
           </td>
-          <td class="px-4 py-3 text-ink-500 whitespace-nowrap">{{ reg.created_at|date:"M j, Y H:i" }}</td>
+          <td class="px-4 py-3 text-ink-700">
+            <div>{{ reg.email|default:"—" }}</div>
+            <div class="text-xs text-ink-500 tabular-nums">{{ reg.phone }}</div>
+          </td>
+          <td class="px-4 py-3">
+            {% include "components/status_badge.html" with status=reg.status %}
+          </td>
+          <td class="px-4 py-3 text-ink-500 whitespace-nowrap tabular-nums">{{ reg.created_at|date:"M j, Y H:i" }}</td>
           <td class="px-4 py-3 text-right whitespace-nowrap">
             <a href="{% url 'accounts:registration_review' reg.pk %}"
                hx-get="{% url 'accounts:registration_review' reg.pk %}" hx-target="#modal-root" hx-swap="innerHTML"
-               class="text-brand-600 hover:text-brand-700 font-medium text-xs">
+               class="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition
+               {% if reg.status == 'PENDING' %}bg-brand-600 text-white hover:bg-brand-700 shadow-2xs
+               {% else %}border border-ink-200 bg-white text-ink-700 hover:bg-ink-50{% endif %}">
               {% if reg.status == "PENDING" %}Review{% else %}View{% endif %}
             </a>
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="6">{% include "components/empty_state.html" with empty_title="No registrations found" %}</td></tr>
+        <tr><td colspan="6">{% include "components/empty_state.html" with empty_title="No registrations found" empty_text="Pending and reviewed account applications will appear here." %}</td></tr>
         {% endfor %}
       </tbody>
     </table>

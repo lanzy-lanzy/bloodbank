@@ -3,10 +3,10 @@
         @click.self="bbCloseModal()" class="bb-dialog w-full {{ modal_maxw|default:'max-w-3xl' }}"
         aria-label="{{ modal_title|default:'Details' }}">
   <div class="bb-dialog-toolbar">
-    <span>{{ modal_title|default:"Details" }}</span>
+    <span class="bb-dialog-title truncate">{{ modal_title|default:"Details" }}</span>
     <button type="button" @click="bbCloseModal()" class="bb-dialog-close"
             aria-label="Close dialog" autofocus>
-      <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
     </button>
   </div>
   <div class="modal-body">

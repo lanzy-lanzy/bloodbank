@@ -189,24 +189,37 @@
    ========================================================================== */
 body:has(.bb-dialog[open]) { overflow: hidden; }
 
+@keyframes bb-dialog-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .bb-dialog {
   position: fixed;
   inset: 0;
   margin: auto;
+  padding: 0;
   width: calc(100% - 2rem);
   max-height: calc(100dvh - 2rem);
   overflow: auto;
   overscroll-behavior: contain;
   border: 1px solid var(--color-ink-200);
+  border-top: 3px solid var(--color-brand-600);
   border-radius: 0.75rem;
   background: var(--color-ink-50);
   color: var(--color-ink-900);
-  box-shadow: 0 24px 60px -12px rgb(9 14 26 / 0.36), 0 0 0 1px rgb(15 23 42 / 0.04);
+  box-shadow:
+    0 28px 64px -16px rgb(9 14 26 / 0.42),
+    0 4px 16px -4px rgb(9 14 26 / 0.16);
+}
+
+.bb-dialog[open] {
+  animation: bb-dialog-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .bb-dialog::backdrop {
-  background: rgb(9 14 26 / 0.58);
-  backdrop-filter: blur(3px);
+  background: rgb(9 14 26 / 0.62);
+  backdrop-filter: blur(5px);
 }
 
 .bb-dialog-toolbar {
@@ -217,35 +230,69 @@ body:has(.bb-dialog[open]) { overflow: hidden; }
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.75rem 1.25rem;
+  padding: 0.875rem 1.25rem;
   background: #ffffff;
   border-bottom: 1px solid var(--color-ink-200);
   font-size: 0.9375rem;
   font-weight: 600;
   color: var(--color-ink-900);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+}
+
+.bb-dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.bb-dialog-title::before {
+  content: "";
+  width: 0.3rem;
+  height: 1.05rem;
+  border-radius: 999px;
+  background: var(--color-brand-600);
+  flex: none;
 }
 
 .bb-dialog-close {
   display: grid;
   flex: none;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2rem;
+  height: 2rem;
   place-items: center;
   border-radius: 0.5rem;
+  border: 1px solid transparent;
   color: var(--color-ink-500);
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-.bb-dialog-close:hover { background: var(--color-ink-100); color: var(--color-ink-900); }
+.bb-dialog-close:hover {
+  background: var(--color-ink-100);
+  border-color: var(--color-ink-200);
+  color: var(--color-ink-900);
+}
 .bb-dialog :focus-visible { outline: 2px solid var(--color-brand-600); outline-offset: 2px; }
-.bb-dialog-confirmation { padding: clamp(1.25rem, 4vw, 1.5rem); background: #ffffff; }
-.bb-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem; }
-.bb-dialog-actions button { min-height: 2.5rem; }
+.bb-dialog-confirmation { padding: 0; background: #ffffff; }
+.bb-dialog-confirm-body { padding: clamp(1.25rem, 4vw, 1.5rem); }
+.bb-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.875rem clamp(1.25rem, 4vw, 1.5rem);
+  background: var(--color-ink-50);
+  border-top: 1px solid var(--color-ink-200);
+}
+.bb-dialog-actions button { min-height: 2.35rem; }
 /* The panel body is a light surface so the templates' own white cards render
    identically inside a modal as they do on the full page. */
-.modal-body { background: var(--color-ink-50); border-radius: 0 0 0.75rem 0.75rem; padding: 1.25rem; }
+.modal-body { background: var(--color-ink-50); border-radius: 0 0 0.75rem 0.75rem; padding: 1.25rem 1.5rem; }
 .modal-body > div.max-w-3xl.mx-auto { max-width: none; margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-dialog[open] { animation: none; }
+}
 
 /* ==========================================================================
    Auth Shell & Registration Stepper — Formal Institutional Dark Slate
