@@ -20,18 +20,18 @@
   --color-brand-800: #680b17;
   --color-brand-900: #540a14;
 
-  /* Architectural Navy-Slate — crisp contrast, formal clinical surface scale */
+  /* Architectural Navy-Slate — crisp dark-ink contrast for Light Mode */
   --color-ink-50: #f5f7fa;
   --color-ink-100: #eaeff5;
-  --color-ink-200: #d8e0ea;
-  --color-ink-300: #bcc8d8;
-  --color-ink-400: #8b9bb0;
-  --color-ink-500: #5f7087;
-  --color-ink-600: #46556b;
-  --color-ink-700: #313f52;
-  --color-ink-800: #1e293b;
-  --color-ink-900: #0f172a;
-  --color-ink-950: #090e1a;
+  --color-ink-200: #d5dee9;
+  --color-ink-300: #b4c2d4;
+  --color-ink-400: #52627a;
+  --color-ink-500: #3a4a61;
+  --color-ink-600: #263447;
+  --color-ink-700: #182334;
+  --color-ink-800: #0f172a;
+  --color-ink-900: #060b14;
+  --color-ink-950: #04070e;
 
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
@@ -1385,9 +1385,9 @@ body:has(.bb-dialog[open]) { overflow: hidden; }
 [data-theme="light"] .bb-sidebar,
 :root:not([data-theme="dark"]) .bb-sidebar {
   background: #ffffff;
-  border-right: 1px solid #d8e0ea;
+  border-right: 1px solid #d5dee9;
   box-shadow: 2px 0 16px -10px rgba(15, 23, 42, 0.08);
-  color: #46556b;
+  color: #182334;
 }
 [data-theme="light"] .bb-sidebar-head,
 :root:not([data-theme="dark"]) .bb-sidebar-head {
@@ -1395,21 +1395,21 @@ body:has(.bb-dialog[open]) { overflow: hidden; }
   background: #ffffff;
 }
 [data-theme="light"] .bb-sidebar-org,
-:root:not([data-theme="dark"]) .bb-sidebar-org { color: #0f172a; }
+:root:not([data-theme="dark"]) .bb-sidebar-org { color: #060b14; }
 [data-theme="light"] .bb-sidebar-sub,
-:root:not([data-theme="dark"]) .bb-sidebar-sub { color: #5f7087; }
+:root:not([data-theme="dark"]) .bb-sidebar-sub { color: #3a4a61; }
 [data-theme="light"] .bb-sidebar-close,
-:root:not([data-theme="dark"]) .bb-sidebar-close { color: #5f7087; }
+:root:not([data-theme="dark"]) .bb-sidebar-close { color: #3a4a61; }
 [data-theme="light"] .bb-sidebar-close:hover,
-:root:not([data-theme="dark"]) .bb-sidebar-close:hover { background: #f1f5f9; color: #0f172a; }
+:root:not([data-theme="dark"]) .bb-sidebar-close:hover { background: #f1f5f9; color: #060b14; }
 [data-theme="light"] .bb-sidebar-foot,
 :root:not([data-theme="dark"]) .bb-sidebar-foot {
   border-top: 1px solid #eaeff5;
   background: #f8fafc;
-  color: #5f7087;
+  color: #3a4a61;
 }
 [data-theme="light"] .bb-sidebar-foot b,
-:root:not([data-theme="dark"]) .bb-sidebar-foot b { color: #0f172a; }
+:root:not([data-theme="dark"]) .bb-sidebar-foot b { color: #060b14; }
 [data-theme="light"] .bb-sidebar-avatar,
 :root:not([data-theme="dark"]) .bb-sidebar-avatar {
   background: #0f172a;
@@ -1417,20 +1417,20 @@ body:has(.bb-dialog[open]) { overflow: hidden; }
   color: #ffffff;
 }
 [data-theme="light"] .bb-sidebar-role,
-:root:not([data-theme="dark"]) .bb-sidebar-role { color: #5f7087; }
+:root:not([data-theme="dark"]) .bb-sidebar-role { color: #3a4a61; }
 [data-theme="light"] .bb-nav-section,
 :root:not([data-theme="dark"]) .bb-nav-section {
-  color: #8b9bb0;
+  color: #46556b;
   border-top: 1px solid #eaeff5;
 }
 [data-theme="light"] .bb-nav-item,
 :root:not([data-theme="dark"]) .bb-nav-item {
-  color: #313f52;
+  color: #182334;
 }
 [data-theme="light"] .bb-nav-item:hover,
 :root:not([data-theme="dark"]) .bb-nav-item:hover {
-  color: #0f172a;
-  background: #f5f7fa;
+  color: #060b14;
+  background: #f1f5f9;
 }
 [data-theme="light"] .bb-nav-item.is-active,
 :root:not([data-theme="dark"]) .bb-nav-item.is-active {
@@ -1505,14 +1505,14 @@ body:has(.bb-dialog[open]) { overflow: hidden; }
   background-color: #ffffff;
   box-shadow: 0 0 0 3px rgba(155, 17, 34, 0.14);
 }
-:root:not([data-theme="dark"]) .bb-glass-form label { color: #313f52; }
+:root:not([data-theme="dark"]) .bb-glass-form label { color: #182334; }
 :root:not([data-theme="dark"]) .bb-glass-form ::-webkit-calendar-picker-indicator { filter: none; }
-:root:not([data-theme="dark"]) .bb-glass-form .text-ink-900 { color: #0f172a; }
-:root:not([data-theme="dark"]) .bb-glass-form .text-ink-800 { color: #1e293b; }
-:root:not([data-theme="dark"]) .bb-glass-form .text-ink-700 { color: #313f52; }
-:root:not([data-theme="dark"]) .bb-glass-form .text-ink-600 { color: #46556b; }
-:root:not([data-theme="dark"]) .bb-glass-form .text-ink-500 { color: #5f7087; }
-:root:not([data-theme="dark"]) .bb-glass-form .text-ink-400 { color: #8b9bb0; }
+:root:not([data-theme="dark"]) .bb-glass-form .text-ink-900 { color: #060b14; }
+:root:not([data-theme="dark"]) .bb-glass-form .text-ink-800 { color: #0f172a; }
+:root:not([data-theme="dark"]) .bb-glass-form .text-ink-700 { color: #182334; }
+:root:not([data-theme="dark"]) .bb-glass-form .text-ink-600 { color: #263447; }
+:root:not([data-theme="dark"]) .bb-glass-form .text-ink-500 { color: #3a4a61; }
+:root:not([data-theme="dark"]) .bb-glass-form .text-ink-400 { color: #52627a; }
 :root:not([data-theme="dark"]) .bb-glass-form .text-brand-600 { color: #9b1122; }
 :root:not([data-theme="dark"]) .bb-eyebrow { color: #9b1122; }
 :root:not([data-theme="dark"]) .bb-title,
@@ -1522,7 +1522,7 @@ body:has(.bb-dialog[open]) { overflow: hidden; }
 :root:not([data-theme="dark"]) .bb-strong,
 :root:not([data-theme="dark"]) .bb-auth-item b,
 :root:not([data-theme="dark"]) .bb-review-row dd,
-:root:not([data-theme="dark"]) .bb-sheet-preview-title { color: #0f172a; }
+:root:not([data-theme="dark"]) .bb-sheet-preview-title { color: #060b14; }
 :root:not([data-theme="dark"]) .bb-muted,
 :root:not([data-theme="dark"]) .bb-panel-lead,
 :root:not([data-theme="dark"]) .bb-role-desc,
@@ -1530,7 +1530,7 @@ body:has(.bb-dialog[open]) { overflow: hidden; }
 :root:not([data-theme="dark"]) .bb-step-meta,
 :root:not([data-theme="dark"]) .bb-step-label,
 :root:not([data-theme="dark"]) .bb-review-row dt,
-:root:not([data-theme="dark"]) .bb-sheet-preview-lead { color: #46556b; }
+:root:not([data-theme="dark"]) .bb-sheet-preview-lead { color: #263447; }
 :root:not([data-theme="dark"]) .bb-step.is-active .bb-step-label { color: #0f172a; }
 :root:not([data-theme="dark"]) .bb-steps-track { background: #d8e0ea; }
 :root:not([data-theme="dark"]) .bb-step-badge { color: #46556b; background: #f5f7fa; border-color: #d8e0ea; }
