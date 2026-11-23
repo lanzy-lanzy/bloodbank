@@ -67,6 +67,7 @@ class Command(BaseCommand):
                 "Skipping compatibility/eligibility demo values (--no-clinical-demo)."))
         if self.samples:
             self._seed_sample_records()
+            self._seed_zds_municipality_trends()
 
         self.stdout.write("")
         self.stdout.write(self.style.SUCCESS("Seed complete."))
@@ -693,3 +694,180 @@ class Command(BaseCommand):
                 **answers)
             self.stdout.write("Attached the demo interview self-declaration "
                               "to 'pending.donor'.")
+
+    def _seed_zds_municipality_trends(self):
+        """Idempotent Zamboanga del Sur 12-municipality donors, 6-month trends & appointments."""
+        from datetime import date, time
+        from appointments.models import Appointment
+        from donations.models import Donation
+        from donors.models import Donor
+        from donors.services import InterviewSheetService
+
+        zds_data = [
+            ("Dumingag", [
+                ("Ramon", "Bautista", "MALE", "O+"),
+                ("Clarissa", "Mendoza", "FEMALE", "A+"),
+                ("Danilo", "Villanueva", "MALE", "B+"),
+                ("Maricel", "Soriano", "FEMALE", "O+"),
+                ("Arnel", "Dalisay", "MALE", "AB+"),
+                ("Jovelyn", "Pascual", "FEMALE", "A-"),
+            ], [2, 3, 4, 4, 5, 6]),
+            ("Molave", [
+                ("Eduardo", "Ramos", "MALE", "A+"),
+                ("Lorna", "Castillo", "FEMALE", "O+"),
+                ("Jomar", "Navarro", "MALE", "B+"),
+                ("Grace", "Salazar", "FEMALE", "AB+"),
+                ("Rogelio", "Aquino", "MALE", "O-"),
+            ], [2, 2, 3, 3, 4, 5]),
+            ("Aurora", [
+                ("Noel", "Fernandez", "MALE", "O+"),
+                ("Analyn", "Torres", "FEMALE", "B+"),
+                ("Victor", "Ocampo", "MALE", "A+"),
+                ("Sheila", "Mercado", "FEMALE", "O+"),
+            ], [1, 2, 2, 3, 3, 4]),
+            ("Mahayag", [
+                ("Gilbert", "Rivera", "MALE", "B+"),
+                ("Rowena", "Alvarez", "FEMALE", "A+"),
+                ("Ferdinand", "Gomez", "MALE", "O+"),
+                ("Kristine", "Dela Cruz", "FEMALE", "B-"),
+            ], [1, 1, 2, 2, 3, 4]),
+            ("Tambulig", [
+                ("Ernesto", "Flores", "MALE", "A+"),
+                ("Evelyn", "Morales", "FEMALE", "O+"),
+                ("Dennis", "Pineda", "MALE", "AB+"),
+                ("Teresita", "Aguilar", "FEMALE", "A+"),
+            ], [1, 2, 1, 2, 2, 3]),
+            ("Tukuran", [
+                ("Nestor", "De Leon", "MALE", "O+"),
+                ("Imelda", "Santiago", "FEMALE", "B+"),
+                ("Cesar", "Valdez", "MALE", "A-"),
+            ], [1, 1, 1, 2, 2, 2]),
+            ("Labangan", [
+                ("Roberto", "Estrada", "MALE", "B+"),
+                ("Nadia", "Macapagal", "FEMALE", "O+"),
+                ("Alvin", "Rosales", "MALE", "AB-"),
+            ], [0, 1, 1, 2, 1, 2]),
+            ("Ramon Magsaysay", [
+                ("Wilfredo", "Padilla", "MALE", "A+"),
+                ("Liza", "Manalo", "FEMALE", "O+"),
+                ("Rico", "Cabrera", "MALE", "B+"),
+            ], [1, 0, 1, 1, 2, 2]),
+            ("Dumalinao", [
+                ("Joel", "Serrano", "MALE", "O+"),
+                ("Aileen", "Cortez", "FEMALE", "A+"),
+                ("Hector", "Lim", "MALE", "O-"),
+            ], [0, 1, 1, 1, 1, 2]),
+            ("Bayog", [
+                ("Armando", "Velasco", "MALE", "B+"),
+                ("Melissa", "Dizon", "FEMALE", "O+"),
+            ], [0, 1, 0, 1, 2, 1]),
+            ("Margosatubig", [
+                ("Reynaldo", "Guzman", "MALE", "A+"),
+                ("Cherry", "Palma", "FEMALE", "AB+"),
+            ], [0, 0, 1, 1, 1, 2]),
+            ("San Miguel", [
+                ("Bernardo", "Espinosa", "MALE", "O+"),
+                ("Rhea", "Solis", "FEMALE", "B+"),
+            ], [0, 0, 1, 1, 1, 1]),
+        ]
+
+        bt = self.blood_types
+        staff = self.users["staff"]
+        today = timezone.localdate()
+
+        def month_date(months_ago, day_offset):
+            m_index = today.year * 12 + (today.month - 1) - months_ago
+            y, m = divmod(m_index, 12)
+            m += 1
+            d = min(22, max(2, 4 + (day_offset * 3) % 18))
+            candidate = date(y, m, d)
+            if candidate > today:
+                candidate = today - timedelta(days=1)
+            return candidate
+
+        phone_seq = 9171000100
+        created_donors = 0
+        created_donations = 0
+        seeded_donors = []
+
+        for muni, people, monthly_counts in zds_data:
+            muni_donors = []
+            for idx, (fname, lname, sex, bt_code) in enumerate(people):
+                phone_seq += 1
+                slug_l = lname.lower().replace(" ", "")
+                email = f"{fname.lower()}.{slug_l}@zds-demo.test"
+                donor = Donor.objects.filter(email=email).first()
+                if donor is None:
+                    donor = Donor.objects.create(
+                        first_name=fname.title(),
+                        last_name=lname.title(),
+                        date_of_birth=date(
+                            1988 + (phone_seq % 14),
+                            1 + (phone_seq % 12),
+                            1 + (phone_seq % 25),
+                        ),
+                        sex=sex,
+                        blood_type=bt[bt_code],
+                        contact_number=f"0{phone_seq}",
+                        email=email,
+                        address=f"Purok {(idx % 5) + 1}, Poblacion",
+                        municipality=muni,
+                        province="Zamboanga del Sur",
+                        status=Donor.Status.ACTIVE,
+                    )
+                    InterviewSheetService.ensure_for_donor(donor, actor=staff)
+                    created_donors += 1
+                muni_donors.append(donor)
+                seeded_donors.append(donor)
+
+            for m_idx, count in enumerate(monthly_counts):
+                months_ago = 5 - m_idx
+                for c in range(count):
+                    donor = muni_donors[(m_idx + c) % len(muni_donors)]
+                    don_date = month_date(months_ago, c)
+                    if not Donation.objects.filter(
+                        donor=donor, donation_date=don_date,
+                        notes=f"Municipal blood drive - {muni}, Zamboanga del Sur",
+                    ).exists():
+                        Donation.objects.create(
+                            donor=donor,
+                            blood_type=donor.blood_type,
+                            donation_date=don_date,
+                            volume_ml=450,
+                            status=Donation.Status.RELEASED if months_ago > 0 else Donation.Status.COLLECTED,
+                            staff=staff,
+                            notes=f"Municipal blood drive - {muni}, Zamboanga del Sur",
+                        )
+                        created_donations += 1
+
+        appt_slots = [
+            (1, time(9, 0), "REQUESTED", "Dumingag Municipal Health Center"),
+            (1, time(10, 30), "REQUESTED", "Dumingag Municipal Health Center"),
+            (2, time(9, 0), "CONFIRMED", "Molave Blood Station"),
+            (2, time(14, 0), "REQUESTED", "Aurora Rural Health Unit"),
+            (4, time(9, 30), "REQUESTED", "Mahayag Civic Center"),
+            (4, time(11, 0), "REQUESTED", "Tambulig Health Office"),
+            (6, time(10, 0), "CONFIRMED", "Dumingag Municipal Health Center"),
+            (8, time(9, 0), "REQUESTED", "Tukuran District Hospital"),
+        ]
+        created_appts = 0
+        for i, (offset, slot_time, st, loc) in enumerate(appt_slots):
+            donor = seeded_donors[i]
+            appt_date = today + timedelta(days=offset)
+            if not Appointment.objects.filter(donor=donor, date=appt_date, time=slot_time).exists():
+                Appointment.objects.create(
+                    donor=donor,
+                    date=appt_date,
+                    time=slot_time,
+                    location=loc,
+                    status=st,
+                    notes=f"Scheduled drive in {donor.municipality}",
+                    created_by=staff,
+                )
+                created_appts += 1
+
+        self.stdout.write(
+            f"Zamboanga del Sur trend dataset: +{created_donors} donors, "
+            f"+{created_donations} donations, +{created_appts} appointments "
+            f"across {len(zds_data)} municipalities."
+        )
