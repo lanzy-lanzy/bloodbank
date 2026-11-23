@@ -769,6 +769,11 @@ class Command(BaseCommand):
                 ("Bernardo", "Espinosa", "MALE", "O+"),
                 ("Rhea", "Solis", "FEMALE", "B+"),
             ], [0, 0, 1, 1, 1, 1]),
+            ("Josefina", [
+                ("Rolando", "Magbanua", "MALE", "O+"),
+                ("Marites", "Lozano", "FEMALE", "A+"),
+                ("Edgar", "Cordero", "MALE", "B+"),
+            ], [1, 1, 2, 2, 2, 3]),
         ]
 
         bt = self.blood_types
