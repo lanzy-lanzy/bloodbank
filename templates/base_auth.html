@@ -59,7 +59,7 @@
         </a>
       </div>
       {# The surface is a block so a page can swap in a different card (sign-in/register use .bb-glass-card which adapts to light & dark themes). #}
-      <div class="{% block auth_card_class %}bg-white border border-ink-200 rounded-2xl shadow-xl{% endblock %} p-5 sm:p-8">
+      <div class="bb-auth-card {% block auth_card_class %}bg-white border border-ink-200 rounded-2xl shadow-xl{% endblock %} p-5 sm:p-8">
         {# Nested block: children may override auth_content (accounts pages) or content (public pages). #}
         {% block content %}{% block auth_content %}{% endblock %}{% endblock %}
       </div>

@@ -1603,9 +1603,16 @@ body:has(.bb-dialog[open]) { overflow: hidden; }
 :root:not([data-theme="dark"]) .bb-error { color: #9b1122; }
 :root:not([data-theme="dark"]) .bb-strength-track { background: #d8e0ea; }
 :root:not([data-theme="dark"]) .bb-strength-label { color: #5f7087; }
+:root:not([data-theme="dark"]) .bb-sheet-preview-status { color: #0369a1; }
+:root:not([data-theme="dark"]) .bb-sheet-preview-status.is-error { color: #9b1122; }
+:root:not([data-theme="dark"]) .bb-sheet-preview-status.is-stale { color: #b45309; }
+:root:not([data-theme="dark"]) .bb-glass-form .text-emerald-300 { color: #047857; }
+:root:not([data-theme="dark"]) .bb-glass-form .text-amber-300 { color: #b45309; }
+:root:not([data-theme="dark"]) .bb-glass-form .bg-emerald-500\/15 { background-color: #ecfdf5; border: 1px solid #a7f3d0; }
+:root:not([data-theme="dark"]) .bb-glass-form .bg-amber-400\/15 { background-color: #fffbeb; border: 1px solid #fde68a; }
 
 /* ==========================================================================
-   Full-App Dark Theme ([data-theme="dark"]) — covers all 104 templates cleanly
+   Full-App Dark Theme ([data-theme="dark"]) — high-contrast across ALL pages
    ========================================================================== */
 [data-theme="dark"] { color-scheme: dark; }
 [data-theme="dark"] body:not(.bb-auth-shell) {
@@ -1617,67 +1624,94 @@ body:has(.bb-dialog[open]) { overflow: hidden; }
 
 /* Topbar & Dropdowns */
 [data-theme="dark"] .bb-topbar {
-  background: rgba(12, 20, 36, 0.92);
+  background: rgba(12, 20, 36, 0.94);
   border-bottom-color: #1e2c45;
   box-shadow: 0 1px 3px rgba(2, 6, 23, 0.45);
 }
 [data-theme="dark"] .bb-topbar .text-ink-900,
 [data-theme="dark"] .bb-topbar .text-ink-800 { color: #f8fafc; }
+[data-theme="dark"] .bb-topbar .text-ink-700 { color: #e2e8f0; }
 [data-theme="dark"] .bb-topbar .text-ink-600,
-[data-theme="dark"] .bb-topbar .text-ink-500 { color: #94a3b8; }
+[data-theme="dark"] .bb-topbar .text-ink-500 { color: #a8b8cc; }
+[data-theme="dark"] .bb-topbar .text-ink-400 { color: #8b9bb0; }
 [data-theme="dark"] .bb-topbar .bg-ink-200 { background-color: #1e2c45; }
-[data-theme="dark"] .bb-topbar :is(button, a):hover { background-color: rgba(255, 255, 255, 0.06); border-color: #243452; color: #ffffff; }
+[data-theme="dark"] .bb-topbar :is(button, a):hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: #2c3f63;
+  color: #ffffff;
+}
 [data-theme="dark"] .bb-avatar {
   background: linear-gradient(180deg, #b91c2e 0%, #8e0f1e 100%);
   border-color: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
 }
 [data-theme="dark"] .bb-count-pill { box-shadow: 0 0 0 2px #0c1424; }
 [data-theme="dark"] .bb-dropdown {
   background: #111a2e;
   border-color: #243452;
-  box-shadow: 0 18px 42px -12px rgba(2, 6, 23, 0.75);
+  color: #e2e8f0;
+  box-shadow: 0 18px 42px -12px rgba(2, 6, 23, 0.78);
 }
 [data-theme="dark"] .bb-dropdown-head,
 [data-theme="dark"] .bb-dropdown-foot {
   background: #0d1526;
   border-color: #1e2c45;
 }
-[data-theme="dark"] .bb-dropdown-item:hover { background: rgba(255, 255, 255, 0.05); }
+[data-theme="dark"] .bb-dropdown-item:hover { background: rgba(255, 255, 255, 0.06); }
 [data-theme="dark"] .bb-dropdown-title { color: #f8fafc; }
-[data-theme="dark"] .bb-dropdown-text { color: #94a3b8; }
-[data-theme="dark"] .bb-dropdown-meta { color: #64748b; }
+[data-theme="dark"] .bb-dropdown-text { color: #cbd5e1; }
+[data-theme="dark"] .bb-dropdown-meta { color: #8b9bb0; }
 [data-theme="dark"] .bb-dropdown-foot { color: #fda4af; }
 [data-theme="dark"] .bb-dropdown-foot:hover { background: #162238; color: #fecdd3; }
-[data-theme="dark"] .bb-dropdown a:hover { background-color: rgba(255, 255, 255, 0.06); color: #ffffff; }
-[data-theme="dark"] .bb-dropdown .text-ink-700 { color: #cbd5e1; }
+[data-theme="dark"] .bb-dropdown .text-ink-700 { color: #e2e8f0; }
+[data-theme="dark"] .bb-dropdown .text-ink-500 { color: #a8b8cc; }
+[data-theme="dark"] .bb-dropdown .text-brand-700 { color: #fda4af; }
 [data-theme="dark"] .bb-dropdown .border-ink-100 { border-color: #1e2c45; }
+[data-theme="dark"] .bb-dropdown :is(a, button):hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+[data-theme="dark"] .bb-dropdown button.text-brand-700:hover {
+  background-color: rgba(185, 28, 46, 0.22);
+  color: #fecdd3;
+}
 
-/* Surfaces, Cards, Stat Cards, KPI Tiles */
-[data-theme="dark"] :is(main, .modal-body) .bg-white,
+/* Surfaces, Cards, Stat Cards, KPI Tiles (includes auth default cards like password reset) */
+[data-theme="dark"] .bb-auth-card:not(.bb-glass-card) {
+  background: #111a2e;
+  border-color: #243452;
+  color: #e2e8f0;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-auth-card:not(.bb-glass-card)) .bg-white,
 [data-theme="dark"] :is(main, .modal-body) :is(.bg-white).rounded-2xl.border-ink-200 {
   background: #111a2e;
-  border-color: #1f2d47;
+  border-color: #223250;
+  color: #e2e8f0;
   box-shadow: 0 1px 2px rgba(2, 6, 23, 0.35), 0 6px 18px -8px rgba(2, 6, 23, 0.55);
 }
-[data-theme="dark"] :is(main, .modal-body) :is(.bg-ink-50, .bg-ink-50\/70, .bg-ink-50\/60, .bg-ink-50\/50, .bg-ink-50\/40, .bg-ink-50\/20) {
-  background-color: #152136;
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(.bg-ink-50, .bg-ink-50\/70, .bg-ink-50\/60, .bg-ink-50\/50, .bg-ink-50\/40, .bg-ink-50\/20) {
+  background-color: #162238;
 }
-[data-theme="dark"] :is(main, .modal-body) .bg-ink-100 {
-  background-color: #1c2a44;
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) .bg-ink-100 {
+  background-color: #1e2d48;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog) .bg-ink-200 {
+  background-color: #283a5c;
+  color: #e2e8f0;
 }
 [data-theme="dark"] .bb-stat,
 [data-theme="dark"] .bb-kpi {
   background: #111a2e;
-  border-color: #1f2d47;
+  border-color: #223250;
   box-shadow: 0 2px 12px -4px rgba(2, 6, 23, 0.55);
 }
 [data-theme="dark"] .bb-stat:hover,
 [data-theme="dark"] .bb-kpi:hover {
-  border-color: #2e4266;
+  border-color: #354d78;
 }
 [data-theme="dark"] .bb-stat-icon {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 [data-theme="dark"] .bb-stat[data-accent="rose"] { --bb-accent: #f87171; }
 [data-theme="dark"] .bb-stat[data-accent="emerald"] { --bb-accent: #34d399; }
@@ -1686,92 +1720,135 @@ body:has(.bb-dialog[open]) { overflow: hidden; }
 [data-theme="dark"] .bb-stat[data-accent="violet"] { --bb-accent: #a78bfa; }
 [data-theme="dark"] .bb-stat[data-accent="slate"] { --bb-accent: #94a3b8; }
 
-/* Text & Borders across all templates */
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) .text-ink-900 { color: #f8fafc; }
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) .text-ink-800 { color: #e2e8f0; }
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) .text-ink-700 { color: #cbd5e1; }
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) .text-ink-600 { color: #94a3b8; }
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) .text-ink-500 { color: #8b9bb0; }
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) .text-ink-400 { color: #64748b; }
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) .text-brand-600,
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) .text-brand-700,
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) .text-brand-800 { color: #fda4af; }
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.border-ink-100, .border-ink-200) { border-color: #1f2d47; }
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) .border-ink-300 { border-color: #2e4266; }
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.divide-ink-100, .divide-ink-200) > :not(:first-child) { border-color: #1c2a44; }
+/* High-contrast Text & Borders across ALL templates in Dark Mode */
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) .text-ink-900 { color: #f8fafc; }
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) .text-ink-800 { color: #f1f5f9; }
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) .text-ink-700 { color: #dbe4f0; }
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) .text-ink-600 { color: #b8c7da; }
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) .text-ink-500 { color: #9fb1c7; }
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) .text-ink-400 { color: #8b9bb0; }
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) .text-ink-300 { color: #64748b; }
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(.text-brand-600, .text-brand-700, .text-brand-800, .text-brand-900, .text-red-600, .text-red-700, .text-red-800) {
+  color: #fda4af;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(.text-emerald-600, .text-emerald-700, .text-emerald-800, .text-emerald-900) {
+  color: #6ee7b7;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(.text-amber-600, .text-amber-700, .text-amber-800, .text-amber-900) {
+  color: #fcd34d;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(.text-sky-600, .text-sky-700, .text-sky-800, .text-sky-900, .text-blue-600, .text-blue-700) {
+  color: #7dd3fc;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(.text-violet-600, .text-violet-700, .text-violet-800) {
+  color: #c4b5fd;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) .text-white {
+  color: #ffffff;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(.border-ink-100, .border-ink-200) { border-color: #223250; }
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) .border-ink-300 { border-color: #33486e; }
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(.divide-ink-100, .divide-ink-200) > :not(:first-child) { border-color: #1d2b45; }
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog) code {
+  background-color: #1c2a44;
+  color: #f8fafc;
+}
+
+/* Dark Mode Hover Safety — never flash bright white backgrounds or dark text on hover */
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.hover\:bg-ink-50, .hover\:bg-ink-50\/60, .hover\:bg-ink-50\/70, .hover\:bg-ink-100, .hover\:bg-white):hover {
+  background-color: #1b2a44;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.hover\:bg-brand-50, .hover\:bg-brand-50\/70, .hover\:bg-brand-50\/40, .hover\:bg-brand-100):hover {
+  background-color: rgba(185, 28, 46, 0.24);
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.hover\:text-ink-900, .hover\:text-ink-800, .group:hover .group-hover\:text-ink-900):hover,
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog) .group:hover .group-hover\:text-ink-900 {
+  color: #ffffff;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.hover\:text-brand-600, .hover\:text-brand-700):hover,
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog) .group:hover .group-hover\:text-brand-700 {
+  color: #fecdd3;
+}
 
 /* Tables in Dark Mode */
 [data-theme="dark"] :is(main, .modal-body) table thead th {
   background-color: #0d1526;
-  color: #94a3b8;
-  border-bottom-color: #1f2d47;
+  color: #a8b8cc;
+  border-bottom-color: #223250;
+}
+[data-theme="dark"] :is(main, .modal-body) table tbody td {
+  color: #e2e8f0;
 }
 [data-theme="dark"] :is(main, .modal-body) table tbody tr:hover {
-  background-color: #162238;
+  background-color: #18253d;
 }
 
 /* Form Controls in Dark Mode */
-[data-theme="dark"] :is(main, .modal-body) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]), select, textarea),
+[data-theme="dark"] :is(main, .modal-body, .bb-auth-card:not(.bb-glass-card)) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]), select, textarea),
 [data-theme="dark"] .bb-sheet-input {
   background-color: #0b1222;
-  border-color: #2e4266;
+  border-color: #33486e;
   color: #f8fafc;
 }
-[data-theme="dark"] :is(main, .modal-body) select option {
+[data-theme="dark"] :is(main, .modal-body, .bb-auth-card:not(.bb-glass-card)) select option {
   background-color: #0b1222;
   color: #f8fafc;
 }
-[data-theme="dark"] :is(main, .modal-body) :is(input, select, textarea)::placeholder {
-  color: #64748b;
+[data-theme="dark"] :is(main, .modal-body, .bb-auth-card:not(.bb-glass-card)) :is(input, select, textarea)::placeholder {
+  color: #7c8ea6;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-auth-card:not(.bb-glass-card)) label {
+  color: #dbe4f0;
 }
 
 /* Buttons in Dark Mode */
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(button, a, input[type="submit"]).bg-ink-900 {
-  background: linear-gradient(180deg, #253654 0%, #1b2840 100%);
-  border-color: #364c73;
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(button, a, input[type="submit"]).bg-brand-600 {
   color: #ffffff;
 }
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(button, a, input[type="submit"]).bg-ink-900:hover:not(:disabled) {
-  background: linear-gradient(180deg, #2e4266 0%, #233350 100%);
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(button, a, input[type="submit"]).bg-ink-900 {
+  background: linear-gradient(180deg, #253654 0%, #1b2840 100%);
+  border-color: #3a527a;
+  color: #ffffff;
 }
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(button, a).bg-white.border-ink-200,
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(button, a).bg-white.border-ink-300 {
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(button, a, input[type="submit"]).bg-ink-900:hover:not(:disabled) {
+  background: linear-gradient(180deg, #30466c 0%, #243554 100%);
+  color: #ffffff;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(button, a).bg-white:is(.border-ink-200, .border-ink-300) {
   background-color: #162238;
-  border-color: #2e4266;
+  border-color: #33486e;
   color: #e2e8f0;
 }
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(button, a).bg-white.border-ink-200:hover:not(:disabled),
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(button, a).bg-white.border-ink-300:hover:not(:disabled) {
-  background-color: #1f2f4d;
-  border-color: #425c8a;
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(button, a).bg-white:is(.border-ink-200, .border-ink-300):hover:not(:disabled) {
+  background-color: #213252;
+  border-color: #4a6594;
+  color: #ffffff;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(button, a):is(.bg-emerald-600, .bg-sky-600, .bg-amber-600, .bg-red-600, .bg-blue-600) {
   color: #ffffff;
 }
 
 /* Semantic Badges & Callouts in Dark Mode */
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.bg-emerald-50, .bg-emerald-50\/60) {
-  background-color: rgba(16, 185, 129, 0.14);
-  border-color: rgba(52, 211, 153, 0.28);
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.bg-emerald-50, .bg-emerald-50\/60, .bg-emerald-100) {
+  background-color: rgba(16, 185, 129, 0.16);
+  border-color: rgba(52, 211, 153, 0.3);
 }
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.text-emerald-700, .text-emerald-800, .text-emerald-900) { color: #6ee7b7; }
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.bg-amber-50, .bg-amber-50\/70, .bg-amber-50\/50, .bg-amber-100\/90) {
-  background-color: rgba(245, 158, 11, 0.14);
-  border-color: rgba(251, 191, 36, 0.28);
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.bg-amber-50, .bg-amber-50\/70, .bg-amber-50\/50, .bg-amber-100, .bg-amber-100\/90) {
+  background-color: rgba(245, 158, 11, 0.16);
+  border-color: rgba(251, 191, 36, 0.3);
 }
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.text-amber-700, .text-amber-800, .text-amber-900) { color: #fcd34d; }
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) .bg-sky-50 {
-  background-color: rgba(14, 165, 233, 0.14);
-  border-color: rgba(56, 189, 248, 0.28);
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.bg-sky-50, .bg-blue-50) {
+  background-color: rgba(14, 165, 233, 0.16);
+  border-color: rgba(56, 189, 248, 0.3);
 }
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.text-sky-700, .text-sky-800, .text-sky-900) { color: #7dd3fc; }
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.bg-brand-50, .bg-brand-50\/70, .bg-brand-50\/60, .bg-brand-50\/40, .bg-red-50) {
-  background-color: rgba(185, 28, 46, 0.18);
-  border-color: rgba(248, 113, 113, 0.3);
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.bg-brand-50, .bg-brand-50\/70, .bg-brand-50\/60, .bg-brand-50\/40, .bg-brand-100, .bg-red-50, .bg-red-50\/50) {
+  background-color: rgba(185, 28, 46, 0.2);
+  border-color: rgba(248, 113, 113, 0.34);
 }
 [data-theme="dark"] :is(main, .modal-body, .bb-dialog) .bg-violet-50 {
-  background-color: rgba(139, 92, 246, 0.16);
-  border-color: rgba(167, 139, 250, 0.3);
+  background-color: rgba(139, 92, 246, 0.18);
+  border-color: rgba(167, 139, 250, 0.32);
 }
-[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.text-violet-700, .text-violet-800) { color: #c4b5fd; }
 
 /* Dialogs & Modals in Dark Mode */
 [data-theme="dark"] .bb-dialog {
@@ -1782,16 +1859,16 @@ body:has(.bb-dialog[open]) { overflow: hidden; }
 [data-theme="dark"] .bb-dialog-toolbar,
 [data-theme="dark"] .bb-dialog-confirmation {
   background: #111a2e;
-  border-bottom-color: #1f2d47;
+  border-bottom-color: #223250;
   color: #f8fafc;
 }
 [data-theme="dark"] .bb-dialog-actions,
 [data-theme="dark"] .modal-body {
   background: #0b1120;
-  border-top-color: #1f2d47;
+  border-top-color: #223250;
 }
-[data-theme="dark"] .bb-dialog-close { color: #94a3b8; }
-[data-theme="dark"] .bb-dialog-close:hover { background: #1c2a44; border-color: #2e4266; color: #ffffff; }
+[data-theme="dark"] .bb-dialog-close { color: #a8b8cc; }
+[data-theme="dark"] .bb-dialog-close:hover { background: #1e2d48; border-color: #33486e; color: #ffffff; }
 
 /* ---------- Print: always print on clean white paper regardless of theme ---------- */
 @media print {
