@@ -83,10 +83,39 @@ def _admin_dashboard(request):
 
     bags = BloodBag.objects.select_related("blood_type", "component")
     requests_qs = BloodRequest.objects.select_related("organization")
+    total_donors = Donor.objects.count()
+    male_donors = Donor.objects.filter(sex="MALE").count()
+    female_donors = Donor.objects.filter(sex="FEMALE").count()
+    male_pct = round(male_donors * 100 / total_donors, 1) if total_donors else 0.0
+    female_pct = round(female_donors * 100 / total_donors, 1) if total_donors else 0.0
+
+    completed_donations = Donation.objects.filter(status__in=["COLLECTED", "RELEASED"])
+    muni_rows = list(
+        completed_donations.exclude(donor__municipality="")
+        .values("donor__municipality")
+        .annotate(total=Count("id"))
+        .order_by("-total", "donor__municipality")
+    )
+    municipality_count = len(muni_rows)
+    top_municipality = muni_rows[0]["donor__municipality"] if muni_rows else "—"
+    top_municipality_donations = muni_rows[0]["total"] if muni_rows else 0
+    total_completed_donations = completed_donations.count()
+    avg_donations_per_muni = (
+        round(total_completed_donations / municipality_count, 1) if municipality_count else 0.0
+    )
 
     ctx = {
-        "total_donors": Donor.objects.count(),
+        "total_donors": total_donors,
         "active_donors": Donor.objects.filter(status="ACTIVE").count(),
+        "male_donors": male_donors,
+        "female_donors": female_donors,
+        "male_pct": male_pct,
+        "female_pct": female_pct,
+        "municipality_count": municipality_count,
+        "top_municipality": top_municipality,
+        "top_municipality_donations": top_municipality_donations,
+        "total_completed_donations": total_completed_donations,
+        "avg_donations_per_muni": avg_donations_per_muni,
         "donations_this_month": Donation.objects.filter(created_at__gte=month_start).count(),
         "bags_available": bags.filter(status="AVAILABLE").count(),
         "bags_expiring_soon": bags.filter(status="AVAILABLE", expires_at__lte=soon, expires_at__gt=now).count(),
@@ -233,6 +262,7 @@ def _low_stock_types(bags):
 @login_required
 def chart_data(request, chart):
     from donations.models import Donation
+    from donors.models import Donor
     from inventory.models import BloodBag
     from requests.models import BloodRequest
 
@@ -265,6 +295,78 @@ def chart_data(request, chart):
         rows = BloodRequest.objects.values("urgency").annotate(total=Count("id"))
         return JsonResponse({"labels": [r["urgency"].title() for r in rows],
                              "data": [r["total"] for r in rows]})
+    if chart == "donations_by_municipality":
+        rows = (
+            Donation.objects.filter(status__in=["COLLECTED", "RELEASED"])
+            .values("donor__municipality")
+            .annotate(
+                total=Count("id"),
+                male=Count("id", filter=Q(donor__sex="MALE")),
+                female=Count("id", filter=Q(donor__sex="FEMALE")),
+            )
+            .order_by("-total", "donor__municipality")[:12]
+        )
+        labels = [(r["donor__municipality"] or "").strip() or "Unspecified" for r in rows]
+        return JsonResponse({
+            "labels": labels,
+            "data": [r["total"] for r in rows],
+            "male": [r["male"] for r in rows],
+            "female": [r["female"] for r in rows],
+        })
+    if chart == "donors_by_sex":
+        male_donors = Donor.objects.filter(sex="MALE").count()
+        female_donors = Donor.objects.filter(sex="FEMALE").count()
+        other_donors = Donor.objects.exclude(sex__in=["MALE", "FEMALE"]).count()
+        completed = Donation.objects.filter(status__in=["COLLECTED", "RELEASED"])
+        male_donations = completed.filter(donor__sex="MALE").count()
+        female_donations = completed.filter(donor__sex="FEMALE").count()
+        other_donations = completed.exclude(donor__sex__in=["MALE", "FEMALE"]).count()
+        labels = ["Male", "Female"]
+        donors_data = [male_donors, female_donors]
+        donations_data = [male_donations, female_donations]
+        if other_donors or other_donations:
+            labels.append("Other / Unspecified")
+            donors_data.append(other_donors)
+            donations_data.append(other_donations)
+        return JsonResponse({
+            "labels": labels,
+            "donors": donors_data,
+            "donations": donations_data,
+        })
+    if chart == "municipality_donation_trend":
+        since = timezone.now().date() - timedelta(days=6 * 31)
+        completed = Donation.objects.filter(
+            status__in=["COLLECTED", "RELEASED"],
+            donation_date__gte=since,
+        )
+        top_munis = list(
+            completed.values("donor__municipality")
+            .annotate(total=Count("id"))
+            .order_by("-total", "donor__municipality")[:5]
+        )
+        muni_keys = [r["donor__municipality"] for r in top_munis]
+        monthly = list(
+            completed.filter(donor__municipality__in=muni_keys)
+            .annotate(month=TruncMonth("donation_date"))
+            .values("month", "donor__municipality")
+            .annotate(total=Count("id"))
+            .order_by("month")
+        )
+        months = sorted({r["month"] for r in monthly if r["month"]})
+        lookup = {(r["donor__municipality"], r["month"]): r["total"] for r in monthly}
+        series = []
+        for row in top_munis:
+            raw_muni = row["donor__municipality"]
+            label = (raw_muni or "").strip() or "Unspecified"
+            series.append({
+                "label": label,
+                "total": row["total"],
+                "data": [lookup.get((raw_muni, m), 0) for m in months],
+            })
+        return JsonResponse({
+            "labels": [m.strftime("%b %Y") for m in months],
+            "series": series,
+        })
     return JsonResponse({}, status=404)
 
 

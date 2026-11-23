@@ -26,11 +26,27 @@
   {% url 'requests:list' as requests_url %}
   {% include "components/stat_card.html" with stat_label="Pending Requests" stat_value=pending_requests stat_sub="draft, submitted or under review" stat_color="amber" stat_href=requests_url stat_icon_name="clipboard" %}
 </div>
-<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
   {% include "components/stat_card.html" with stat_label="Emergency Requests" stat_value=emergency_requests stat_sub="open emergency / critical" stat_color="rose" stat_href=requests_url stat_icon_name="alert" %}
   {% include "components/stat_card.html" with stat_label="Expiring Soon" stat_value=bags_expiring_soon stat_sub="available bags expiring within 7 days" stat_color="amber" stat_href=bags_url stat_icon_name="clock" %}
   {% include "components/stat_card.html" with stat_label="Quarantined / Testing" stat_value=bags_quarantined stat_sub="not yet released" stat_color="slate" stat_href=bags_url stat_icon_name="beaker" %}
   {% include "components/stat_card.html" with stat_label="Fulfilled Requests" stat_value=fulfilled_requests stat_color="emerald" stat_href=requests_url stat_icon_name="check-circle" %}
+</div>
+
+{# ---- Demographic & Geographic Donor Stats ---- #}
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+  {% with male_sub=male_pct|stringformat:"s%% of registered donors" %}
+  {% include "components/stat_card.html" with stat_label="Male Donors" stat_value=male_donors stat_sub=male_sub stat_color="sky" stat_href=donors_url stat_icon_name="users" %}
+  {% endwith %}
+  {% with female_sub=female_pct|stringformat:"s%% of registered donors" %}
+  {% include "components/stat_card.html" with stat_label="Female Donors" stat_value=female_donors stat_sub=female_sub stat_color="rose" stat_href=donors_url stat_icon_name="users" %}
+  {% endwith %}
+  {% with muni_sub=avg_donations_per_muni|stringformat:"s avg donations / municipality" %}
+  {% include "components/stat_card.html" with stat_label="Municipalities Covered" stat_value=municipality_count stat_sub=muni_sub stat_color="violet" stat_href=donors_url stat_icon_name="shield-check" %}
+  {% endwith %}
+  {% with top_sub=top_municipality_donations|stringformat:"d collected donations" %}
+  {% include "components/stat_card.html" with stat_label="Top Municipality" stat_value=top_municipality stat_sub=top_sub stat_color="emerald" stat_href=donations_url stat_icon_name="award" %}
+  {% endwith %}
 </div>
 
 {# ---- Low stock alert ---- #}
@@ -47,6 +63,49 @@
   </div>
 </div>
 {% endif %}
+
+{# ---- Demographic & Geographic Statistical Analysis ---- #}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-ink-100 flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <h2 class="font-semibold text-ink-900">Donations by Municipality</h2>
+        <p class="text-xs text-ink-500 mt-0.5">Statistical distribution of collected &amp; released donations (Male vs Female).</p>
+      </div>
+      <span class="inline-flex items-center rounded-md bg-ink-100 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-ink-600">
+        Mean: {{ avg_donations_per_muni }} / muni
+      </span>
+    </div>
+    <div class="p-5"><canvas id="municipalityChart" height="240" aria-label="Donations by municipality bar graph" role="img"></canvas></div>
+  </div>
+
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-ink-100 flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <h2 class="font-semibold text-ink-900">Donor &amp; Donation Analysis by Sex</h2>
+        <p class="text-xs text-ink-500 mt-0.5">Registered donors vs completed donations across Male and Female cohorts.</p>
+      </div>
+      <span class="inline-flex items-center rounded-md bg-ink-100 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-ink-600">
+        M {{ male_pct }}% &middot; F {{ female_pct }}%
+      </span>
+    </div>
+    <div class="p-5"><canvas id="sexChart" height="240" aria-label="Male and female donor statistical bar graph" role="img"></canvas></div>
+  </div>
+</div>
+
+{# ---- Municipality Donation Trend Line Graph ---- #}
+<div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden mb-6">
+  <div class="px-5 py-4 border-b border-ink-100 flex flex-wrap items-center justify-between gap-2">
+    <div>
+      <h2 class="font-semibold text-ink-900">Donation Trend by Municipality (Top Performing Areas)</h2>
+      <p class="text-xs text-ink-500 mt-0.5">6-month statistical line graph comparing municipalities with the highest donation volume.</p>
+    </div>
+    <span class="inline-flex items-center rounded-md bg-brand-50 border border-brand-200 px-2.5 py-0.5 text-[11px] font-semibold text-brand-800">
+      Leading: {{ top_municipality }} ({{ top_municipality_donations }})
+    </span>
+  </div>
+  <div class="p-5"><canvas id="municipalityTrendChart" height="250" aria-label="Donation trend by municipality line graph" role="img"></canvas></div>
+</div>
 
 {# ---- Charts ---- #}
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
@@ -248,6 +307,9 @@
 <script>
 (function () {
   var charts = [
+    { id: "municipalityChart", url: "{% url 'core:chart_data' 'donations_by_municipality' %}", type: "grouped_muni" },
+    { id: "sexChart", url: "{% url 'core:chart_data' 'donors_by_sex' %}", type: "grouped_sex" },
+    { id: "municipalityTrendChart", url: "{% url 'core:chart_data' 'municipality_donation_trend' %}", type: "multi_line_muni" },
     { id: "donationsChart", url: "{% url 'core:chart_data' 'donations_over_time' %}", type: "line",
       color: "#9b1122", label: "Donations" },
     { id: "inventoryChart", url: "{% url 'core:chart_data' 'inventory_by_type' %}", type: "bar",
@@ -261,6 +323,90 @@
   function build(spec, data) {
     var el = document.getElementById(spec.id);
     if (!el || !data || !data.labels) { return; }
+    var isDark = document.documentElement.dataset.theme === "dark";
+    var tickColor = isDark ? "#94a3b8" : "#5f7087";
+    var gridColor = isDark ? "#1e2c45" : "#eef2f6";
+
+    if (spec.type === "grouped_muni") {
+      new Chart(el, {
+        type: "bar",
+        data: {
+          labels: data.labels,
+          datasets: [
+            { label: "Total Donations", data: data.data, backgroundColor: "#0f172a", borderRadius: 5, maxBarThickness: 28 },
+            { label: "Male", data: data.male || [], backgroundColor: "#0369a1", borderRadius: 5, maxBarThickness: 24 },
+            { label: "Female", data: data.female || [], backgroundColor: "#9b1122", borderRadius: 5, maxBarThickness: 24 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: true, labels: { color: tickColor, boxWidth: 12 } } },
+          scales: {
+            y: { beginAtZero: true, ticks: { precision: 0, color: tickColor }, grid: { color: gridColor } },
+            x: { ticks: { color: tickColor }, grid: { display: false } }
+          }
+        }
+      });
+      return;
+    }
+
+    if (spec.type === "grouped_sex") {
+      new Chart(el, {
+        type: "bar",
+        data: {
+          labels: data.labels,
+          datasets: [
+            { label: "Registered Donors", data: data.donors || [], backgroundColor: "#0369a1", borderRadius: 6, maxBarThickness: 42 },
+            { label: "Completed Donations", data: data.donations || [], backgroundColor: "#9b1122", borderRadius: 6, maxBarThickness: 42 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: true, labels: { color: tickColor, boxWidth: 12 } } },
+          scales: {
+            y: { beginAtZero: true, ticks: { precision: 0, color: tickColor }, grid: { color: gridColor } },
+            x: { ticks: { color: tickColor }, grid: { display: false } }
+          }
+        }
+      });
+      return;
+    }
+
+    if (spec.type === "multi_line_muni") {
+      var linePalette = ["#9b1122", "#0369a1", "#047857", "#b45309", "#5b21b6"];
+      var datasets = (data.series || []).map(function (s, idx) {
+        var c = linePalette[idx % linePalette.length];
+        return {
+          label: s.label + " (" + s.total + ")",
+          data: s.data || [],
+          borderColor: c,
+          backgroundColor: c + "18",
+          borderWidth: 2.25,
+          pointRadius: 3.5,
+          pointHoverRadius: 5,
+          fill: idx === 0,
+          tension: 0.32
+        };
+      });
+      new Chart(el, {
+        type: "line",
+        data: { labels: data.labels, datasets: datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
+          plugins: { legend: { display: true, labels: { color: tickColor, boxWidth: 12 } } },
+          scales: {
+            y: { beginAtZero: true, ticks: { precision: 0, color: tickColor }, grid: { color: gridColor } },
+            x: { ticks: { color: tickColor }, grid: { display: false } }
+          }
+        }
+      });
+      return;
+    }
+
     var dataset = { label: spec.label, data: data.data };
     if (spec.type === "doughnut") {
       dataset.backgroundColor = spec.palette;
@@ -280,10 +426,10 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: spec.type === "doughnut" } },
+        plugins: { legend: { display: spec.type === "doughnut", labels: { color: tickColor } } },
         scales: spec.type === "doughnut" ? {} : {
-          y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: "#f1f5f9" } },
-          x: { grid: { display: false } }
+          y: { beginAtZero: true, ticks: { precision: 0, color: tickColor }, grid: { color: gridColor } },
+          x: { ticks: { color: tickColor }, grid: { display: false } }
         }
       }
     });

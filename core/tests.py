@@ -84,6 +84,51 @@ class AppShellTests(TestCase):
         content = resp.content.decode()
         self.assertIn("bb-stat", content)
         self.assertIn('data-accent="', content)
+        self.assertIn("Male Donors", content)
+        self.assertIn("Female Donors", content)
+        self.assertIn("Donations by Municipality", content)
+        self.assertIn("Donor &amp; Donation Analysis by Sex", content)
+
+    def test_municipality_and_sex_chart_endpoints_return_real_counts(self):
+        from core.testing import make_blood_type, make_donor
+        from donations.models import Donation
+        from django.utils import timezone
+
+        bt = make_blood_type("O", "POS")
+        m_donor = make_donor(first_name="Juan", last_name="Cruz",
+                             municipality="Dumingag", blood_type=bt)
+        f_donor = make_donor(first_name="Maria", last_name="Santos",
+                             municipality="Dumingag", blood_type=bt)
+        m_donor.sex = "MALE"
+        m_donor.save(update_fields=["sex"])
+        f_donor.sex = "FEMALE"
+        f_donor.save(update_fields=["sex"])
+        Donation.objects.create(donor=m_donor, blood_type=bt, donation_date=timezone.localdate(),
+                                volume_ml=450, status="COLLECTED")
+        Donation.objects.create(donor=f_donor, blood_type=bt, donation_date=timezone.localdate(),
+                                volume_ml=450, status="RELEASED")
+
+        muni = self.client.get(reverse("core:chart_data", kwargs={"chart": "donations_by_municipality"}))
+        self.assertEqual(muni.status_code, 200)
+        muni_json = muni.json()
+        self.assertIn("Dumingag", muni_json["labels"])
+        idx = muni_json["labels"].index("Dumingag")
+        self.assertEqual(muni_json["data"][idx], 2)
+        self.assertEqual(muni_json["male"][idx], 1)
+        self.assertEqual(muni_json["female"][idx], 1)
+
+        sex = self.client.get(reverse("core:chart_data", kwargs={"chart": "donors_by_sex"}))
+        self.assertEqual(sex.status_code, 200)
+        sex_json = sex.json()
+        self.assertEqual(sex_json["labels"][:2], ["Male", "Female"])
+        self.assertEqual(sex_json["donors"][:2], [1, 1])
+        self.assertEqual(sex_json["donations"][:2], [1, 1])
+
+        trend = self.client.get(reverse("core:chart_data", kwargs={"chart": "municipality_donation_trend"}))
+        self.assertEqual(trend.status_code, 200)
+        trend_json = trend.json()
+        self.assertEqual(trend_json["series"][0]["label"], "Dumingag")
+        self.assertEqual(trend_json["series"][0]["total"], 2)
 
     def test_nav_item_marks_the_active_page(self):
         from core.templatetags.core_extras import nav_item
