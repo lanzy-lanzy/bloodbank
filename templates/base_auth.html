@@ -4,6 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}{{ ORG_NAME }}{% endblock %}</title>
+  <script>
+    (function () {
+      var saved = null;
+      try { saved = localStorage.getItem("bb-theme"); } catch (e) {}
+      document.documentElement.dataset.theme = saved === "dark" ? "dark" : "light";
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
@@ -14,21 +21,28 @@
   <style>[x-cloak]{display:none!important}</style>
 </head>
 {# Scroll-safe auth shell: normal document flow, no overflow-hidden, and the card is centred with auto margins so a tall card (e.g. the registration stepper) pushes the page down instead of overflowing above the fold. #}
-<body class="min-h-full bg-ink-950 text-ink-800 antialiased"
-      style="background-image: radial-gradient(ellipse 75% 55% at 15% -5%, rgba(155,17,34,0.18), transparent 62%), radial-gradient(ellipse 70% 55% at 105% 105%, rgba(30,58,138,0.16), transparent 60%), linear-gradient(180deg, #090e1a 0%, #0d1526 55%, #090e1a 100%); background-attachment: fixed;">
-  {# Decorative subtle orbs behind the card, clipped by the viewport only. #}
+<body class="bb-auth-shell min-h-full antialiased">
+  {# Decorative subtle backdrop layer behind the card, clipped by the viewport only. #}
   <div aria-hidden="true" class="pointer-events-none fixed inset-0 overflow-hidden -z-0">
-    <div class="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-brand-700/15 blur-3xl"></div>
-    <div class="absolute -bottom-32 -right-16 w-[28rem] h-[28rem] rounded-full bg-slate-700/15 blur-3xl"></div>
+    <div class="bb-auth-orb-a absolute -top-24 -left-24 w-96 h-96 rounded-full blur-3xl"></div>
+    <div class="bb-auth-orb-b absolute -bottom-32 -right-16 w-[28rem] h-[28rem] rounded-full blur-3xl"></div>
     {% block auth_backdrop_extra %}{% endblock %}
   </div>
 
   {# Back-to-home affordance; `absolute`, not `fixed`, so it scrolls away instead of floating over a tall form. #}
   <a href="{% url 'core:home' %}"
-     class="absolute top-4 left-4 sm:top-5 sm:left-6 z-20 inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/[0.06] px-3.5 py-2 text-xs sm:text-sm font-medium text-ink-200 backdrop-blur-md transition hover:bg-white/[0.12] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400">
+     class="bb-auth-pill absolute top-4 left-4 sm:top-5 sm:left-6 z-20 inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs sm:text-sm font-medium backdrop-blur-md transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
     <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M11 17l-5-5 5-5M6 12h12"/></svg>
     Back to home
   </a>
+
+  {# Theme toggle on auth pages; `absolute` so it scrolls with the header. #}
+  <button type="button" data-theme-toggle onclick="window.bbToggleTheme()" aria-label="Toggle color theme" aria-pressed="false"
+          title="Switch theme"
+          class="bb-auth-pill bb-theme-toggle absolute top-4 right-4 sm:top-5 sm:right-6 z-20 inline-flex items-center justify-center w-9 h-9 rounded-lg backdrop-blur-md transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+    <svg class="bb-icon-moon w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"/></svg>
+    <svg class="bb-icon-sun w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"/></svg>
+  </button>
 
   {# `m-auto` centres the card while keeping the top of a tall card reachable: auto margins collapse to zero once the content is taller than the viewport, so the page simply scrolls. #}
   <div class="relative z-10 flex min-h-screen flex-col items-center px-4 pt-16 pb-8 sm:px-6 sm:pt-20 sm:pb-12">
@@ -36,21 +50,32 @@
       <div class="text-center mb-6 sm:mb-8">
         {# Brand mark links home (standard web convention). #}
         <a href="{% url 'core:home' %}" aria-label="{{ ORG_NAME }} — back to home"
-           class="group inline-flex flex-col items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 rounded-2xl">
-          <span class="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-glow mb-4 ring-1 ring-white/10 transition group-hover:scale-[1.03]">
+           class="group inline-flex flex-col items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-2xl">
+          <span class="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-glow mb-4 ring-1 ring-white/15 transition group-hover:scale-[1.03]">
             <svg class="w-8 h-8 sm:w-9 sm:h-9 text-white" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2Zm0 18a5 5 0 0 1-5-5c0-1.5 1-3.7 2.6-6 .5 2.5 2 4 4.4 4.5V14a1 1 0 1 0 2 0v-1.2c.4-.4.7-.9.9-1.4C18.2 13.4 19 15.2 19 16a5 5 0 0 1-5 5Z"/></svg>
           </span>
-          <h1 class="text-xl sm:text-2xl font-bold text-white tracking-tight">{{ ORG_NAME }}</h1>
-          <p class="text-ink-400 text-sm mt-1.5">Blood Bank Management System</p>
+          <h1 class="bb-auth-brand-title text-xl sm:text-2xl font-bold tracking-tight">{{ ORG_NAME }}</h1>
+          <p class="bb-auth-brand-sub text-sm mt-1.5">Blood Bank Management System</p>
         </a>
       </div>
-      {# The surface is a block so a page can swap in a different card (the registration stepper uses the dark liquid-glass variant). #}
-      <div class="{% block auth_card_class %}bg-white/[0.97] backdrop-blur rounded-2xl shadow-2xl ring-1 ring-white/10{% endblock %} p-5 sm:p-8">
+      {# The surface is a block so a page can swap in a different card (sign-in/register use .bb-glass-card which adapts to light & dark themes). #}
+      <div class="{% block auth_card_class %}bg-white border border-ink-200 rounded-2xl shadow-xl{% endblock %} p-5 sm:p-8">
         {# Nested block: children may override auth_content (accounts pages) or content (public pages). #}
         {% block content %}{% block auth_content %}{% endblock %}{% endblock %}
       </div>
-      <p class="text-center text-ink-500 text-xs mt-6 sm:mt-8">&copy; {% now "Y" %} {{ ORG_NAME }}</p>
+      <p class="bb-auth-copy text-center text-xs mt-6 sm:mt-8">&copy; {% now "Y" %} {{ ORG_NAME }}</p>
     </div>
   </div>
+  <script>
+    window.bbToggleTheme = function () {
+      var next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = next;
+      try { localStorage.setItem("bb-theme", next); } catch (e) {}
+      document.querySelectorAll("[data-theme-toggle]").forEach(function (btn) {
+        btn.setAttribute("aria-pressed", next === "dark" ? "true" : "false");
+        btn.setAttribute("title", next === "dark" ? "Switch to light theme" : "Switch to dark theme");
+      });
+    };
+  </script>
 </body>
 </html>

@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token }}">
   <title>{% block title %}{{ ORG_NAME }}{% endblock %}</title>
+  <script>
+    (function () {
+      var saved = null;
+      try { saved = localStorage.getItem("bb-theme"); } catch (e) {}
+      var theme = saved === "dark" ? "dark" : "light";
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
@@ -34,6 +42,27 @@
 {% include "components/toast.html" %}
 {% endblock body %}
 <script>
+  window.bbSetTheme = function (theme) {
+    var next = theme === "dark" ? "dark" : "light";
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem("bb-theme", next); } catch (e) {}
+    document.querySelectorAll("[data-theme-toggle]").forEach(function (btn) {
+      btn.setAttribute("aria-pressed", next === "dark" ? "true" : "false");
+      btn.setAttribute("title", next === "dark" ? "Switch to light theme" : "Switch to dark theme");
+    });
+    window.dispatchEvent(new CustomEvent("bb:theme-change", { detail: { theme: next } }));
+  };
+  window.bbToggleTheme = function () {
+    window.bbSetTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+  };
+  document.addEventListener("DOMContentLoaded", function () {
+    var cur = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+    document.querySelectorAll("[data-theme-toggle]").forEach(function (btn) {
+      btn.setAttribute("aria-pressed", cur === "dark" ? "true" : "false");
+      btn.setAttribute("title", cur === "dark" ? "Switch to light theme" : "Switch to dark theme");
+    });
+  });
+
   // Redirect to login on HTMX 401 responses
   document.body.addEventListener('htmx:responseError', function (evt) {
     if (evt.detail.xhr.status === 401) {

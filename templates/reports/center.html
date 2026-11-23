@@ -2,33 +2,33 @@
 {% load static %}
 {% block title %}Reports — {{ ORG_NAME }}{% endblock %}
 {% block content %}
-<div class="mb-7 overflow-hidden rounded-xl border border-ink-800 bg-gradient-to-br from-ink-950 via-ink-900 to-ink-950 shadow-sm relative">
-  <div class="h-1 w-full bg-gradient-to-r from-brand-700 via-brand-500 to-brand-700" aria-hidden="true"></div>
+<div class="mb-7 overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm relative">
+  <div class="h-1 w-full bg-gradient-to-r from-brand-700 via-brand-600 to-brand-700" aria-hidden="true"></div>
   <div class="px-6 py-6 sm:px-8 sm:py-7 flex flex-wrap items-center justify-between gap-6">
     <div class="flex items-center gap-4 sm:gap-5 max-w-2xl">
-      <div class="shrink-0 rounded-full bg-white p-1 shadow-md ring-2 ring-white/20">
+      <div class="shrink-0 rounded-full bg-white p-1 shadow-xs border border-ink-200">
         <img src="{% static 'images/dumingag-seal.png' %}" alt="Municipality of Dumingag Official Seal"
              class="h-16 w-16 sm:h-20 sm:w-20 rounded-full object-contain">
       </div>
       <div class="min-w-0">
-        <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-300">
+        <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">
           Municipality of Dumingag &middot; Reporting Centre
         </p>
-        <h1 class="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">Operational Reports</h1>
-        <p class="mt-1.5 text-sm leading-relaxed text-ink-300">
+        <h1 class="mt-1 text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">Operational Reports</h1>
+        <p class="mt-1.5 text-sm leading-relaxed text-ink-500">
           Official, role-gated blood bank reports. Every print preview and exported PDF carries
           the municipal letterhead, active filters, and live system records.
         </p>
       </div>
     </div>
     <dl class="grid shrink-0 grid-cols-2 gap-3">
-      <div class="rounded-lg bg-white/[0.06] px-4 py-3 border border-white/10 min-w-[112px]">
-        <dt class="text-[10px] font-semibold uppercase tracking-wider text-ink-400">Available</dt>
-        <dd class="mt-1 text-2xl font-bold tabular-nums text-white">{{ report_count }}</dd>
+      <div class="rounded-lg bg-ink-50 px-4 py-3 border border-ink-200 min-w-[112px]">
+        <dt class="text-[10px] font-semibold uppercase tracking-wider text-ink-500">Available</dt>
+        <dd class="mt-1 text-2xl font-bold tabular-nums text-ink-900">{{ report_count }}</dd>
       </div>
-      <div class="rounded-lg bg-white/[0.06] px-4 py-3 border border-white/10 min-w-[112px]">
-        <dt class="text-[10px] font-semibold uppercase tracking-wider text-ink-400">Categories</dt>
-        <dd class="mt-1 text-2xl font-bold tabular-nums text-white">{{ groups|length }}</dd>
+      <div class="rounded-lg bg-ink-50 px-4 py-3 border border-ink-200 min-w-[112px]">
+        <dt class="text-[10px] font-semibold uppercase tracking-wider text-ink-500">Categories</dt>
+        <dd class="mt-1 text-2xl font-bold tabular-nums text-ink-900">{{ groups|length }}</dd>
       </div>
     </dl>
   </div>

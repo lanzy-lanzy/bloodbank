@@ -8,11 +8,11 @@
     <span class="bb-sidebar-brand inline-flex items-center justify-center w-9 h-9 rounded-lg shrink-0">
       <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2Z"/></svg>
     </span>
-    <span class="min-w-0 font-semibold text-white text-sm tracking-tight leading-tight truncate">
+    <span class="bb-sidebar-org min-w-0 font-semibold text-sm tracking-tight leading-tight truncate">
       {{ ORG_NAME }}
-      <span class="block text-[10px] font-medium text-ink-400 uppercase tracking-[0.14em] mt-0.5">Blood Bank System</span>
+      <span class="bb-sidebar-sub block text-[10px] font-medium uppercase tracking-[0.14em] mt-0.5">Blood Bank System</span>
     </span>
-    <button @click="sidebarOpen = false" class="ml-auto lg:hidden p-1.5 rounded-lg hover:bg-white/10 text-ink-400 hover:text-white transition" aria-label="Close navigation">
+    <button @click="sidebarOpen = false" class="bb-sidebar-close ml-auto lg:hidden p-1.5 rounded-lg transition" aria-label="Close navigation">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
     </button>
   </div>
@@ -62,12 +62,12 @@
   </nav>
   <div class="bb-sidebar-foot px-4 py-3.5 text-xs">
     <div class="flex items-center gap-2.5">
-      <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/10 border border-white/10 text-[11px] font-semibold text-white">
+      <span class="bb-sidebar-avatar inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold">
         {{ user.get_initials|default:"U" }}
       </span>
       <div class="min-w-0 leading-tight">
-        <p class="truncate text-ink-200 font-medium"><b>{{ user.username }}</b></p>
-        <p class="truncate text-[10px] uppercase tracking-wider text-ink-400 mt-0.5">{{ user.get_role_display }}</p>
+        <p class="truncate font-medium"><b>{{ user.username }}</b></p>
+        <p class="bb-sidebar-role truncate text-[10px] uppercase tracking-wider mt-0.5">{{ user.get_role_display }}</p>
       </div>
     </div>
   </div>
