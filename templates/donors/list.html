@@ -45,14 +45,7 @@
       <option value="NOT_ELIGIBLE" {% if eligibility_filter == "NOT_ELIGIBLE" %}selected{% endif %}>Not eligible</option>
       <option value="REQUIRES_STAFF_REVIEW" {% if eligibility_filter == "REQUIRES_STAFF_REVIEW" %}selected{% endif %}>Requires staff review</option>
     </select>
-    <div class="flex items-center gap-2">
-      <label class="text-xs text-ink-500 shrink-0">Last donation</label>
-      <input type="date" name="last_donation_from" value="{{ request.GET.last_donation_from|default:'' }}"
-             class="w-full rounded-xl border border-ink-300 px-2 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
-      <input type="date" name="last_donation_to" value="{{ request.GET.last_donation_to|default:'' }}"
-             class="w-full rounded-xl border border-ink-300 px-2 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
-    </div>
-    <div class="flex items-center justify-end gap-2 sm:col-span-2 lg:col-span-4">
+    <div class="flex items-center justify-end gap-2 sm:col-span-2 lg:col-span-2">
       <a href="{% url 'donors:list' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Reset</a>
       <button type="submit" class="rounded-xl bg-ink-900 text-white text-sm font-semibold px-4 py-2">Filter</button>
     </div>
