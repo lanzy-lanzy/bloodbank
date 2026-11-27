@@ -56,9 +56,10 @@
   <p class="text-sm text-amber-700 mt-1">The following blood types are at or below the configured low-stock threshold:</p>
   <div class="mt-3 flex flex-wrap gap-2">
     {% for row in low_stock %}
-    <span class="inline-flex items-center gap-1.5 rounded-full bg-white border border-amber-300 px-3 py-1 text-sm font-semibold text-amber-800">
+    <a href="{% url 'inventory:bag_list' %}?blood_type={{ row.blood_type.pk }}&amp;status=AVAILABLE&amp;expiry=active"
+       class="inline-flex items-center gap-1.5 rounded-full bg-white border border-amber-300 px-3 py-1 text-sm font-semibold text-amber-800 hover:border-brand-400 hover:text-brand-700 transition">
       {{ row.blood_type.code }} <span class="text-xs font-medium text-amber-600">({{ row.available }} available)</span>
-    </span>
+    </a>
     {% endfor %}
   </div>
 </div>
@@ -162,10 +163,22 @@
         <tbody>
           {% for row in inventory_matrix %}
           <tr class="hover:bg-ink-50/60">
-            <td class="px-4 py-3 border-t border-ink-100 font-semibold text-ink-900">{{ row.blood_type.code }}</td>
-            <td class="px-4 py-3 border-t border-ink-100 tabular-nums text-emerald-700 font-medium">{{ row.available }}</td>
-            <td class="px-4 py-3 border-t border-ink-100 tabular-nums text-sky-700">{{ row.reserved }}</td>
-            <td class="px-4 py-3 border-t border-ink-100 tabular-nums {% if row.expiring_soon %}text-amber-700 font-medium{% else %}text-ink-500{% endif %}">{{ row.expiring_soon }}</td>
+            <td class="px-4 py-3 border-t border-ink-100 font-semibold text-ink-900">
+              <a href="{% url 'inventory:bag_list' %}?blood_type={{ row.blood_type.pk }}"
+                 class="text-brand-700 hover:text-brand-800 hover:underline">{{ row.blood_type.code }}</a>
+            </td>
+            <td class="px-4 py-3 border-t border-ink-100 tabular-nums font-medium">
+              <a href="{% url 'inventory:bag_list' %}?blood_type={{ row.blood_type.pk }}&amp;status=AVAILABLE&amp;expiry=active"
+                 class="text-emerald-700 hover:underline">{{ row.available }}</a>
+            </td>
+            <td class="px-4 py-3 border-t border-ink-100 tabular-nums">
+              <a href="{% url 'inventory:bag_list' %}?blood_type={{ row.blood_type.pk }}&amp;status=RESERVED"
+                 class="text-sky-700 hover:underline">{{ row.reserved }}</a>
+            </td>
+            <td class="px-4 py-3 border-t border-ink-100 tabular-nums">
+              <a href="{% url 'inventory:bag_list' %}?blood_type={{ row.blood_type.pk }}&amp;expiry=soon"
+                 class="{% if row.expiring_soon %}text-amber-700 font-medium{% else %}text-ink-500{% endif %} hover:underline">{{ row.expiring_soon }}</a>
+            </td>
           </tr>
           {% empty %}
           <tr><td colspan="4" class="border-t border-ink-100">{% include "components/empty_state.html" with empty_title="No blood types configured" empty_text="Add active blood types to see the inventory matrix." %}</td></tr>
@@ -306,26 +319,27 @@
 {% block extra_js %}
 <script>
 (function () {
+  var bagListUrl = "{% url 'inventory:bag_list' %}";
   var charts = [
     { id: "municipalityChart", url: "{% url 'core:chart_data' 'donations_by_municipality' %}", type: "grouped_muni" },
     { id: "sexChart", url: "{% url 'core:chart_data' 'donors_by_sex' %}", type: "grouped_sex" },
     { id: "municipalityTrendChart", url: "{% url 'core:chart_data' 'municipality_donation_trend' %}", type: "multi_line_muni" },
     { id: "donationsChart", url: "{% url 'core:chart_data' 'donations_over_time' %}", type: "line",
-      color: "#9b1122", label: "Donations" },
+      color: "#d76e99", label: "Donations" },
     { id: "inventoryChart", url: "{% url 'core:chart_data' 'inventory_by_type' %}", type: "bar",
-      color: "#0369a1", label: "Available bags" },
+      color: "#6e6293", label: "Available bags", clickToBloodType: true },
     { id: "componentChart", url: "{% url 'core:chart_data' 'component_distribution' %}", type: "doughnut",
-      palette: ["#9b1122", "#0369a1", "#047857", "#b45309", "#5b21b6", "#475569"], label: "Bags" },
+      palette: ["#ff7c84", "#d76e99", "#a3699f", "#6e6293", "#445779", "#2f4858"], label: "Bags" },
     { id: "urgencyChart", url: "{% url 'core:chart_data' 'requests_by_urgency' %}", type: "bar",
-      color: "#b45309", label: "Requests" }
+      color: "#a3699f", label: "Requests" }
   ];
 
   function build(spec, data) {
     var el = document.getElementById(spec.id);
     if (!el || !data || !data.labels) { return; }
     var isDark = document.documentElement.dataset.theme === "dark";
-    var tickColor = isDark ? "#94a3b8" : "#5f7087";
-    var gridColor = isDark ? "#1e2c45" : "#eef2f6";
+    var tickColor = isDark ? "#b4bfd3" : "#445779";
+    var gridColor = isDark ? "#2a3e4d" : "#eceff5";
 
     if (spec.type === "grouped_muni") {
       new Chart(el, {
@@ -333,9 +347,9 @@
         data: {
           labels: data.labels,
           datasets: [
-            { label: "Total Donations", data: data.data, backgroundColor: "#0f172a", borderRadius: 5, maxBarThickness: 28 },
-            { label: "Male", data: data.male || [], backgroundColor: "#0369a1", borderRadius: 5, maxBarThickness: 24 },
-            { label: "Female", data: data.female || [], backgroundColor: "#9b1122", borderRadius: 5, maxBarThickness: 24 }
+            { label: "Total Donations", data: data.data, backgroundColor: "#2f4858", borderRadius: 5, maxBarThickness: 28 },
+            { label: "Male", data: data.male || [], backgroundColor: "#6e6293", borderRadius: 5, maxBarThickness: 24 },
+            { label: "Female", data: data.female || [], backgroundColor: "#ff7c84", borderRadius: 5, maxBarThickness: 24 }
           ]
         },
         options: {
@@ -357,8 +371,8 @@
         data: {
           labels: data.labels,
           datasets: [
-            { label: "Registered Donors", data: data.donors || [], backgroundColor: "#0369a1", borderRadius: 6, maxBarThickness: 42 },
-            { label: "Completed Donations", data: data.donations || [], backgroundColor: "#9b1122", borderRadius: 6, maxBarThickness: 42 }
+            { label: "Registered Donors", data: data.donors || [], backgroundColor: "#445779", borderRadius: 6, maxBarThickness: 42 },
+            { label: "Completed Donations", data: data.donations || [], backgroundColor: "#d76e99", borderRadius: 6, maxBarThickness: 42 }
           ]
         },
         options: {
@@ -375,14 +389,14 @@
     }
 
     if (spec.type === "multi_line_muni") {
-      var linePalette = ["#9b1122", "#0369a1", "#047857", "#b45309", "#5b21b6"];
+      var linePalette = ["#ff7c84", "#d76e99", "#a3699f", "#6e6293", "#445779", "#2f4858"];
       var datasets = (data.series || []).map(function (s, idx) {
         var c = linePalette[idx % linePalette.length];
         return {
           label: s.label + " (" + s.total + ")",
           data: s.data || [],
           borderColor: c,
-          backgroundColor: c + "18",
+          backgroundColor: c + "22",
           borderWidth: 2.25,
           pointRadius: 3.5,
           pointHoverRadius: 5,
@@ -420,18 +434,29 @@
       dataset.borderRadius = 6;
       dataset.maxBarThickness = 42;
     }
+    var opts = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: spec.type === "doughnut", labels: { color: tickColor } } },
+      scales: spec.type === "doughnut" ? {} : {
+        y: { beginAtZero: true, ticks: { precision: 0, color: tickColor }, grid: { color: gridColor } },
+        x: { ticks: { color: tickColor }, grid: { display: false } }
+      }
+    };
+    if (spec.clickToBloodType && Array.isArray(data.blood_type_ids)) {
+      el.style.cursor = "pointer";
+      opts.onClick = function (_evt, elements) {
+        if (!elements || !elements.length) { return; }
+        var btId = data.blood_type_ids[elements[0].index];
+        if (btId) {
+          window.location.href = bagListUrl + "?blood_type=" + encodeURIComponent(btId) + "&status=AVAILABLE&expiry=active";
+        }
+      };
+    }
     new Chart(el, {
       type: spec.type,
       data: { labels: data.labels, datasets: [dataset] },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: spec.type === "doughnut", labels: { color: tickColor } } },
-        scales: spec.type === "doughnut" ? {} : {
-          y: { beginAtZero: true, ticks: { precision: 0, color: tickColor }, grid: { color: gridColor } },
-          x: { ticks: { color: tickColor }, grid: { display: false } }
-        }
-      }
+      options: opts
     });
   }
 

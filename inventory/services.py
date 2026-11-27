@@ -373,7 +373,7 @@ class InventoryService:
             try:
                 bag = InventoryService.transition(
                     bag_id, "EXPIRED", actor=actor, request=request,
-                    reason="Passed expiration date (automated expiration rule)",
+                    reason="Passed deferred date (automated deferred rule)",
                 )
                 expired.append(bag)
             except InventoryError as exc:

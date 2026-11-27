@@ -23,8 +23,8 @@
     <div x-data="{ edit: false }" class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="min-w-0">
-          <p class="font-mono text-sm font-semibold text-ink-900">{{ s.key }}</p>
-          <p class="text-xs text-ink-500 mt-0.5 max-w-xl">{{ s.description }}</p>
+          <p class="font-mono text-sm font-semibold text-ink-900">{% if s.key == "expiring_soon_days" %}deferred_days{% else %}{{ s.key }}{% endif %}</p>
+          <p class="text-xs text-ink-500 mt-0.5 max-w-xl">{% if s.key == "expiring_soon_days" %}Bags deferred within this many days are listed as 'deferred soon'.{% else %}{{ s.description }}{% endif %}</p>
           <p class="text-[11px] text-ink-400 mt-1">type: {{ s.get_value_type_display }}{% if s.is_sensitive %} · <span class="text-red-600 font-semibold">SENSITIVE</span>{% endif %} · last change: {{ s.updated_at|date:"M j, Y g:i A" }}{% if s.updated_by %} by {{ s.updated_by.username }}{% endif %}</p>
         </div>
         <div class="flex items-center gap-2 shrink-0">

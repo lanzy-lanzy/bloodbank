@@ -63,5 +63,6 @@ class TransitionForm(StyledFormMixin, forms.Form):
             allowed = BloodBag.TRANSITIONS.get(bag.status, [])
             # AVAILABLE via release is a distinct, guarded action — keep it out of the generic list.
             self.fields["new_status"].choices = [
-                (s, s.replace("_", " ").title()) for s in allowed if s != "AVAILABLE"
+                (s, "Deferred" if s == "EXPIRED" else s.replace("_", " ").title())
+                for s in allowed if s != "AVAILABLE"
             ]

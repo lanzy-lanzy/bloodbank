@@ -39,8 +39,12 @@ class AuditListView(StaffRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["modules"] = sorted(AuditLog.objects.values_list("module", flat=True).distinct())
-        ctx["actions"] = sorted(AuditLog.objects.values_list("action", flat=True).distinct())
+        ctx["modules"] = sorted(
+            set(AuditLog.objects.order_by().values_list("module", flat=True).distinct())
+        )
+        ctx["actions"] = sorted(
+            set(AuditLog.objects.order_by().values_list("action", flat=True).distinct())
+        )
         ctx["q"] = self.request.GET.get("q", "")
         return ctx
 

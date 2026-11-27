@@ -141,13 +141,14 @@ def _staff_dashboard(request):
     from appointments.models import Appointment
     from donations.models import Donation
     from donors.models import DonorScreening
-    from inventory.models import BloodBag
+    from inventory.models import BloodBag, BloodComponent
     from requests.models import BloodRequest
 
     now = timezone.now()
     today = now.date()
     soon = now + timedelta(days=7)
     bags = BloodBag.objects.select_related("blood_type", "component")
+    blood_components = BloodComponent.blood_only_active()
 
     ctx = {
         "todays_appointments": Appointment.objects.filter(date=today).exclude(
@@ -162,7 +163,12 @@ def _staff_dashboard(request):
         "emergency_requests": BloodRequest.objects.filter(
             urgency__in=["EMERGENCY", "CRITICAL"]
         ).exclude(status__in=["FULFILLED", "REJECTED", "CANCELLED", "EXPIRED"]).select_related("organization").order_by("-created_at")[:5],
-        "expiring_bags": bags.filter(status="AVAILABLE", expires_at__lte=soon, expires_at__gt=now).order_by("expires_at")[:8],
+        "expiring_bags": bags.filter(
+            status="AVAILABLE",
+            component__in=blood_components,
+            expires_at__lte=soon,
+            expires_at__gt=now,
+        ).order_by("expires_at")[:8],
         "low_stock": _low_stock_types(bags),
         "inventory_matrix": _inventory_matrix(bags),
         "recent_activity": Donation.objects.select_related("donor").order_by("-created_at")[:5],
@@ -275,19 +281,26 @@ def chart_data(request, chart):
     if chart == "inventory_by_type":
         rows = (
             BloodBag.objects.filter(status="AVAILABLE")
-            .values("blood_type__abo", "blood_type__rh")
+            .values("blood_type_id", "blood_type__abo", "blood_type__rh")
             .annotate(total=Count("id"))
+            .order_by("blood_type__abo", "blood_type__rh")
         )
-        labels, data = [], []
+        labels, data, ids = [], [], []
         for r in rows:
             labels.append(f"{r['blood_type__abo']}{'+' if r['blood_type__rh'] == 'POS' else '-'}")
             data.append(r["total"])
-        return JsonResponse({"labels": labels, "data": data})
+            ids.append(r["blood_type_id"])
+        return JsonResponse({"labels": labels, "data": data, "blood_type_ids": ids})
     if chart == "component_distribution":
+        from inventory.models import BloodComponent
         rows = (
-            BloodBag.objects.filter(status__in=["AVAILABLE", "RESERVED"])
+            BloodBag.objects.filter(
+                status__in=["AVAILABLE", "RESERVED"],
+                component__in=BloodComponent.blood_only_active(),
+            )
             .values("component__name")
             .annotate(total=Count("id"))
+            .order_by("component__name")
         )
         return JsonResponse({"labels": [r["component__name"] for r in rows],
                              "data": [r["total"] for r in rows]})

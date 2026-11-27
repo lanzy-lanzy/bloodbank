@@ -244,7 +244,7 @@ class DeliveryListView(StaffRequiredMixin, ListView):
         ctx.update({
             "status_filter": self.status, "channel_filter": self.channel,
             "statuses": Notification.DeliveryStatus.choices,
-            "channels": Notification.Channel.choices,
+            "channels": [(Notification.Channel.SMS, Notification.Channel.SMS.label)],
         })
         return ctx
 

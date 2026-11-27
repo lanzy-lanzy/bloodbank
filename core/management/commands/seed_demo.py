@@ -265,7 +265,7 @@ class Command(BaseCommand):
         only_if_missing("low_stock_threshold", 3, "inventory", "int",
                         "Available bags at or below this count flag a blood type as low stock.")
         only_if_missing("expiring_soon_days", 7, "inventory", "int",
-                        "Bags expiring within this many days are listed as 'expiring soon'.")
+                        "Bags deferred within this many days are listed as 'deferred soon'.")
 
         # Walk-in intake needs an owning organization (records are staff-side,
         # but the data model and reports key requests on one). Institutions

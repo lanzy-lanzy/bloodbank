@@ -98,16 +98,6 @@
               {% for bt in blood_types %}<option value="{{ bt.pk }}" {% if filters.blood_type == bt.pk|stringformat:"s" %}selected{% endif %}>{{ bt.code }}</option>{% endfor %}
             </select>
           </div>
-        {% elif f == "date_from" %}
-          <div>
-            <label for="flt-from" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-500">From</label>
-            <input id="flt-from" type="date" name="date_from" value="{{ filters.date_from }}" class="rounded-lg border border-ink-300 px-3 py-2 text-sm transition focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20 focus:outline-none">
-          </div>
-        {% elif f == "date_to" %}
-          <div>
-            <label for="flt-to" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-500">To</label>
-            <input id="flt-to" type="date" name="date_to" value="{{ filters.date_to }}" class="rounded-lg border border-ink-300 px-3 py-2 text-sm transition focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20 focus:outline-none">
-          </div>
         {% endif %}
       {% endfor %}
       <div class="ml-auto flex items-center gap-2">

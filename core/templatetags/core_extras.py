@@ -65,6 +65,18 @@ def display_status(status):
     return str(status).replace("_", " ").title()
 
 
+@register.filter
+def defer_text(value):
+    """Replace legacy expire/expired/expiration/expiry wording in display text with deferred."""
+    import re
+    if not value:
+        return value
+    text = str(value)
+    text = re.sub(r"\b(Expiration|Expired|Expiring|Expiry|Expire)\b", "Deferred", text)
+    text = re.sub(r"\b(expiration|expired|expiring|expiry|expire)\b", "deferred", text)
+    return text
+
+
 # --- Role checks ---------------------------------------------------------------
 @register.filter
 def has_role(user, role):
