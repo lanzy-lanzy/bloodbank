@@ -5,7 +5,7 @@
 <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
   <div>
     <h1 class="text-xl sm:text-2xl font-bold text-ink-900 tracking-tight">Appointments</h1>
-    <p class="text-sm text-ink-500 mt-0.5">Donation schedule calendar, requested dates, and check-in workflow.</p>
+    <p class="text-sm text-ink-500 mt-0.5">Calendar of available donation schedules set by the administrator.</p>
   </div>
   <div class="flex flex-wrap items-center gap-2">
     {% if request.user|has_role:'ADMIN' %}
@@ -20,24 +20,25 @@
   </div>
 </div>
 
-{# ---- Requested appointment dates quick-jump bar ---- #}
-{% if requested_dates %}
-<div class="mb-4 rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3.5 shadow-2xs">
+{# ---- Available admin-set schedule dates quick-jump bar ---- #}
+{% if available_dates %}
+<div class="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3.5 shadow-2xs">
   <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
     <div class="flex items-center gap-2">
-      <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1.5 text-[11px] font-bold text-white tabular-nums">{{ requested_total }}</span>
-      <h2 class="text-xs font-bold uppercase tracking-wider text-amber-900">Requested Appointment Dates Awaiting Confirmation</h2>
+      <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-[11px] font-bold text-white tabular-nums">{{ available_total }}</span>
+      <h2 class="text-xs font-bold uppercase tracking-wider text-emerald-900">Available Admin-Set Schedules</h2>
     </div>
-    <span class="text-[11px] text-amber-800">Click any date to inspect and confirm</span>
+    <span class="text-[11px] text-emerald-800">Click any schedule to inspect donors and check-in</span>
   </div>
   <div class="flex flex-wrap gap-2">
-    {% for item in requested_dates %}
+    {% for item in available_dates %}
       <a href="?date={{ item.date|date:'Y-m-d' }}&amp;scope=month{% if status_filter %}&amp;status={{ status_filter }}{% endif %}"
          class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition
-         {% if item.date == day %}border-brand-600 bg-brand-600 text-white shadow-xs{% else %}border-amber-300 bg-white text-ink-800 hover:border-brand-400 hover:bg-brand-50{% endif %}">
-        <span>{{ item.date|date:"D, M j, Y" }}</span>
+         {% if item.date == day %}border-brand-600 bg-brand-600 text-white shadow-xs{% else %}border-emerald-300 bg-white text-ink-800 hover:border-brand-400 hover:bg-brand-50{% endif %}">
+        <span>{{ item.date|date:"D, M j, Y" }} · {{ item.time|time:"g:i A" }}</span>
+        {% if item.location %}<span class="font-normal opacity-80">({{ item.location|truncatechars:24 }})</span>{% endif %}
         <span class="inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums
-          {% if item.date == day %}bg-white/20 text-white{% else %}bg-brand-600 text-white{% endif %}">
+          {% if item.date == day %}bg-white/20 text-white{% else %}bg-emerald-600 text-white{% endif %}">
           {{ item.count }}
         </span>
       </a>
@@ -67,7 +68,7 @@
       <label for="appt-status" class="block text-[11px] font-semibold uppercase tracking-wide text-ink-500 mb-1">Status</label>
       <select id="appt-status" name="status"
               class="rounded-lg border border-ink-300 px-3 py-2 text-sm focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20">
-        <option value="">Any status</option>
+        <option value="">Available (Admin-set)</option>
         {% for value, label in statuses %}
           <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
@@ -170,9 +171,9 @@
       </div>
 
       <div class="px-5 py-3 border-t border-ink-100 bg-ink-50/50 flex flex-wrap items-center gap-4 text-[11px] text-ink-500">
-        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-brand-600"></span> Requested (needs confirmation)</span>
-        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-ink-900"></span> Confirmed / Checked-in</span>
-        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-ink-300"></span> Closed</span>
+        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-emerald-600"></span> Available schedule (Admin-set)</span>
+        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-sky-600"></span> Checked-in</span>
+        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-ink-300"></span> Filtered closed status</span>
       </div>
     </div>
 

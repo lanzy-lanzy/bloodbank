@@ -13,18 +13,20 @@
       </div>
       <p class="text-xs text-ink-500 mt-0.5">
         {% if selected_appointments %}
-          {{ selected_appointments|length }} appointment{{ selected_appointments|length|pluralize }} scheduled on this date
+          {{ selected_appointments|length }} donor{{ selected_appointments|length|pluralize }} scheduled by admin on this date
         {% else %}
-          No appointments scheduled on this date
+          No available admin-set schedule on this date
         {% endif %}
       </p>
     </div>
-    <a href="{% url 'appointments:create' %}?date={{ day|date:'Y-m-d' }}"
-       hx-get="{% url 'appointments:create' %}?date={{ day|date:'Y-m-d' }}" hx-target="#modal-root" hx-swap="innerHTML"
+    {% if request.user|has_role:'ADMIN' %}
+    <a href="{% url 'appointments:broadcast_schedule' %}?date={{ day|date:'Y-m-d' }}"
+       hx-get="{% url 'appointments:broadcast_schedule' %}?date={{ day|date:'Y-m-d' }}" hx-target="#modal-root" hx-swap="innerHTML"
        class="inline-flex items-center gap-1 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 shadow-2xs transition">
       <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
-      Add
+      Set Schedule
     </a>
+    {% endif %}
   </div>
 
   <div class="divide-y divide-ink-100 max-h-[560px] overflow-y-auto">
@@ -77,8 +79,8 @@
       </div>
     {% empty %}
       <div class="px-5 py-12 text-center">
-        <p class="text-sm font-medium text-ink-700">No appointments on {{ day|date:"M j, Y" }}</p>
-        <p class="text-xs text-ink-500 mt-1">Select any highlighted date on the calendar or click Add to schedule one.</p>
+        <p class="text-sm font-medium text-ink-700">No available schedule on {{ day|date:"M j, Y" }}</p>
+        <p class="text-xs text-ink-500 mt-1">Only available schedules set by the administrator are shown here.</p>
       </div>
     {% endfor %}
   </div>

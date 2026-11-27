@@ -49,19 +49,39 @@ class AppointmentBadgeView(StaffRequiredMixin, View):
         return render(request, "components/nav_badge.html", {"count": count})
 
 
+AVAILABLE_ADMIN_STATUSES = [
+    Appointment.Status.CONFIRMED,
+    Appointment.Status.CHECKED_IN,
+]
+
+
+def _admin_available_queryset(status_filter=""):
+    """Base queryset for the calendar: only schedules set by an ADMIN.
+
+    By default only available (confirmed / checked-in) schedules are shown;
+    an explicit status filter still stays scoped to admin-created schedules.
+    """
+    qs = Appointment.objects.select_related("donor", "created_by").filter(
+        created_by__role="ADMIN"
+    )
+    if status_filter:
+        return qs.filter(status=status_filter)
+    return qs.filter(status__in=AVAILABLE_ADMIN_STATUSES)
+
+
 class AppointmentListView(StaffRequiredMixin, ListView):
     template_name = "appointments/list.html"
     context_object_name = "appointments"
     paginate_by = 20
 
     def get_queryset(self):
-        qs = Appointment.objects.select_related("donor", "created_by")
         day = _parse_date(self.request.GET.get("date"), timezone.localdate())
         self.day = day
         status = self.request.GET.get("status", "")
         self.status_filter = status
         scope = self.request.GET.get("scope") or "month"
         self.scope = scope
+        qs = _admin_available_queryset(status)
         if scope == "day":
             qs = qs.filter(date=day)
         elif scope == "week":
@@ -69,27 +89,25 @@ class AppointmentListView(StaffRequiredMixin, ListView):
             qs = qs.filter(date__range=[start, start + timedelta(days=6)])
         elif scope == "month":
             qs = qs.filter(date__year=day.year, date__month=day.month)
-        if status:
-            qs = qs.filter(status=status)
         return qs.order_by("date", "time")
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        selected_qs = Appointment.objects.select_related("donor", "created_by").filter(date=self.day)
-        if self.status_filter:
-            selected_qs = selected_qs.filter(status=self.status_filter)
+        today = timezone.localdate()
+        selected_qs = _admin_available_queryset(self.status_filter).filter(date=self.day)
         selected_appointments = list(selected_qs.order_by("time"))
 
-        requested_dates = list(
-            Appointment.objects.filter(status=Appointment.Status.REQUESTED)
-            .values("date")
+        available_dates_qs = _admin_available_queryset().filter(date__gte=today)
+        available_dates = list(
+            available_dates_qs
+            .values("date", "time", "location")
             .annotate(count=Count("id"))
-            .order_by("date")[:12]
+            .order_by("date", "time")[:12]
         )
 
         ctx.update({
             "day": self.day,
-            "today": timezone.localdate(),
+            "today": today,
             "scope": self.scope,
             "status_filter": self.status_filter,
             "statuses": Appointment.Status.choices,
@@ -97,8 +115,8 @@ class AppointmentListView(StaffRequiredMixin, ListView):
             "prev_month": _shift_month(self.day, -1),
             "next_month": _shift_month(self.day, 1),
             "selected_appointments": selected_appointments,
-            "requested_dates": requested_dates,
-            "requested_total": Appointment.objects.filter(status=Appointment.Status.REQUESTED).count(),
+            "available_dates": available_dates,
+            "available_total": available_dates_qs.values("date", "time", "location").distinct().count(),
         })
         return ctx
 
@@ -109,29 +127,29 @@ class AppointmentListView(StaffRequiredMixin, ListView):
 
 
 def _month_grid(day, status_filter=""):
-    """Sunday-first calendar month grid with per-day appointment counts & previews."""
+    """Sunday-first calendar month grid showing only available admin-set schedules."""
     first_weekday, num_days = pycalendar.monthrange(day.year, day.month)
     # monthrange uses Monday=0..Sunday=6; shift so Sunday=0..Saturday=6.
     start_offset = (first_weekday + 1) % 7
-    qs = Appointment.objects.select_related("donor").filter(
+    qs = _admin_available_queryset(status_filter).filter(
         date__year=day.year, date__month=day.month
     )
-    if status_filter:
-        qs = qs.filter(status=status_filter)
     by_day = {}
     for appt in qs.order_by("time"):
         bucket = by_day.setdefault(appt.date, {
-            "total": 0, "open": 0, "requested": 0, "previews": [],
+            "total": 0, "open": 0, "requested": 0, "previews": [], "slots": set(),
         })
         bucket["total"] += 1
         if appt.status in Appointment.OPEN_STATUSES:
             bucket["open"] += 1
         if appt.status == Appointment.Status.REQUESTED:
             bucket["requested"] += 1
-        if len(bucket["previews"]) < 2:
+        slot_key = (appt.time, appt.location or "")
+        if slot_key not in bucket["slots"] and len(bucket["previews"]) < 2:
+            bucket["slots"].add(slot_key)
             bucket["previews"].append({
                 "time": appt.time,
-                "name": appt.donor.first_name or appt.donor.donor_code,
+                "name": appt.location or appt.donor.first_name or appt.donor.donor_code,
                 "status": appt.status,
             })
 
@@ -247,8 +265,11 @@ class AppointmentBroadcastCreateView(AdminRequiredMixin, View):
 
     def get(self, request):
         from donors.models import Donor
+        default_date = _parse_date(
+            request.GET.get("date"), timezone.localdate() + timedelta(days=1)
+        )
         form = BroadcastScheduleForm(initial={
-            "date": (timezone.localdate() + timedelta(days=1)).isoformat(),
+            "date": default_date.isoformat(),
             "time": "09:00",
         })
         return render_any(

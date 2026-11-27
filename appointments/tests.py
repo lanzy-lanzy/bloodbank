@@ -179,32 +179,54 @@ class ConfirmationSMSTests(TestCase):
 
 class CalendarAndBadgeTests(TestCase):
     def setUp(self):
+        self.admin = make_user("cal-admin", role="ADMIN")
         self.staff = make_user("cal-staff", role="STAFF")
         self.donor_user = make_user("cal-donor", role="DONOR")
         self.donor = make_donor(user=self.donor_user, first_name="Clara", last_name="Diaz")
+        self.other_donor = make_donor(first_name="Marco", last_name="Lim")
 
-    def test_calendar_is_default_shows_requested_dates_and_day_panel_via_htmx(self):
+    def test_calendar_shows_only_available_schedules_set_by_admin(self):
         target = timezone.localdate() + timedelta(days=2)
+        # Admin-set CONFIRMED schedule -> MUST appear
         Appointment.objects.create(
-            donor=self.donor, date=target, time=dtime(10, 30), status="REQUESTED",
+            donor=self.donor, date=target, time=dtime(10, 30),
+            location="Dumingag Civic Center", status="CONFIRMED",
+            created_by=self.admin,
         )
+        # Staff-created appointment -> must NOT appear on calendar
+        Appointment.objects.create(
+            donor=self.other_donor, date=target, time=dtime(11, 0),
+            location="Staff Clinic", status="CONFIRMED",
+            created_by=self.staff,
+        )
+        # Cancelled admin appointment -> must NOT appear in default available view
+        Appointment.objects.create(
+            donor=self.other_donor, date=target, time=dtime(14, 0),
+            location="Cancelled Hall", status="CANCELLED",
+            created_by=self.admin,
+        )
+
         self.client.force_login(self.staff)
         resp = self.client.get(reverse("appointments:list"), {"date": target.isoformat()})
         self.assertEqual(resp.status_code, 200)
         body = resp.content.decode()
-        self.assertIn("Requested Appointment Dates Awaiting Confirmation", body)
-        self.assertIn("Clara", body)
+        self.assertIn("Available Admin-Set Schedules", body)
+        self.assertIn("Dumingag Civic Center", body)
         self.assertIn("10:30 AM", body)
+        self.assertNotIn("Staff Clinic", body)
+        self.assertNotIn("Cancelled Hall", body)
 
-        # Clicking a day via HTMX returns only the selected day panel
+        # Clicking a day via HTMX returns only the selected day panel with admin-set schedule
         panel = self.client.get(
             reverse("appointments:list"),
             {"date": target.isoformat(), "scope": "month", "panel": "day"},
             HTTP_HX_REQUEST="true",
         )
         self.assertEqual(panel.status_code, 200)
-        self.assertIn('id="day-schedule-panel"', panel.content.decode())
-        self.assertIn("CLARA DIAZ", panel.content.decode().upper())
+        panel_body = panel.content.decode()
+        self.assertIn('id="day-schedule-panel"', panel_body)
+        self.assertIn("CLARA DIAZ", panel_body.upper())
+        self.assertNotIn("MARCO LIM", panel_body.upper())
 
     def test_appointments_sidebar_badge_counts_open_and_denies_donor(self):
         target = timezone.localdate() + timedelta(days=1)
