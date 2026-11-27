@@ -70,7 +70,7 @@ silently truncating a stock count would be the dangerous option.
 
 _STATEMENT_COLUMNS = [
     "Bag Code", "Blood Type", "Component", "Status", "Volume (mL)",
-    "Collected", "Expires", "Days Left", "Location", "Donor",
+    "Collected", "Deferred Date", "Days Left", "Location", "Donor",
 ]
 
 
@@ -162,8 +162,8 @@ def build_inventory_statement(request):
 
     notes = [
         "\"Available\" counts units that are AVAILABLE and still within date; "
-        "\"Expiring\" is a subset of it, not a separate pool.",
-        f"Expiring-soon window: {days} day(s), read from the configured "
+        "\"Deferred\" is a subset of it, not a separate pool.",
+        f"Deferred-soon window: {days} day(s), read from the configured "
         "expiring_soon_days setting rather than a fixed date.",
         "Stock figures are a point-in-time extract. Bag statuses change only "
         "through audited transitions recorded in the movement ledger.",
@@ -176,9 +176,9 @@ def build_inventory_statement(request):
         )
     if past_expiry_usable.exists():
         notes.append(
-            f"{past_expiry_usable.count()} bag(s) are past their expiration date but "
+            f"{past_expiry_usable.count()} bag(s) are past their deferred date but "
             "still sit in a usable status. They are excluded from every usable-stock "
-            "figure above until the expiration rule moves them to EXPIRED."
+            "figure above until the deferred rule moves them to DEFERRED."
         )
 
     generated = timezone.localtime()
@@ -202,8 +202,8 @@ def build_inventory_statement(request):
             ("Available", f"{available.count():,}"),
             ("Quarantine / testing", f"{quarantined.count():,}"),
             ("Reserved", f"{reserved.count():,}"),
-            ("Expiring soon", f"{len(expiring):,}"),
-            ("Expired", f"{expired.count():,}"),
+            ("Deferred soon", f"{len(expiring):,}"),
+            ("Deferred", f"{expired.count():,}"),
             ("Discarded", f"{discarded.count():,}"),
         ],
         landscape=True,
@@ -322,7 +322,7 @@ class InventoryService:
                     f"Allowed: {', '.join(bag.TRANSITIONS.get(previous, [])) or 'none (terminal state)'}."
                 )
             if new_status in ("AVAILABLE", "RESERVED", "ISSUED") and bag.is_expired_by_date:
-                raise InventoryError("Bag is past its expiration date and cannot re-enter usable stock.")
+                raise InventoryError("Bag is past its deferred date and cannot re-enter usable stock.")
             if new_status == "AVAILABLE" and previous in ("TESTING", "QUARANTINED", "RETURNED"):
                 InventoryService._guard_release(bag)
 

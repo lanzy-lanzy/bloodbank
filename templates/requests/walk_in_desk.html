@@ -33,7 +33,7 @@
 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
   {% include "components/stat_card.html" with stat_label="Awaiting bags" stat_value=owed_count stat_sub="validated walk-ins still owing units" stat_href=desk_url %}
   {% include "components/stat_card.html" with stat_label="Open at the counter" stat_value=open_count stat_color=sky stat_sub="not yet fulfilled or closed" stat_href=desk_url %}
-  {% include "components/stat_card.html" with stat_label="Closed" stat_value=closed_count stat_color=slate stat_sub="fulfilled, cancelled or expired" %}
+  {% include "components/stat_card.html" with stat_label="Closed" stat_value=closed_count stat_color=slate stat_sub="fulfilled, cancelled or deferred" %}
 </div>
 
 <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4 flex flex-wrap items-center justify-between gap-3">

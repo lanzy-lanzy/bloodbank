@@ -108,7 +108,7 @@
             <tr class="border-t border-ink-100">
               <td class="px-4 py-3">
                 {% if is_staff_view %}<a class="font-semibold text-ink-900 hover:text-brand-600" href="{% url 'inventory:bag_detail' a.bag.pk %}">{{ a.bag.bag_code }}</a>{% else %}{{ a.bag.bag_code }}{% endif %}
-                <span class="block text-[11px] text-ink-400">{{ a.bag.blood_type.code }} · expires {{ a.bag.expires_at|date:"Y-m-d" }}</span>
+                <span class="block text-[11px] text-ink-400">{{ a.bag.blood_type.code }} · deferred {{ a.bag.expires_at|date:"Y-m-d" }}</span>
               </td>
               <td class="px-4 py-3 text-ink-600">{{ a.item.blood_type.code }} {{ a.item.component.code|upper }}</td>
               <td class="px-4 py-3">{% include "components/status_badge.html" with status=a.status %}</td>
@@ -186,7 +186,7 @@
               {% for bag in entry.bags %}
               <li class="text-xs border border-ink-100 rounded-xl px-3 py-2 flex items-center justify-between">
                 <a class="font-semibold text-ink-800 hover:text-brand-600" href="{% url 'inventory:bag_detail' bag.pk %}">{{ bag.bag_code }}</a>
-                <span class="text-ink-500">{{ bag.blood_type.code }} · exp {{ bag.expires_at|date:"m-d" }} ({{ bag.days_until_expiry }}d)</span>
+                <span class="text-ink-500">{{ bag.blood_type.code }} · def {{ bag.expires_at|date:"m-d" }} ({{ bag.days_until_expiry }}d)</span>
               </li>
               {% endfor %}
             </ul>

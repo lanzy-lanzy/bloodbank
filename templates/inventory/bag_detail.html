@@ -11,9 +11,9 @@
     </div>
     <p class="text-sm text-ink-500 mt-1">
       {% if bag.is_expired_by_date %}
-        <span class="font-semibold text-brand-600">Past expiration ({{ bag.expires_at|date:"Y-m-d H:i" }})</span>
+        <span class="font-semibold text-brand-600">Past deferred date ({{ bag.expires_at|date:"Y-m-d H:i" }})</span>
       {% else %}
-        Expires {{ bag.expires_at|date:"Y-m-d H:i" }}
+        Deferred {{ bag.expires_at|date:"Y-m-d H:i" }}
         <span class="font-semibold {% if bag.days_until_expiry <= 3 %}text-brand-600{% elif bag.days_until_expiry <= 7 %}text-amber-600{% else %}text-ink-500{% endif %}">({{ bag.days_until_expiry }} day{{ bag.days_until_expiry|pluralize }} left)</span>
       {% endif %}
       · {{ bag.volume_ml }} mL · screening: {{ bag.get_screening_status_display }}
@@ -34,7 +34,7 @@
         <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Donation</dt><dd class="text-right">{% if bag.donation %}<a class="text-brand-600 hover:text-brand-700 font-medium" href="{% url 'donations:detail' bag.donation.pk %}" hx-get="{% url 'donations:detail' bag.donation.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ bag.donation.donation_code }}</a>{% else %}<span class="text-ink-400">external bag</span>{% endif %}</dd></div>
         <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Donor</dt><dd class="text-right">{% if bag.donor %}<a class="text-brand-600 hover:text-brand-700 font-medium" href="{% url 'donors:detail' bag.donor.pk %}" hx-get="{% url 'donors:detail' bag.donor.pk %}" hx-target="#modal-root" hx-swap="innerHTML">{{ bag.donor.donor_code }} · {{ bag.donor.full_name }}</a>{% else %}<span class="text-ink-400">—</span>{% endif %}</dd></div>
         <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Collected</dt><dd class="text-right text-ink-700">{{ bag.collected_at|date:"Y-m-d H:i" }}</dd></div>
-        <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Expires</dt><dd class="text-right text-ink-700">{{ bag.expires_at|date:"Y-m-d H:i" }}</dd></div>
+        <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Deferred Date</dt><dd class="text-right text-ink-700">{{ bag.expires_at|date:"Y-m-d H:i" }}</dd></div>
         <div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Location</dt><dd class="text-right text-ink-700">{{ bag.location|default:"—" }}{% if bag.storage_position %} · {{ bag.storage_position }}{% endif %}</dd></div>
         {% if bag.released_at %}<div class="flex justify-between gap-3 py-1.5"><dt class="text-ink-500">Released</dt><dd class="text-right text-ink-700">{{ bag.released_at|date:"Y-m-d H:i" }} by {{ bag.released_by.get_full_name|default:bag.released_by.username }}</dd></div>{% endif %}
       </dl>

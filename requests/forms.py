@@ -98,5 +98,5 @@ class AllocateForm(forms.Form):
                 expires_at__gt=timezone.now(),
             ).select_related("blood_type", "component", "donor").order_by("expires_at")
             self.fields["bag"].label_from_instance = lambda b: (
-                f"{b.bag_code} · {b.blood_type} {b.component} · exp {b.expires_at:%b %d, %Y}"
+                f"{b.bag_code} · {b.blood_type} {b.component} · def {b.expires_at:%b %d, %Y}"
             )

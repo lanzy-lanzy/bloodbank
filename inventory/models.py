@@ -52,7 +52,7 @@ class BloodComponent(models.Model):
     name = models.CharField(max_length=80, unique=True)
     code = models.SlugField(max_length=20, unique=True)
     default_shelf_life_days = models.PositiveIntegerField(
-        help_text="Used to compute expiration from collection time. Institutional value — validate before production."
+        help_text="Used to compute deferred date from collection time. Institutional value — validate before production."
     )
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
@@ -99,7 +99,7 @@ class BloodBag(models.Model):
         RESERVED = "RESERVED", "Reserved"
         ISSUED = "ISSUED", "Issued"
         TRANSFUSED = "TRANSFUSED", "Transfused"
-        EXPIRED = "EXPIRED", "Expired"
+        EXPIRED = "EXPIRED", "Deferred"
         DISCARDED = "DISCARDED", "Discarded"
         RETURNED = "RETURNED", "Returned"
         REJECTED = "REJECTED", "Rejected"
@@ -235,7 +235,7 @@ class InventoryTransaction(models.Model):
         ISSUE = "ISSUE", "Issue"
         RETURN = "RETURN", "Return"
         DISCARD = "DISCARD", "Discard"
-        EXPIRATION = "EXPIRATION", "Expiration"
+        EXPIRATION = "EXPIRATION", "Deferred"
         ADJUSTMENT = "ADJUSTMENT", "Adjustment / override"
 
     bag = models.ForeignKey(BloodBag, on_delete=models.PROTECT, related_name="transactions")

@@ -294,7 +294,7 @@ class StockAttentionTests(TestCase):
                  status="AVAILABLE", expires_in_days=-1)
         self.client.force_login(make_user("att-admin2", role="ADMIN"))
         resp = self.client.get(reverse("inventory:dashboard"))
-        self.assertContains(resp, "past their expiration date but still sit in a")
+        self.assertContains(resp, "past their deferred date but still sit in a")
         self.assertContains(resp, "expiry=expired")
 
     def test_dashboard_omits_the_stale_warning_when_stock_is_clean(self):
@@ -499,7 +499,7 @@ class InventoryStatementTests(TestCase):
         self.assertEqual(summary["Total bags"], "3")
         self.assertEqual(summary["Available"], "1")
         self.assertEqual(summary["Quarantine / testing"], "1")
-        self.assertEqual(summary["Expired"], "1")
+        self.assertEqual(summary["Deferred"], "1")
         # The dashboard states the same "available" figure, so the two agree.
         self.assertIn("1", dashboard)
 
@@ -513,7 +513,7 @@ class InventoryStatementTests(TestCase):
         make_bag(self.donor, blood_type=self.bt, component=self.comp,
                  status="AVAILABLE", expires_in_days=-1)
         body = self.client.get(self.reverse("inventory:statement")).content.decode()
-        self.assertIn("past their expiration date", body)
+        self.assertIn("past their deferred date", body)
 
     def test_statement_pdf_is_a_valid_download(self):
         resp = self.client.get(self.reverse("inventory:statement_pdf"))

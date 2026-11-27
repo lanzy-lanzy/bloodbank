@@ -75,7 +75,7 @@ class BloodRequest(models.Model):
         FULFILLED = "FULFILLED", "Fulfilled"
         REJECTED = "REJECTED", "Rejected"
         CANCELLED = "CANCELLED", "Cancelled"
-        EXPIRED = "EXPIRED", "Expired"
+        EXPIRED = "EXPIRED", "Deferred"
 
     OPEN_STATUSES = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "APPROVED", "PARTIALLY_FULFILLED"]
 

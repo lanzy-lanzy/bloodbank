@@ -13,7 +13,7 @@ warehouse shelf, and the remaining-days figure is what staff actually act on.
           <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Type / Component</th>
           <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Donor / Donation</th>
           <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Collected</th>
-          <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Expires</th>
+          <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Deferred Date</th>
           <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Location</th>
           <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Allocated to</th>
           <th scope="col" class="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-ink-500">Status</th>
@@ -40,7 +40,7 @@ warehouse shelf, and the remaining-days figure is what staff actually act on.
           <td class="whitespace-nowrap px-4 py-3 tabular-nums {% if bag.is_expired_by_date %}font-bold text-brand-600{% elif bag.days_until_expiry <= 7 %}font-semibold text-amber-600{% else %}text-ink-600{% endif %}">
             {{ bag.expires_at|date:"Y-m-d H:i" }}
             <span class="mt-0.5 block text-[11px] font-normal text-ink-400">
-              {% if bag.is_expired_by_date %}expired{% else %}{{ bag.days_until_expiry }} day{{ bag.days_until_expiry|pluralize }} left{% endif %}
+              {% if bag.is_expired_by_date %}deferred{% else %}{{ bag.days_until_expiry }} day{{ bag.days_until_expiry|pluralize }} left{% endif %}
             </span>
           </td>
           <td class="px-4 py-3 text-xs text-ink-600">

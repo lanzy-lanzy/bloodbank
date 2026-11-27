@@ -28,7 +28,7 @@
 </div>
 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
   {% include "components/stat_card.html" with stat_label="Emergency Requests" stat_value=emergency_requests stat_sub="open emergency / critical" stat_color="rose" stat_href=requests_url stat_icon_name="alert" %}
-  {% include "components/stat_card.html" with stat_label="Expiring Soon" stat_value=bags_expiring_soon stat_sub="available bags expiring within 7 days" stat_color="amber" stat_href=bags_url stat_icon_name="clock" %}
+  {% include "components/stat_card.html" with stat_label="Deferred Soon" stat_value=bags_expiring_soon stat_sub="available bags deferred within 7 days" stat_color="amber" stat_href=bags_url stat_icon_name="clock" %}
   {% include "components/stat_card.html" with stat_label="Quarantined / Testing" stat_value=bags_quarantined stat_sub="not yet released" stat_color="slate" stat_href=bags_url stat_icon_name="beaker" %}
   {% include "components/stat_card.html" with stat_label="Fulfilled Requests" stat_value=fulfilled_requests stat_color="emerald" stat_href=requests_url stat_icon_name="check-circle" %}
 </div>
@@ -156,7 +156,7 @@
             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Blood Type</th>
             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Available</th>
             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Reserved</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Expiring Soon</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Deferred Soon</th>
           </tr>
         </thead>
         <tbody>

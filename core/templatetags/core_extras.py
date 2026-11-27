@@ -60,6 +60,8 @@ def status_color(status):
 
 @register.filter
 def display_status(status):
+    if str(status).upper() == "EXPIRED":
+        return "Deferred"
     return str(status).replace("_", " ").title()
 
 

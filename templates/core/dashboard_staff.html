@@ -130,7 +130,7 @@
 <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
   <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
     <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
-      <h2 class="font-semibold text-ink-900">Bags Expiring Within 7 Days</h2>
+      <h2 class="font-semibold text-ink-900">Bags Deferred Within 7 Days</h2>
       <a href="{% url 'inventory:bag_list' %}" class="text-sm font-medium text-brand-600 hover:text-brand-700">Inventory</a>
     </div>
     <div class="overflow-x-auto">
@@ -140,7 +140,7 @@
             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Bag</th>
             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Type</th>
             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Component</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Expires</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Deferred Date</th>
             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Days Left</th>
           </tr>
         </thead>
@@ -158,7 +158,7 @@
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="5" class="border-t border-ink-100">{% include "components/empty_state.html" with empty_title="Nothing expiring soon" empty_text="No available bags expire within the next 7 days." %}</td></tr>
+          <tr><td colspan="5" class="border-t border-ink-100">{% include "components/empty_state.html" with empty_title="Nothing deferred soon" empty_text="No available bags are deferred within the next 7 days." %}</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -192,7 +192,7 @@
               <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Blood Type</th>
               <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Available</th>
               <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Reserved</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Expiring Soon</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 bg-ink-50">Deferred Soon</th>
             </tr>
           </thead>
           <tbody>
