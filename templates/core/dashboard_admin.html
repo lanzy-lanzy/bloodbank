@@ -325,13 +325,13 @@
     { id: "sexChart", url: "{% url 'core:chart_data' 'donors_by_sex' %}", type: "grouped_sex" },
     { id: "municipalityTrendChart", url: "{% url 'core:chart_data' 'municipality_donation_trend' %}", type: "multi_line_muni" },
     { id: "donationsChart", url: "{% url 'core:chart_data' 'donations_over_time' %}", type: "line",
-      color: "#d76e99", label: "Donations" },
+      color: "#e80065", label: "Donations" },
     { id: "inventoryChart", url: "{% url 'core:chart_data' 'inventory_by_type' %}", type: "bar",
-      color: "#6e6293", label: "Available bags", clickToBloodType: true },
+      color: "#6b4c98", label: "Available bags", clickToBloodType: true },
     { id: "componentChart", url: "{% url 'core:chart_data' 'component_distribution' %}", type: "doughnut",
-      palette: ["#ff7c84", "#d76e99", "#a3699f", "#6e6293", "#445779", "#2f4858"], label: "Bags" },
+      palette: ["#fd0a19", "#e80065", "#b13190", "#6b4c98", "#335080", "#2f4858"], label: "Bags" },
     { id: "urgencyChart", url: "{% url 'core:chart_data' 'requests_by_urgency' %}", type: "bar",
-      color: "#a3699f", label: "Requests" }
+      color: "#b13190", label: "Requests" }
   ];
 
   function build(spec, data) {
@@ -348,8 +348,8 @@
           labels: data.labels,
           datasets: [
             { label: "Total Donations", data: data.data, backgroundColor: "#2f4858", borderRadius: 5, maxBarThickness: 28 },
-            { label: "Male", data: data.male || [], backgroundColor: "#6e6293", borderRadius: 5, maxBarThickness: 24 },
-            { label: "Female", data: data.female || [], backgroundColor: "#ff7c84", borderRadius: 5, maxBarThickness: 24 }
+            { label: "Male", data: data.male || [], backgroundColor: "#335080", borderRadius: 5, maxBarThickness: 24 },
+            { label: "Female", data: data.female || [], backgroundColor: "#e80065", borderRadius: 5, maxBarThickness: 24 }
           ]
         },
         options: {
@@ -371,8 +371,8 @@
         data: {
           labels: data.labels,
           datasets: [
-            { label: "Registered Donors", data: data.donors || [], backgroundColor: "#445779", borderRadius: 6, maxBarThickness: 42 },
-            { label: "Completed Donations", data: data.donations || [], backgroundColor: "#d76e99", borderRadius: 6, maxBarThickness: 42 }
+            { label: "Registered Donors", data: data.donors || [], backgroundColor: "#335080", borderRadius: 6, maxBarThickness: 42 },
+            { label: "Completed Donations", data: data.donations || [], backgroundColor: "#e80065", borderRadius: 6, maxBarThickness: 42 }
           ]
         },
         options: {
@@ -389,7 +389,7 @@
     }
 
     if (spec.type === "multi_line_muni") {
-      var linePalette = ["#ff7c84", "#d76e99", "#a3699f", "#6e6293", "#445779", "#2f4858"];
+      var linePalette = ["#fd0a19", "#e80065", "#b13190", "#6b4c98", "#335080", "#2f4858"];
       var datasets = (data.series || []).map(function (s, idx) {
         var c = linePalette[idx % linePalette.length];
         return {
