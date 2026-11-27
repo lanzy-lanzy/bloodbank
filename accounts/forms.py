@@ -7,7 +7,9 @@ from django.core.exceptions import ValidationError
 
 from accounts.models import RegistrationInterview, RegistrationRequest, User
 from core.forms import StyledFormMixin
+from core.text import uppercase
 from core.validators import validate_ph_mobile
+from donors.interview import SIGNUP_PERSONAL_FIELDS, SIGNUP_PERSONAL_REQUIRED
 
 
 class BloodBankAuthenticationForm(StyledFormMixin, AuthenticationForm):
@@ -215,8 +217,22 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
         # stepper reads it to mark them required for the right role in the
         # browser; the server re-checks every one of them in clean() below,
         # so this is a convenience, never the rule.
-        for name in ("date_of_birth", "address", "municipality", "sex"):
+        for name in ("date_of_birth", "address", "municipality", "province", "sex"):
             self.fields[name].widget.attrs["data-required-for"] = User.Role.DONOR
+        self.fields["address"].label = "Street / address line"
+        from donors.models import DonorInterviewSheet
+        street_limit = DonorInterviewSheet._meta.get_field("address_street").max_length
+        self.fields["address"].max_length = street_limit
+        self.fields["address"].widget.attrs["maxlength"] = street_limit
+        for name in SIGNUP_PERSONAL_FIELDS:
+            field = DonorInterviewSheet._meta.get_field(name).formfield()
+            field.required = False
+            field.widget.attrs["class"] = INPUT_CLASSES
+            if name in SIGNUP_PERSONAL_REQUIRED:
+                field.widget.attrs["data-required-for"] = User.Role.DONOR
+            else:
+                field.help_text = "Optional."
+            self.fields[name] = field
         self.fields["organization_name"].widget.attrs["data-required-for"] = User.Role.REQUESTER
         # The female-donor block is required only when the applicant is female;
         # the browser mirrors that through data-required-for-sex (clean() is
@@ -256,10 +272,14 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
         cleaned = super().clean()
         role = cleaned.get("role")
         if role == User.Role.DONOR:
-            for key, label in (("date_of_birth", "Date of birth"), ("address", "Address"),
-                               ("municipality", "Municipality"), ("sex", "Sex")):
-                if not cleaned.get(key):
-                    self.add_error(key, f"{label} is required for donors.")
+            for key in ("date_of_birth", "address", "municipality", "province", "sex",
+                        *SIGNUP_PERSONAL_REQUIRED):
+                if not cleaned.get(key) and not self.has_error(key):
+                    self.add_error(key, f"{self.fields[key].label} is required for donors.")
+            for key in ("address", *SIGNUP_PERSONAL_FIELDS):
+                limit = self.fields[key].max_length if key != "civil_status" else None
+                if limit and len(uppercase(cleaned.get(key))) > limit:
+                    self.add_error(key, f"Enter at most {limit} characters in uppercase.")
             # Donor interview sheet is mandatory for donors: every item of the
             # printed questionnaire is asked, except the female-donor block
             # when the applicant is not female. Normalise the "yes"/"no" radio
@@ -269,7 +289,9 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
             from donors.interview import FEMALE_KEYS
             for key in RegistrationInterview.QUESTION_FIELDS:
                 raw = cleaned.get(key)
-                if raw in ("yes", "no"):
+                if not female and key.upper() in FEMALE_KEYS:
+                    cleaned[key] = None
+                elif raw in ("yes", "no"):
                     cleaned[key] = (raw == "yes")
                 else:
                     cleaned[key] = None
@@ -335,6 +357,9 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
         ("organization_name", "Organization", User.Role.REQUESTER),
     )
 
+    def donor_personal_fields(self):
+        return [self[name] for name in SIGNUP_PERSONAL_FIELDS]
+
     def review_rows(self):
         """[(field name, label, role scope, value)] for the review step.
 
@@ -343,7 +368,10 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
         stepper refreshes them live while the applicant types.
         """
         return [(name, label, scope, self._review_value(name))
-                for name, label, scope in self.REVIEW_FIELDS]
+                for name, label, scope in self.REVIEW_FIELDS] + [
+                    (name, self.fields[name].label, User.Role.DONOR, self._review_value(name))
+                    for name in SIGNUP_PERSONAL_FIELDS
+                ]
 
     def _review_value(self, name):
         if not self.is_bound:
@@ -355,8 +383,8 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
         if name == "blood_type":
             blood_type = getattr(self, "cleaned_data", {}).get("blood_type")
             return str(blood_type) if blood_type else ""
-        if name == "sex":
-            return dict(RegistrationRequest.Sex.choices).get(raw, "")
+        if name in ("sex", "civil_status"):
+            return dict(self.fields[name].choices).get(raw, "")
         return (raw or "").strip()
 
     def interview_answers(self):
@@ -370,6 +398,8 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
             return None
         answers = {key: self.cleaned_data.get(key)
                    for key in RegistrationInterview.QUESTION_FIELDS}
+        answers["personal_data"] = {name: self.cleaned_data[name]
+                                    for name in SIGNUP_PERSONAL_FIELDS}
         answers["declaration"] = bool(self.cleaned_data.get("declaration"))
         answers["notes"] = (self.cleaned_data.get("interview_notes") or "").strip()
         return answers

@@ -51,7 +51,7 @@ class DonorFormDropdownTests(TestCase):
         make_blood_type("O", "POS")
         form = DonorForm()
         self.assertEqual([value for value, _ in form.fields["sex"].choices],
-                         ["MALE", "FEMALE", "OTHER", "UNDISCLOSED"])
+                         ["", "MALE", "FEMALE", "OTHER", "UNDISCLOSED"])
         self.assertIn("O+", [str(blood_type) for blood_type in form.fields["blood_type"].queryset])
 
 
@@ -506,11 +506,13 @@ class InterviewSheetDocumentTests(TestCase):
     def test_identity_fields_print_in_uppercase(self):
         from donors.documents import build_interview_sheet_spec
         values = self._field_values(build_interview_sheet_spec(self._sheet()))
-        self.assertEqual(values["Surname, first name and middle name"], "ANA REYES")
+        self.assertEqual(values["Surname"], "REYES")
+        self.assertEqual(values["First name"], "ANA")
+        self.assertEqual(values["Middle name"], "")
         self.assertEqual(values["Street"], "12 MABINI ST., DIPOLOG CITY")
         self.assertEqual(values["Sex"], "MALE")
         self.assertEqual(values["Civil status"], "SINGLE")
-        self.assertEqual(values["Blood type"], "O+")
+        self.assertEqual(values["Blood type on file"], "O+")
 
     def test_preview_spec_is_labelled_and_not_a_draft_record(self):
         from donors.documents import build_interview_sheet_spec

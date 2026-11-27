@@ -154,8 +154,15 @@ SIGNUP_FIELDS = tuple(item.key.lower() for item in ALL_ITEMS if item.kind == "YE
 FEMALE_KEYS = frozenset(item.key for section in SECTIONS if section.key == FEMALE_SECTION
                         for item in section.items)
 
-# Fields on the generated sheet that the registration data cannot supply and
-# staff complete at the clinic (used by the form, the service and the printer).
+# Personal-data boxes the donor can fill during registration.
+SIGNUP_PERSONAL_REQUIRED = ("civil_status", "address_barangay", "address_zip",
+                            "nationality", "education", "occupation")
+SIGNUP_PERSONAL_OPTIONAL = ("address_no", "office_address", "religion", "telephone_number",
+                            "id_school", "id_company", "id_prc", "id_drivers", "id_sss",
+                            "id_others")
+SIGNUP_PERSONAL_FIELDS = SIGNUP_PERSONAL_REQUIRED + SIGNUP_PERSONAL_OPTIONAL
+
+# Editable text fields on the generated sheet.
 SHEET_TEXT_FIELDS = (
     "prc_donor_number",
     "doh_barcode",

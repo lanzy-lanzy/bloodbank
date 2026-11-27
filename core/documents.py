@@ -336,6 +336,8 @@ def form_pdf_spec(spec: FormDocumentSpec, **overrides) -> FormDocumentSpec:
         header=tuple(_fold_cell(cell) for cell in spec.header),
         sections=tuple(_fold_section(section) for section in spec.sections),
         cue=_fold_cue(spec.cue),
+        back_page={key: pdf_safe_text(value) for key, value in spec.back_page.items()}
+        if spec.back_page else None,
         signatures=tuple((pdf_safe_text(role), pdf_safe_text(name),
                           pdf_safe_text(date_label), pdf_safe_text(date_value))
                          for role, name, date_label, date_value in spec.signatures),

@@ -439,6 +439,9 @@ def run_workflows():
     }
     # The sign-up form asks the sheet's own 35 YES/NO items; answer them all.
     application.update({name: "no" for name in RegistrationInterview.QUESTION_FIELDS})
+    application.update(civil_status="SINGLE", address_barangay="Test Barangay",
+                       address_zip="7000", nationality="Filipino",
+                       education="College", occupation="Teacher")
     application["q01"] = "yes"
     # Before anything is submitted, the applicant can preview the exact
     # interview sheet the application will create: a public POST that validates
@@ -448,8 +451,8 @@ def run_workflows():
     expect(resp.status_code == 200
            and resp.headers.get("X-Register-Preview") == "sheet",
            f"I0 applicant previews the sheet before submitting (got {resp.status_code})")
-    expect("LOWER CASE" in body
-           and "9 UNIT STREET, ZAMBOANGA CITY, ZAMBOANGA DEL SUR" in body,
+    expect("LOWER" in body and "CASE" in body
+           and "9 UNIT STREET" in body and "TEST BARANGAY" in body,
            "I0b pre-submission preview is upper case like the record will be")
     expect("PREVIEW - built from your registration form" in body
            and "Download PDF" not in body,
@@ -489,9 +492,9 @@ def run_workflows():
         resp = staff.get(preview_url)
         checks += 1
         body = resp.content.decode() if resp.status_code == 200 else ""
-        expect(resp.status_code == 200 and "LOWER CASE" in body,
+        expect(resp.status_code == 200 and "LOWER" in body and "CASE" in body,
                f"I2 staff previews the pending sheet (got {resp.status_code})")
-        expect("9 UNIT STREET, ZAMBOANGA CITY, ZAMBOANGA DEL SUR" in body
+        expect("9 UNIT STREET" in body and "TEST BARANGAY" in body
                and "PREVIEW" in body,
                "I2b preview shows the registered address and is labelled PREVIEW")
         expect(body.count('<span class="cbox">X</span>') == 35
@@ -523,7 +526,7 @@ def run_workflows():
             expect(new_sheet is not None, "I4d interview sheet generated at approval")
             if new_sheet:
                 expect(new_sheet.address_street
-                       == "9 UNIT STREET, ZAMBOANGA CITY, ZAMBOANGA DEL SUR",
+                       == "9 UNIT STREET" and new_sheet.address_barangay == "TEST BARANGAY",
                        f"I4e sheet pre-filled in upper case (got {new_sheet.address_street!r})")
                 expect(new_sheet.answer_for("Q01") == "YES",
                        "I4f self-declaration carried into the sheet")
@@ -537,7 +540,8 @@ def run_workflows():
                                      kwargs={"pk": new_donor.pk}))
             checks += 1
             printed = resp.content.decode() if resp.status_code == 200 else ""
-            expect(resp.status_code == 200 and "LOWER" in printed,
+            expect(resp.status_code == 200 and "LOWER" in printed and "TEST BARANGAY" in printed
+                   and "mild penicillin allergy." in printed,
                    "I4i printed sheet shows the upper-case donor name")
             expect(printed.count('<span class="cbox">X</span>') == 35,
                    "I4j the signed sheet carries every declaration tick")

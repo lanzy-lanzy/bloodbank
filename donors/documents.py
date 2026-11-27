@@ -48,10 +48,10 @@ def _columns() -> tuple:
     # columns stay narrow like the paper form.
     return (
         DocumentColumn("#", align="center", width=4),
-        DocumentColumn("Question", width=50),
+        DocumentColumn("Question", width=68),
         DocumentColumn("YES", align="center", width=6),
         DocumentColumn("NO", align="center", width=6),
-        DocumentColumn("REMARKS", width=34),
+        DocumentColumn("REMARKS", width=16),
     )
 
 
@@ -67,15 +67,17 @@ def _identity_section(sheet) -> FormSection:
         subtitle="(to be filled up by the donor):",
         rows=(
             FormRow("NAME:", cells=(
-                FormField("Surname, first name and middle name",
-                          uppercase(donor.full_name)),)),
+                FormField("Surname", uppercase(donor.last_name), width=29),
+                FormField("First name", uppercase(donor.first_name), width=29),
+                FormField("Middle name", uppercase(donor.middle_name), width=25),
+            )),
             FormRow("", cells=(
                 FormField("Date of birth", _date(donor.date_of_birth), width=26),
                 FormField("Age", _age(donor), width=8),
                 FormField("Civil status", uppercase(sheet.get_civil_status_display()),
                           width=22),
                 FormField("Sex", uppercase(donor.get_sex_display()), width=20),
-                FormField("Blood type", uppercase(blood_type), width=24),
+                FormField("Blood type on file", uppercase(blood_type), width=24),
             )),
             FormRow("PERMANENT ADDRESS:", cells=(
                 FormField("No.", uppercase(sheet.address_no), width=10),
@@ -133,8 +135,8 @@ def _questionnaire_section(sheet, answers=None) -> FormSection:
             cells = (
                 (f"{item.number}.", "center"),
                 (item.text, "left"),
-                ("X" if answer == "YES" else "", "box"),
-                ("X" if answer == "NO" else "", "box"),
+                ("X" if answer == "YES" else "", "box" if item.kind == "YESNO" else "center"),
+                ("X" if answer == "NO" else "", "box" if item.kind == "YESNO" else "center"),
                 (remarks, "left"),
             )
             items.append((heading if index == 0 else "", cells))
@@ -174,13 +176,14 @@ def _cue_panel(sheet) -> dict:
 
 def _back_page(sheet) -> dict:
     """Data pre-filled onto Page 2 (Sections III-VI) of the official form."""
-    donor = sheet.donor
+    interview = getattr(sheet.registration, "interview", None) if sheet.registration else None
     return {
+        "signup_certification": "Information certified during registration" if interview and interview.declaration else "",
+        "applicant_notes": interview.notes if interview else "",
         "donor_signature": uppercase(sheet.donor_signature),
         "donor_signed_on": _date(sheet.donor_signed_on),
         "interviewer_signature": uppercase(sheet.interviewer_signature),
         "interviewer_signed_on": _date(sheet.interviewer_signed_on),
-        "blood_type": uppercase(donor.blood_type.code) if donor.blood_type_id else "",
         "donation_id": uppercase(sheet.cue_unit_serial),
         "form_code": "PRC-NBS DONOR FORM 321-E Revised Sep2025",
     }

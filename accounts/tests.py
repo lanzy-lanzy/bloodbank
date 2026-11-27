@@ -114,6 +114,8 @@ def donor_form_data(**overrides):
             "blood_type": "", "date_of_birth": "1996-02-02", "address": "1 Test St",
             "municipality": "Zamboanga City", "province": "Zamboanga del Sur",
             "organization_name": "", "password1": PASSWORD, "password2": PASSWORD}
+    data.update(civil_status="SINGLE", address_barangay="Test Barangay", address_zip="7000",
+                nationality="Filipino", education="College", occupation="Teacher")
     data.update(interview_data())
     data.update(overrides)
     return data
@@ -383,14 +385,14 @@ class RegistrationStepperTests(TestCase):
         # readable option list) — an unstyled select disappears against the
         # dark auth card.
         from core.testing import make_blood_type
-        make_blood_type("O", "POS")
+        blood_type = make_blood_type("O", "POS")
         content = self._get()
         self.assertRegex(content, r'<select[^>]*name="sex"[^>]*bb-select')
         self.assertRegex(content, r'<select[^>]*name="blood_type"[^>]*bb-select')
         self.assertIn('>Select…</option>', content)
         self.assertIn('<option value="FEMALE">Female</option>', content)
         self.assertIn('<option value="MALE">Male</option>', content)
-        self.assertIn('<option value="2">O+</option>', content)
+        self.assertIn(f'<option value="{blood_type.pk}">O+</option>', content)
 
 
 
@@ -426,8 +428,9 @@ class RegisterSheetPreviewTests(TestCase):
 
     def test_preview_upper_cases_the_details_like_storage_will(self):
         content = self._preview(first_name="Tina", address="1 Test St").content.decode()
-        self.assertIn("TINA M TEST", content)
-        self.assertIn("1 TEST ST, ZAMBOANGA CITY, ZAMBOANGA DEL SUR", content)
+        for value in ("TINA", "TEST", "1 TEST ST", "ZAMBOANGA CITY", "ZAMBOANGA DEL SUR",
+                      "TEST BARANGAY", "FILIPINO", "TEACHER"):
+            self.assertIn(value, content)
         self.assertNotIn("Tina M Test", content)
 
     def test_prefilled_declaration_is_ticked(self):
@@ -453,6 +456,11 @@ class RegisterSheetPreviewTests(TestCase):
         self.assertEqual(resp["X-Register-Preview"], "unavailable")
         self.assertContains(resp, "donor registrations only")
         self.assertNotContains(resp, "Blood Donor Interview Sheet")
+
+    def test_preview_requires_personal_data(self):
+        resp = self._preview(address_barangay="")
+        self.assertEqual(resp["X-Register-Preview"], "unavailable")
+        self.assertContains(resp, "Barangay is required for donors.")
 
     def test_invalid_application_lists_what_to_fix(self):
         resp = self._preview(declaration="")
@@ -872,7 +880,8 @@ class RegistrationSheetPreviewTests(TestCase):
         resp = self.client.get(self._url())
         self.assertEqual(resp.status_code, 200)
         content = resp.content.decode()
-        self.assertIn("NENA S NAKASALIN", content)
+        for value in ("NENA", "NAKASALIN"):
+            self.assertIn(value, content)
         self.assertIn("DEMO STREET, ZAMBOANGA CITY, ZAMBOANGA DEL SUR", content)
         self.assertIn("PREVIEW - built from a pending registration", content)
         # Staff cannot reach the admin-only review screen, so the Close button

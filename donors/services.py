@@ -165,17 +165,17 @@ class InterviewSheetService:
         from audit import services as audit
         from donors.models import DonorInterviewSheet, InterviewAnswer
 
+        interview = getattr(registration, "interview", None) if registration else None
         sheet, created = DonorInterviewSheet.objects.get_or_create(
             donor=donor,
             defaults={"registration": registration,
-                      "address_street": uppercase(donor.registered_address)},
+                      **InterviewSheetService._signup_personal_data(donor, interview)},
         )
         if not created:
             return sheet
 
         InterviewAnswer.objects.bulk_create(
             [InterviewAnswer(sheet=sheet, item_key=item.key) for item in ALL_ITEMS])
-        interview = getattr(registration, "interview", None) if registration else None
         prefill_note = ""
         if interview is not None:
             copied = InterviewSheetService._apply_signup_declaration(sheet, interview)
@@ -187,6 +187,17 @@ class InterviewSheetService:
                   description=(f"Interview sheet generated for donor {donor.donor_code} "
                                f"({donor.full_name})." + prefill_note))
         return sheet
+
+    @staticmethod
+    def _signup_personal_data(donor, interview):
+        from donors.interview import SIGNUP_PERSONAL_FIELDS
+
+        values = {"address_street": uppercase(donor.registered_address)}
+        if interview is not None and interview.personal_data:
+            values["address_street"] = uppercase(donor.address)
+            values.update({name: uppercase(interview.personal_data.get(name))
+                           for name in SIGNUP_PERSONAL_FIELDS})
+        return values
 
     @staticmethod
     def _declaration_answers(interview, *, female):
@@ -276,7 +287,7 @@ class InterviewSheetService:
             province=data.get("province") or "",
             blood_type=data.get("blood_type"),
         )
-        interview = RegistrationInterview(**(answers or {}))
+        interview = RegistrationInterview(registration=registration, **(answers or {}))
         return InterviewSheetService._preview_for(
             registration, interview=interview, reference="PREVIEW")
 
@@ -306,7 +317,7 @@ class InterviewSheetService:
         sheet = DonorInterviewSheet(
             donor=donor,
             registration=registration,
-            address_street=uppercase(donor.registered_address),
+            **InterviewSheetService._signup_personal_data(donor, interview),
         )
         # The female-donor block follows the donor's sex, exactly as it will
         # when approval generates the real sheet.

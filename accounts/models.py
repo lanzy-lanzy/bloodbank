@@ -293,6 +293,7 @@ class RegistrationInterview(models.Model):
     declaration = models.BooleanField(default=False, verbose_name=(
         "I certify that the information above is true and complete to the best of my "
         "knowledge, and I understand it will be reviewed by blood bank staff."))
+    personal_data = models.JSONField(default=dict, blank=True)
     notes = models.TextField(blank=True, verbose_name="Additional notes (optional)")
 
     created_at = models.DateTimeField(auto_now_add=True)

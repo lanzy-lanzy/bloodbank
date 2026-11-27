@@ -172,8 +172,7 @@
     <section class="bb-panel" data-step-panel data-step-key="donor" data-step-for="DONOR" aria-labelledby="bb-h-donor">
       <div class="bb-panel-head">
         <h3 class="bb-panel-title" id="bb-h-donor" data-step-heading tabindex="-1">Donor details</h3>
-        <p class="bb-panel-lead mt-1">Date of birth, sex and address are required for donors. Blood type is
-          optional — it is confirmed at screening.</p>
+        <p class="bb-panel-lead mt-1">Complete the required personal details for your interview sheet. Enter alternate contact and identification details where applicable. Blood type is optional and is confirmed at screening.</p>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {% include "components/field.html" with field=form.sex %}
@@ -184,6 +183,11 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
         {% include "components/field.html" with field=form.municipality %}
         {% include "components/field.html" with field=form.province %}
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+        {% for field in form.donor_personal_fields %}
+          {% include "components/field.html" %}
+        {% endfor %}
       </div>
       <div class="bb-panel-foot" data-step-footer hidden>
         <button type="button" class="bb-btn bb-btn-ghost" data-step-back hidden>Back</button>

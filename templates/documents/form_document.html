@@ -25,7 +25,7 @@ td.mast-seal { text-align: center; padding-bottom: 2pt; }
 td.mast-l { font-size: 6.4pt; color: #374151; width: 24%; vertical-align: bottom; }
 td.mast-c { text-align: center; width: 48%; vertical-align: bottom; }
 td.mast-r { width: 28%; vertical-align: bottom; }
-div.doc-title { font-size: 10.5pt; font-weight: bold; letter-spacing: 0.35pt; color: #111827; text-decoration: underline; }
+div.doc-title { font-size: 11pt; font-weight: bold; letter-spacing: 0.35pt; color: #111827; text-decoration: underline; }
 div.doc-sub { font-size: 6.4pt; color: #4b5563; margin-top: 1pt; }
 table.barcode-box { border: 0.8pt solid #111827; }
 table.barcode-box td { padding: 2.5pt 4pt; text-align: center; }
@@ -42,8 +42,8 @@ table.frow { margin-bottom: 1pt; }
 td.gutter { font-size: 6.3pt; font-weight: bold; color: #111827;
             vertical-align: middle; padding-right: 3pt; line-height: 1.1; }
 td.box { border: 0.7pt solid #111827; padding: 1pt 2.4pt; height: 14.5pt; }
-td.box-lbl { font-size: 5.2pt; color: #374151; text-transform: uppercase; line-height: 1.05; }
-td.box-val { font-size: 7.1pt; font-weight: bold; color: #111827; line-height: 1.1; }
+div.box-lbl { text-align: center; font-size: 5.5pt; color: #374151; text-transform: uppercase; line-height: 1.05; }
+div.box-val { font-size: 7.1pt; font-weight: bold; color: #111827; line-height: 1.1; }
 
 /* Section II Medical History grid */
 table.mh { border: 0.85pt solid #111827; }
@@ -216,8 +216,8 @@ body { background-color: #eef1f5; padding: 0 0 40pt 0; }
         {% if row.label %}<td class="gutter" style="width:{{ row.label_width }}%">{{ row.label }}</td>{% endif %}
         {% for cell in row.resolved_cells %}
         <td class="box" style="width:{{ cell.width }}%">
+          <div class="box-val">{{ cell.value|default:"&nbsp;" }}</div>
           <div class="box-lbl">{{ cell.label }}</div>
-          <div class="box-val">{{ cell.value }}</div>
         </td>
         {% endfor %}
       </tr>
@@ -308,6 +308,7 @@ body { background-color: #eef1f5; padding: 0 0 40pt 0; }
       <p class="decl-item">&gt; <strong>I confirm</strong> that I am over the age of 18 years.</p>
       <p class="decl-item">&gt; <strong>I understand</strong> that all information hereinto is treated confidential in compliance with the <strong>Data Privacy Act of 2012</strong>. I therefore <strong>authorize</strong> {{ ORG_NAME }} to utilize the information I supplied for purposes of research or studies for the benefit and safety of the community.</p>
 
+      {% if doc.back_page.signup_certification %}<p class="decl-item"><strong>{{ doc.back_page.signup_certification }}</strong></p>{% endif %}
       <table class="sig-grid">
         <tr>
           <td colspan="2" style="width:46%; font-weight:bold; background-color:#f9fafb;">For those ages 16-17</td>
@@ -344,7 +345,7 @@ body { background-color: #eef1f5; padding: 0 0 40pt 0; }
     <td class="grid-val" style="width:11%;">&nbsp;</td>
     <td class="grid-val" style="width:11%;">&nbsp;</td>
     <td class="grid-val" style="width:13%;">&nbsp;</td>
-    <td class="grid-val" style="width:18%;">{{ doc.back_page.blood_type }}</td>
+    <td class="grid-val" style="width:18%;">&nbsp;</td>
   </tr>
   <tr>
     <th>BODY WT</th><th>SP. GR</th><th>HGB</th><th>HCT</th><th>RBC</th><th>WBC</th><th>PLT count</th><th>BLOOD TYPE</th>
@@ -454,12 +455,12 @@ body { background-color: #eef1f5; padding: 0 0 40pt 0; }
 
 <p style="font-size:6.5pt; margin:2pt 0 4pt 0;">
   <strong>Blood bag to be used:</strong> (mark appropriate box):
-  <span class="mini-box"></span> Single
-  <span class="mini-box"></span> Double
-  <span class="mini-box"></span> Triple
-  <span class="mini-box"></span> Quadruple
-  <span class="mini-box"></span> Top &amp; Bottom
-  <span class="mini-box"></span> Apheresis
+  <span class="mini-box">&nbsp;</span> Single
+  <span class="mini-box">&nbsp;</span> Double
+  <span class="mini-box">&nbsp;</span> Triple
+  <span class="mini-box">&nbsp;</span> Quadruple
+  <span class="mini-box">&nbsp;</span> Top &amp; Bottom
+  <span class="mini-box">&nbsp;</span> Apheresis
 </p>
 
 <table style="margin-bottom:5pt;">
@@ -527,6 +528,7 @@ body { background-color: #eef1f5; padding: 0 0 40pt 0; }
 </table>
 {% endif %}
 
+{% if doc.back_page.applicant_notes %}<p class="decl-item"><strong>Applicant notes:</strong> {{ doc.back_page.applicant_notes|linebreaksbr }}</p>{% endif %}
 {% for note in doc.notes %}<p class="note">{{ note }}</p>{% endfor %}
 {% if doc.footer_note %}<p class="footnote">{{ doc.footer_note }}</p>{% endif %}
 

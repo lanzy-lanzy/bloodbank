@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from accounts.models import RegistrationInterview, RegistrationRequest, User
 from audit import services as audit
-from core.text import uppercase_fields
+from core.text import uppercase, uppercase_fields
 
 logger = logging.getLogger("bloodbank.accounts")
 
@@ -66,6 +66,11 @@ class RegistrationService:
             # so this is an INSERT, not a field-limited UPDATE.
             registration.save()
             if interview_answers is not None:
+                interview_answers = {
+                    **interview_answers,
+                    "personal_data": {name: uppercase(value) for name, value in
+                                      interview_answers.get("personal_data", {}).items()},
+                }
                 RegistrationInterview.objects.create(
                     registration=registration, **interview_answers)
             audit.log(request, action="REGISTRATION_SUBMITTED", module="accounts",
