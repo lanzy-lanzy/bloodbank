@@ -75,12 +75,17 @@ class DonorStatusForm(StyledModelForm):
 class ScreeningForm(StyledModelForm):
     class Meta:
         model = DonorScreening
-        fields = ["identity_verified", "consent_given", "weight_kg", "temperature_c",
+        fields = ["consent_given", "weight_kg", "temperature_c",
                   "bp_systolic", "bp_diastolic", "pulse_bpm", "hemoglobin_gdl",
                   "result", "deferral_days", "notes"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.initial["result"] = ""
+        self.fields["result"].choices = [("", "Select screening outcome")] + [
+            (value, "Decision pending" if value == DonorScreening.Result.REQUIRES_REVIEW else label)
+            for value, label in DonorScreening.Result.choices
+        ]
         examples = {
             "weight_kg": "62.0",
             "temperature_c": "36.8",
@@ -114,10 +119,6 @@ class ScreeningForm(StyledModelForm):
         for name, error in errors.items():
             if not self.has_error(name):
                 self.add_error(name, error)
-        if result == DonorScreening.Result.CLEARED and not (cleaned.get("identity_verified") and cleaned.get("consent_given")):
-            raise forms.ValidationError(
-                "Identity verification and consent are required before a donor can be CLEARED."
-            )
         if result == DonorScreening.Result.DEFERRED and not cleaned.get("deferral_days"):
             self.add_error("deferral_days", "Specify the staff-decided deferral length in days.")
         return cleaned

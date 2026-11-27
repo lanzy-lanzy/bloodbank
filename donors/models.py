@@ -199,8 +199,8 @@ class DonorScreening(models.Model):
         return f"Screening {self.donor.donor_code} {self.performed_at:%Y-%m-%d} → {self.result}"
 
     def clean(self):
-        if self.result == self.Result.CLEARED and not (self.identity_verified and self.consent_given):
-            raise ValidationError("Identity verification and consent are required before a donor can be CLEARED.")
+        if self.result == self.Result.CLEARED and not self.consent_given:
+            raise ValidationError({"consent_given": "Donor consent is required before clearance."})
 
 
 class ScreeningResponse(models.Model):

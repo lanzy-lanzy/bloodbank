@@ -27,7 +27,7 @@
       <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Performed by</dt><dd class="text-ink-800">{{ screening.performed_by|default:"—" }}</dd></div>
       <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Result</dt><dd>{% include "components/status_badge.html" with status=screening.result %}</dd></div>
       <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Deferral (days)</dt><dd class="text-ink-800 tabular-nums">{{ screening.deferral_days|default:"—" }}</dd></div>
-      <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Identity verified</dt><dd class="text-ink-800">{% if screening.identity_verified %}<span class="text-emerald-600 font-medium">Yes</span>{% else %}<span class="text-brand-600 font-medium">No</span>{% endif %}</dd></div>
+      {% if screening.identity_verified %}<div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Identity verified</dt><dd class="text-emerald-600 font-medium">Yes</dd></div>{% endif %}
       <div><dt class="text-xs font-semibold uppercase tracking-wide text-ink-500">Consent given</dt><dd class="text-ink-800">{% if screening.consent_given %}<span class="text-emerald-600 font-medium">Yes</span>{% else %}<span class="text-brand-600 font-medium">No</span>{% endif %}</dd></div>
     </dl>
     {% if screening.notes %}

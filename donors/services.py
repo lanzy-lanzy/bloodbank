@@ -128,7 +128,7 @@ class DonorEligibilityService:
                 return EligibilityResult("NOT_ELIGIBLE",
                                          [f"Rejected at screening on {latest_screening.performed_at:%b %d, Y}."])
             if latest_screening.result == "REQUIRES_REVIEW":
-                review_reasons.append("Latest screening outcome is 'Requires review'.")
+                review_reasons.append("The latest screening was saved with a pending decision.")
             if latest_screening.result == "DEFERRED" and latest_screening.deferral_days:
                 until = (latest_screening.performed_at + timedelta(days=latest_screening.deferral_days)).date()
                 if until > today:
@@ -153,7 +153,7 @@ class DonorEligibilityService:
         if last:
             if interval is None:
                 review_reasons.append(
-                    "Minimum donation interval is not configured; cannot verify interval since last donation "
+                    "Requires configuration: the minimum donation interval is missing. Unable to verify the last donation "
                     f"({last.donation_date:%b %d, Y})."
                 )
             else:

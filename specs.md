@@ -39,7 +39,7 @@ walk verification.
 
 ### 3.2 Screening
 - Configurable question set ✅ (model + admin UI for questions).
-- Recording: identity verification, consent, vitals, hemoglobin, outcomes
+- Recording: consent, vitals, hemoglobin, staff-selected outcomes
   (cleared / deferred n-days / rejected / needs review) ✅.
 - Latest screening feeds eligibility ✅.
 

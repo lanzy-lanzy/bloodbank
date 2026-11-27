@@ -17,7 +17,7 @@
 
 {% if eligibility.reasons %}
 <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-4 mb-4">
-  <p class="text-xs font-semibold uppercase tracking-wide text-ink-500 mb-2">Current eligibility summary</p>
+  <p class="text-xs font-semibold uppercase tracking-wide text-ink-500 mb-2">Eligibility before this screening</p>
   <ul class="list-disc list-inside space-y-1 text-sm text-ink-700">
     {% for reason in eligibility.reasons %}<li>{{ reason }}</li>{% endfor %}
   </ul>
@@ -58,16 +58,8 @@
     </fieldset>
 
     <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-5">
-      <h3 class="font-semibold text-ink-900 mb-4">Verification</h3>
+      <h3 class="font-semibold text-ink-900 mb-4">Donor consent</h3>
       <div class="space-y-4">
-        <div class="flex items-start gap-3 rounded-xl border border-ink-200 p-3">
-          <div class="pt-0.5">{{ form.identity_verified }}</div>
-          <div>
-            <label for="{{ form.identity_verified.id_for_label }}" class="block text-sm font-medium text-ink-700">{{ form.identity_verified.label }}</label>
-            <p class="text-xs text-ink-500">Required before a donor can be cleared.</p>
-            {% for error in form.identity_verified.errors %}<p class="mt-1 text-xs font-medium text-brand-600">{{ error }}</p>{% endfor %}
-          </div>
-        </div>
         <div class="flex items-start gap-3 rounded-xl border border-ink-200 p-3">
           <div class="pt-0.5">{{ form.consent_given }}</div>
           <div>

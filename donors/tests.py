@@ -24,6 +24,14 @@ class ScreeningMeasurementTests(TestCase):
             "weight_kg", "temperature_c", "pulse_bpm", "bp_diastolic", "hemoglobin_gdl",
         })
 
+    def test_staff_must_select_an_outcome_and_confirm_consent_for_clearance(self):
+        self.assertEqual(ScreeningForm()["result"].value(), "")
+        self.assertNotIn("identity_verified", ScreeningForm().fields)
+        self.assertIn("result", ScreeningForm(data={}).errors)
+        set_rules(min_weight_kg=52)
+        form = ScreeningForm(data={"result": "CLEARED", "weight_kg": "52"})
+        self.assertIn("consent_given", form.errors)
+
     def test_rejects_reversed_pressure_reading(self):
         form = ScreeningForm(data={
             "result": "REQUIRES_REVIEW", "bp_systolic": "70", "bp_diastolic": "110",
@@ -32,7 +40,7 @@ class ScreeningMeasurementTests(TestCase):
         self.assertIn("bp_systolic", form.errors)
 
     def test_clearing_uses_configured_weight_and_review_can_record_lower_weight(self):
-        clearance = {"result": "CLEARED", "identity_verified": "on", "consent_given": "on"}
+        clearance = {"result": "CLEARED", "consent_given": "on"}
         self.assertIn("result", ScreeningForm(data={**clearance, "weight_kg": "52"}).errors)
         set_rules(min_weight_kg=52)
         self.assertIn("weight_kg", ScreeningForm(data=clearance).errors)

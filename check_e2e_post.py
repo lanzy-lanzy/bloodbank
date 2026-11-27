@@ -119,7 +119,7 @@ def run_workflows():
     set_setting("min_weight_kg", 52, value_type="int", category="eligibility")
     screening_url = reverse("donors:screening_create", kwargs={"pk": donor.pk})
     screening_data = {
-        "donation": donation.pk, "result": "CLEARED", "identity_verified": "on",
+        "donation": donation.pk, "result": "CLEARED",
         "consent_given": "on", "temperature_c": "36.8", "bp_systolic": "118",
         "bp_diastolic": "76", "pulse_bpm": "72", "hemoglobin_gdl": "14.2",
     }
