@@ -1,8 +1,7 @@
 <!DOCTYPE html>
-{# Official FORM printable: label/value boxes, tick tables, CUE panel and #}
-{# signature lines, shared by the print preview and the server-side PDF. #}
-{# Table-based with explicit colours and no flex/grid/variables: this file is #}
-{# written to the xhtml2pdf CSS subset on purpose (see core/documents.py). #}
+{# Official FORM printable: 2-page PRC-NBS 321-E style Blood Donor Interview #}
+{# Sheet shared by the print preview and server-side PDF. Table-based with   #}
+{# explicit colours and no flex/grid/variables for xhtml2pdf compatibility.  #}
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -11,96 +10,121 @@
 <style type="text/css">
 @page {
   size: {{ doc.resolved_page_size|lower }} portrait;
-  margin: 1.05cm 1.05cm 1.35cm 1.05cm;
-  @frame doc_footer_frame { -pdf-frame-content: doc_footer; left: 1.05cm; width: 18.9cm; top: 28.35cm; height: 0.5cm; }
+  margin: 0.75cm 0.9cm 1.0cm 0.9cm;
+  @frame doc_footer_frame { -pdf-frame-content: doc_footer; left: 0.9cm; width: 19.2cm; top: 28.65cm; height: 0.45cm; }
 }
 html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-body { font-family: Helvetica, Arial, sans-serif; font-size: 8pt; color: #111827; margin: 0; padding: 0; }
-p { margin: 0 0 2pt 0; }
+body { font-family: Helvetica, Arial, sans-serif; font-size: 7.4pt; color: #111827; margin: 0; padding: 0; }
+p { margin: 0 0 1.5pt 0; }
 table { width: 100%; border-collapse: collapse; }
 td { vertical-align: top; }
 
-table.mast { border-bottom: 1.6pt solid #111827; margin-bottom: 3pt; }
-td.mast-l { font-size: 7pt; color: #4b5563; width: 30%; }
-td.mast-c { text-align: center; }
-td.mast-r { text-align: right; font-size: 6.5pt; color: #6b7280; width: 30%; }
-td.doc-title { font-size: 13pt; font-weight: bold; letter-spacing: 0.4pt; color: #111827; }
-td.doc-sub { font-size: 6.8pt; color: #4b5563; }
+/* Masthead: centered seal + underlined form title + right barcode box */
+table.mast { margin-bottom: 3pt; }
+td.mast-seal { text-align: center; padding-bottom: 2pt; }
+td.mast-l { font-size: 6.4pt; color: #374151; width: 24%; vertical-align: bottom; }
+td.mast-c { text-align: center; width: 48%; vertical-align: bottom; }
+td.mast-r { width: 28%; vertical-align: bottom; }
+div.doc-title { font-size: 10.5pt; font-weight: bold; letter-spacing: 0.35pt; color: #111827; text-decoration: underline; }
+div.doc-sub { font-size: 6.4pt; color: #4b5563; margin-top: 1pt; }
+table.barcode-box { border: 0.8pt solid #111827; }
+table.barcode-box td { padding: 2.5pt 4pt; text-align: center; }
+div.barcode-lbl { font-size: 6.4pt; font-weight: bold; color: #111827; }
+div.barcode-val { font-size: 7pt; color: #111827; min-height: 7pt; }
 
-table.hdr { margin-bottom: 4pt; }
-table.hdr td { border: 0.7pt solid #6b7280; padding: 2pt 3pt; }
-td.hdr-l { font-size: 5.8pt; font-weight: bold; color: #374151; text-transform: uppercase; }
-td.hdr-v { font-size: 8pt; color: #111827; min-height: 10pt; }
+/* Section titles */
+p.sec-title { font-size: 7.5pt; font-weight: bold; color: #111827; margin: 4pt 0 1.5pt 0; }
+span.sec-sub { font-size: 6.4pt; font-weight: normal; font-style: italic; color: #111827; margin-left: 3pt; }
+p.sec-note { font-size: 6pt; color: #4b5563; margin: 0 0 1.5pt 0; }
 
-p.sec-title { font-size: 8pt; font-weight: bold; color: #111827; margin: 5pt 0 2pt 0; text-transform: uppercase; }
-p.sec-sub { font-size: 6.4pt; font-style: italic; color: #4b5563; margin: 0 0 2pt 0; }
-p.sec-note { font-size: 6.2pt; color: #6b7280; margin: 0 0 2pt 0; }
+/* Section I field rows */
+table.frow { margin-bottom: 1pt; }
+td.gutter { font-size: 6.3pt; font-weight: bold; color: #111827;
+            vertical-align: middle; padding-right: 3pt; line-height: 1.1; }
+td.box { border: 0.7pt solid #111827; padding: 1pt 2.4pt; height: 14.5pt; }
+td.box-lbl { font-size: 5.2pt; color: #374151; text-transform: uppercase; line-height: 1.05; }
+td.box-val { font-size: 7.1pt; font-weight: bold; color: #111827; line-height: 1.1; }
 
-table.frow { margin-bottom: 1.6pt; }
-td.gutter { font-size: 6.2pt; font-weight: bold; text-transform: uppercase; color: #374151;
-            vertical-align: middle; padding-right: 3pt; line-height: 1.15; }
-td.box { border: 0.7pt solid #6b7280; padding: 1.2pt 2.4pt; height: 17pt; }
-td.box-lbl { font-size: 5.4pt; color: #6b7280; text-transform: uppercase; }
-td.box-val { font-size: 7.6pt; color: #111827; line-height: 1.15; }
+/* Section II Medical History grid */
+table.mh { border: 0.85pt solid #111827; }
+table.mh th { background-color: #f3f4f6; border: 0.6pt solid #111827;
+              font-size: 6.2pt; font-weight: bold; color: #111827; padding: 1.4pt 2pt; text-align: left; }
+table.mh td { border: 0.5pt solid #4b5563; font-size: 6.3pt; padding: 1.05pt 2.2pt;
+              color: #111827; line-height: 1.08; }
+table.mh td.group { background-color: #f9fafb; font-size: 6.1pt; font-weight: bold;
+                    color: #111827; padding: 1.1pt 2.2pt; }
+table.mh td.tick { text-align: center; font-weight: bold; vertical-align: middle; }
 
-table.mh { border: 0.9pt solid #111827; }
-table.mh th { background-color: #e5e7eb; border: 0.6pt solid #6b7280;
-              font-size: 6.4pt; font-weight: bold; color: #111827; padding: 2pt 2pt; text-align: left; }
-table.mh td { border: 0.5pt solid #9ca3af; font-size: 6.8pt; padding: 1.7pt 2.4pt;
-              color: #111827; line-height: 1.15; }
-table.mh td.group { background-color: #f3f4f6; font-size: 6.4pt; font-weight: bold;
-                    color: #111827; padding: 1.6pt 2.4pt; }
-table.mh td.tick { text-align: center; font-weight: bold; }
-table.cue { border: 0.9pt solid #111827; margin-top: 5pt; }
-table.cue td { padding: 2pt 3pt; }
-td.cue-title { text-align: center; font-size: 8pt; font-weight: bold; color: #111827; }
-p.cue-body { font-size: 6.3pt; color: #111827; text-align: center; margin: 0 0 1.5pt 0; }
-td.cue-question { font-size: 6.8pt; font-weight: bold; color: #111827; padding-top: 3pt; }
-table.cue-opts { margin-top: 2pt; }
-td.cue-opt { border: 0.6pt solid #6b7280; font-size: 6.6pt; color: #111827; padding: 2pt 3pt; width: 50%; }
-span.cbox { border: 0.7pt solid #111827; padding: 1pt 3pt; font-size: 7pt;
-           font-weight: bold; color: #111827; margin-right: 3pt; }
-td.cue-field { font-size: 6.5pt; color: #111827; padding: 1.6pt 3pt; }
-span.cue-lbl { font-weight: bold; text-transform: uppercase; font-size: 6pt; color: #374151; }
-div.cue-field { padding: 0 0 1pt 0; margin: 0 0 5pt 0; border-bottom: 0.5pt solid #6b7280; }
-span.cue-val { font-size: 7pt; color: #111827; }
-td.cue-foot { text-align: center; font-size: 6.2pt; font-style: italic; color: #111827; }
+/* Cut line + CUE Box */
+div.cut-line { border-top: 0.8pt dashed #111827; margin: 4pt 0 2.5pt 0; font-size: 5.8pt; color: #374151; }
+table.cue { border: 0.9pt solid #111827; margin-top: 1pt; }
+table.cue td { padding: 2pt 4pt; }
+td.cue-title { text-align: center; font-size: 8.2pt; font-weight: bold; color: #111827; padding-bottom: 1pt; }
+p.cue-body { font-size: 6.1pt; color: #111827; text-align: left; margin: 0 0 2pt 0; line-height: 1.15; }
+p.cue-emph { font-size: 6.6pt; font-weight: bold; text-decoration: underline; text-align: center; color: #111827; margin: 2pt 0 3pt 0; }
+span.cbox { border: 0.7pt solid #111827; padding: 0.5pt 2.6pt; font-size: 6.4pt;
+           font-weight: bold; color: #111827; }
+span.cue-bigbox { display: inline-block; border: 0.8pt solid #111827; width: 16pt; height: 13pt;
+                  text-align: center; font-size: 8pt; font-weight: bold; line-height: 13pt; vertical-align: middle; }
+table.bbis-box { border: 0.8pt solid #111827; margin-bottom: 2.5pt; }
+table.bbis-box td { text-align: center; padding: 2pt 4pt; }
+div.cue-line { font-size: 6.2pt; color: #111827; margin-top: 2pt; border-bottom: 0.5pt solid #111827; padding-bottom: 0.5pt; }
+td.cue-foot { text-align: center; font-size: 6pt; font-weight: bold; color: #111827; padding-top: 2pt; }
+
+/* Page 2 (Sections III - VI) */
+div.page-break { page-break-before: always; }
+table.decl-box { border: 0.85pt solid #111827; margin-bottom: 5pt; }
+table.decl-box td { padding: 3pt 5pt; font-size: 6.8pt; line-height: 1.25; color: #111827; }
+p.decl-item { margin: 0 0 2pt 0; }
+table.sig-grid { margin-top: 4pt; }
+table.sig-grid td { border: 0.7pt solid #111827; padding: 2pt 4pt; font-size: 6.2pt; text-align: center; }
+td.sig-line-cell { border: 0 !important; padding: 0 6pt !important; vertical-align: bottom; }
+div.sig-rule { border-bottom: 0.7pt solid #111827; min-height: 14pt; font-size: 7.4pt; font-weight: bold; text-align: center; padding-top: 4pt; }
+div.sig-cap { font-size: 6.2pt; color: #111827; text-align: center; padding-top: 1.5pt; }
+
+table.grid-box { border: 0.8pt solid #111827; margin-bottom: 4pt; }
+table.grid-box th, table.grid-box td { border: 0.6pt solid #111827; padding: 1.8pt 3pt; font-size: 6.4pt; text-align: center; color: #111827; }
+table.grid-box th { background-color: #f3f4f6; font-weight: bold; }
+td.grid-val { height: 14pt; font-size: 7.2pt; font-weight: bold; vertical-align: middle; }
+td.plain { border: 0 !important; text-align: left !important; padding: 1.5pt 3pt !important; font-size: 6.5pt; }
+span.mini-box { display: inline-block; border: 0.7pt solid #111827; width: 8pt; height: 7pt; vertical-align: middle; margin: 0 2pt 0 5pt; }
 
 table.sign { margin-top: 5pt; }
 table.sign td { padding: 0 10pt 0 0; }
-td.sig-name, .sig-name { border-bottom: 0.7pt solid #111827; font-size: 8pt; font-weight: bold;
-              color: #111827; padding-top: 13pt; text-align: center; }
+td.sig-name, .sig-name { border-bottom: 0.7pt solid #111827; font-size: 7.5pt; font-weight: bold;
+              color: #111827; padding-top: 11pt; text-align: center; }
 td.sig-role, .sig-role { font-size: 5.8pt; color: #374151; text-align: center; padding-top: 1pt;
               text-transform: uppercase; }
-td.sig-date, .sig-date { font-size: 6.4pt; color: #374151; text-align: center; padding-top: 2pt; }
+td.sig-date, .sig-date { font-size: 6.2pt; color: #374151; text-align: center; padding-top: 1.5pt; }
 
-p.note { font-size: 6.2pt; color: #4b5563; margin: 2pt 0 0 0; }
-p.footnote { font-size: 5.8pt; color: #6b7280; margin-top: 4pt; }
+p.note { font-size: 6pt; color: #4b5563; margin: 2pt 0 0 0; }
+p.footnote { font-size: 5.6pt; color: #6b7280; margin-top: 3pt; }
 #doc_footer { display: none; }
 </style>
 {% if chrome %}
 <style type="text/css">
 body { background-color: #eef1f5; padding: 0 0 40pt 0; }
-.paper { width: 210mm; margin: 24px auto; background-color: #ffffff; padding: 12mm 11mm;
+.paper { width: 210mm; margin: 20px auto; background-color: #ffffff; padding: 10mm 10mm;
          box-shadow: 0 18px 50px -18px rgba(15, 23, 42, .45); }
+.page-sep { border-top: 2px dashed #cbd5e1; margin: 18pt -10mm 14pt -10mm; }
 .doc-toolbar { position: sticky; top: 0; z-index: 5; width: 210mm; margin: 0 auto; padding: 13px 16px;
-               background-color: #0f172a; color: #f8fafc; }
+               background-color: #2f4858; color: #f8fafc; }
 .tb-title { font-size: 13px; font-weight: 700; }
-.tb-hint { font-size: 11px; color: #94a3b8; }
+.tb-hint { font-size: 11px; color: #cbd5e1; }
 .tb-actions { margin-top: 8px; }
 .tb-btn { display: inline-block; font-size: 12px; font-weight: 600; padding: 7px 13px;
           border-radius: 8px; border: 1px solid transparent; cursor: pointer;
           text-decoration: none; line-height: 1.2; margin-right: 8px; }
-.tb-btn-primary { background-color: #9b1122; color: #ffffff; }
-.tb-btn-primary:hover { background-color: #7f0d1b; }
-.tb-btn-ghost { background-color: transparent; color: #e2e8f0; border-color: #334155; }
-.tb-btn-ghost:hover { background-color: #1e293b; }
+.tb-btn-primary { background-color: #e80065; color: #ffffff; }
+.tb-btn-primary:hover { background-color: #b13190; }
+.tb-btn-ghost { background-color: transparent; color: #e2e8f0; border-color: #6b4c98; }
+.tb-btn-ghost:hover { background-color: #335080; }
 #doc_footer { display: none; }
-@media (max-width: 880px) { .paper, .doc-toolbar { width: auto; margin: 12px; } .paper { padding: 16px; } }
+@media (max-width: 880px) { .paper, .doc-toolbar { width: auto; margin: 12px; } .paper { padding: 14px; } }
 @media print {
   body { background-color: #ffffff; padding: 0; }
   .paper { width: auto; margin: 0; padding: 0; box-shadow: none; }
-  .doc-toolbar { display: none; }
+  .doc-toolbar, .page-sep { display: none; }
 }
 </style>
 {% endif %}
@@ -110,7 +134,7 @@ body { background-color: #eef1f5; padding: 0 0 40pt 0; }
 <div class="doc-toolbar no-print">
   <div>
     <div class="tb-title">{{ doc.title }}</div>
-    <div class="tb-hint">Print preview &middot; Official form &middot; {{ doc.resolved_page_size|upper }} portrait</div>
+    <div class="tb-hint">Print preview &middot; Official 2-page form &middot; {{ doc.resolved_page_size|upper }} portrait</div>
   </div>
   <div class="tb-actions">
     <a class="tb-btn tb-btn-primary" href="#" data-bb-print-now="1">Print</a>
@@ -123,42 +147,49 @@ body { background-color: #eef1f5; padding: 0 0 40pt 0; }
 <div id="doc_footer">
   <table>
     <tr>
-      <td style="font-size:6pt; color:#6b7280;">{{ ORG_NAME }}{% if ORG_CONTACT %} &middot; {{ ORG_CONTACT }}{% endif %}</td>
-      <td style="font-size:6pt; color:#6b7280; text-align:right;">Page <pdf:pagenumber> of <pdf:pagecount> &middot; Confidential</td>
+      <td style="font-size:5.8pt; color:#6b7280;">{{ ORG_NAME }}{% if ORG_CONTACT %} &middot; {{ ORG_CONTACT }}{% endif %}</td>
+      <td style="font-size:5.8pt; color:#6b7280; text-align:right;">Page <pdf:pagenumber> of <pdf:pagecount> &middot; Confidential</td>
     </tr>
   </table>
 </div>
 
+{# ==================== PAGE 1 ==================== #}
 <table class="mast">
+  {% if DOC_LOGO_DATA_URI %}
   <tr>
-    <td class="mast-l" style="vertical-align:middle;">
-      {% if DOC_LOGO_DATA_URI %}<img src="{{ DOC_LOGO_DATA_URI }}" width="32" height="32" alt="Official Seal" style="vertical-align:middle; margin-right:5pt;">{% endif %}
-      {% if doc.reference %}Ref {{ doc.reference }}{% endif %}
+    <td colspan="3" class="mast-seal">
+      <img src="{{ DOC_LOGO_DATA_URI }}" width="34" height="34" alt="Official Seal">
     </td>
-    <td class="mast-c" style="vertical-align:middle;">
+  </tr>
+  {% endif %}
+  <tr>
+    <td class="mast-l">
+      {% if doc.reference %}Ref: <strong>{{ doc.reference }}</strong>{% endif %}
+      {% if doc.header %}{% for field in doc.resolved_header %}{% if forloop.first and field.value %}<br>{{ field.label }}: {{ field.value }}{% endif %}{% endfor %}{% endif %}
+    </td>
+    <td class="mast-c">
       <div class="doc-title">{{ doc.title }}</div>
       {% if doc.subtitle %}<div class="doc-sub">{{ doc.subtitle }}</div>{% endif %}
     </td>
-    <td class="mast-r" style="vertical-align:middle;">{{ ORG_NAME }}</td>
-  </tr>
-</table>
-
-{% if doc.header %}
-<table class="hdr">
-  <tr>
-    {% for field in doc.resolved_header %}
-    <td style="width:{{ field.width }}%">
-      <div class="hdr-l">{{ field.label }}</div>
-      <div class="hdr-v">{{ field.value }}</div>
+    <td class="mast-r">
+      {% if doc.header %}
+        {% for field in doc.resolved_header %}{% if forloop.last %}
+        <table class="barcode-box">
+          <tr><td>
+            <div class="barcode-lbl">{{ field.label }}</div>
+            {% if field.value %}<div class="barcode-val">{{ field.value }}</div>{% endif %}
+          </td></tr>
+        </table>
+        {% endif %}{% endfor %}
+      {% endif %}
     </td>
-    {% endfor %}
   </tr>
 </table>
-{% endif %}
 
 {% for section in doc.sections %}
-  {% if section.title %}<p class="sec-title">{{ section.title }}</p>{% endif %}
-  {% if section.subtitle %}<p class="sec-sub">{{ section.subtitle }}</p>{% endif %}
+  {% if section.title %}
+    <p class="sec-title">{{ section.title }}{% if section.subtitle %}<span class="sec-sub">{{ section.subtitle }}</span>{% endif %}</p>
+  {% endif %}
   {% if section.note %}<p class="sec-note">{{ section.note }}</p>{% endif %}
   {% if section.kind == "table" %}
   <table class="mh">
@@ -196,26 +227,41 @@ body { background-color: #eef1f5; padding: 0 0 40pt 0; }
 {% endfor %}
 
 {% if doc.cue %}
+<div class="cut-line">- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -</div>
 <table class="cue">
   <tr><td class="cue-title">{{ doc.cue.title }}</td></tr>
   <tr>
     <td>
-      {% for paragraph in doc.cue.body %}<p class="cue-body">{{ paragraph }}</p>{% endfor %}
+      {% for paragraph in doc.cue.body %}
+        {% if forloop.last %}<p class="cue-emph">{{ paragraph }}</p>{% else %}<p class="cue-body">{{ paragraph }}</p>{% endif %}
+      {% endfor %}
       <table>
         <tr>
-          <td style="width:52%; border:0; padding:0 6pt 0 0;">
-            <div class="cue-question">{{ doc.cue.question }}</div>
-            <table class="cue-opts">
+          <td style="width:60%; border:0; padding:2pt 6pt 0 0; vertical-align:middle;">
+            <table>
               <tr>
+                <td style="width:32%; border:0; padding:0; font-size:6.8pt; font-weight:bold; vertical-align:middle;">{{ doc.cue.question }}</td>
                 {% for label, checked in doc.cue.options %}
-                <td class="cue-opt"><span class="cbox">{% if checked %}X{% else %}&nbsp;{% endif %}</span>{{ label }}</td>
+                <td style="width:34%; border:0; padding:0 3pt; font-size:6.3pt; vertical-align:middle;">
+                  <span style="font-weight:bold;">{{ label }}</span>
+                  <span class="cue-bigbox">{% if checked %}X{% else %}&nbsp;{% endif %}</span>
+                </td>
                 {% endfor %}
               </tr>
             </table>
           </td>
-          <td style="width:48%; border:0; padding:0;">
+          <td style="width:40%; border:0; padding:0;">
             {% for label, value in doc.cue.fields %}
-            <div class="cue-field"><span class="cue-lbl">{{ label }}</span><br><span class="cue-val">{% if value %}{{ value }}{% else %}&nbsp;{% endif %}</span></div>
+              {% if forloop.first %}
+              <table class="bbis-box">
+                <tr><td>
+                  <div style="font-size:6.4pt; font-weight:bold;">{{ label }}</div>
+                  <div style="font-size:6.8pt;">{% if value %}{{ value }}{% else %}&nbsp;{% endif %}</div>
+                </td></tr>
+              </table>
+              {% else %}
+              <div class="cue-line"><strong>{{ label }}:</strong> {{ value }}</div>
+              {% endif %}
             {% endfor %}
           </td>
         </tr>
@@ -240,14 +286,253 @@ body { background-color: #eef1f5; padding: 0 0 40pt 0; }
 </table>
 {% endif %}
 
+{# ==================== PAGE 2 (Sections III - VI) ==================== #}
+{% if doc.back_page %}
+{% if chrome %}<div class="page-sep no-print"></div>{% endif %}
+<div class="page-break"></div>
+
+{% if DOC_LOGO_DATA_URI %}
+<table style="margin-bottom:4pt;">
+  <tr><td class="mast-seal"><img src="{{ DOC_LOGO_DATA_URI }}" width="34" height="34" alt="Official Seal"></td></tr>
+</table>
+{% endif %}
+
+<p class="sec-title">III. DONOR'S DECLARATION</p>
+<table class="decl-box">
+  <tr>
+    <td>
+      <p class="decl-item">&gt; <strong>I certify</strong> that I am the person referred to above and that all the entries are read and well <strong>understood</strong> by me and to the best of my knowledge, <strong>truthfully</strong> answered all the questions in this Blood Donor Interview Sheet.</p>
+      <p class="decl-item">&gt; <strong>I understand</strong> that all questions are pertinent for my safety and for the benefit of the patient who will undergo blood transfusion.</p>
+      <p class="decl-item">&gt; <strong>I am voluntarily</strong> giving my blood through {{ ORG_NAME }}, without remuneration, for the use of persons in need of this vital fluid without regard to rank, race, color, creed, religion, or political persuasion.</p>
+      <p class="decl-item">&gt; <strong>I understand</strong> that my blood will be screened for Malaria, Syphilis, Hepatitis B, Hepatitis C and HIV. I am aware that the screening tests are not diagnostic and may yield false positive results. Should any of the screening tests give a reactive result, I <strong>authorize</strong> the Blood Bank to inform me utilizing the information I have supplied, subject the results to confirmatory tests, offer counselling and to dispose of my donated blood in any way it may deem advisable for the safety of the majority of the populace.</p>
+      <p class="decl-item">&gt; <strong>I confirm</strong> that I am over the age of 18 years.</p>
+      <p class="decl-item">&gt; <strong>I understand</strong> that all information hereinto is treated confidential in compliance with the <strong>Data Privacy Act of 2012</strong>. I therefore <strong>authorize</strong> {{ ORG_NAME }} to utilize the information I supplied for purposes of research or studies for the benefit and safety of the community.</p>
+
+      <table class="sig-grid">
+        <tr>
+          <td colspan="2" style="width:46%; font-weight:bold; background-color:#f9fafb;">For those ages 16-17</td>
+          <td class="sig-line-cell" style="width:30%;" rowspan="2">
+            <div class="sig-rule">{{ doc.back_page.donor_signature }}</div>
+            <div class="sig-cap">Donor's Signature{% if doc.back_page.donor_signed_on %} ({{ doc.back_page.donor_signed_on }}){% endif %}</div>
+          </td>
+          <td class="sig-line-cell" style="width:24%;" rowspan="2">
+            <div class="sig-rule">&nbsp;</div>
+            <div class="sig-cap">Donor's Thumbmark</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="width:24%; height:22pt; vertical-align:bottom;">Signature of Parent or Guardian</td>
+          <td style="width:22%; height:22pt; vertical-align:bottom;">Relationship to Blood Donor</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<p class="sec-title">IV. INITIAL SCREENING <span class="sec-sub">(To be filled up by the interviewer)</span></p>
+<table class="grid-box">
+  <tr>
+    <th colspan="3" style="background-color:#ffffff; border-top:0; border-left:0;">&nbsp;</th>
+    <th colspan="4">FOR APHERESIS DONOR</th>
+    <th style="background-color:#ffffff; border-top:0; border-right:0;">&nbsp;</th>
+  </tr>
+  <tr>
+    <td class="grid-val" style="width:12%;">&nbsp;</td>
+    <td class="grid-val" style="width:12%;">&nbsp;</td>
+    <td class="grid-val" style="width:12%;">&nbsp;</td>
+    <td class="grid-val" style="width:11%;">&nbsp;</td>
+    <td class="grid-val" style="width:11%;">&nbsp;</td>
+    <td class="grid-val" style="width:11%;">&nbsp;</td>
+    <td class="grid-val" style="width:13%;">&nbsp;</td>
+    <td class="grid-val" style="width:18%;">{{ doc.back_page.blood_type }}</td>
+  </tr>
+  <tr>
+    <th>BODY WT</th><th>SP. GR</th><th>HGB</th><th>HCT</th><th>RBC</th><th>WBC</th><th>PLT count</th><th>BLOOD TYPE</th>
+  </tr>
+</table>
+
+<table style="margin-bottom:4pt;">
+  <tr>
+    <td class="plain" style="width:19%; font-weight:bold;">TYPE OF DONATION:</td>
+    <td class="plain" style="width:31%;">
+      <strong>IN-HOUSE:</strong> ( &nbsp; )<br>
+      WALK-IN/VOLUNTARY: ( &nbsp; )<br>
+      REPLACEMENT: ( &nbsp; )<br>
+      PATIENT-DIRECTED: ( &nbsp; )
+    </td>
+    <td class="plain" style="width:50%;">
+      <strong>Mobile Blood Donation</strong> &nbsp; ( &nbsp; )<br>
+      PLACE: ________________________________________<br>
+      ORGANIZER: ____________________________________
+    </td>
+  </tr>
+</table>
+
+<table class="grid-box">
+  <tr>
+    <td class="grid-val" style="width:34%;">&nbsp;</td>
+    <td class="grid-val" style="width:24%;">&nbsp;</td>
+    <td class="grid-val" style="width:13%;">&nbsp;</td>
+    <td class="grid-val" style="width:17%;">&nbsp;</td>
+    <td class="grid-val" style="width:12%;">&nbsp;</td>
+  </tr>
+  <tr>
+    <th>Patient Name</th><th>Hospital</th><th>Blood Type</th><th>WB/Component</th><th>No. of units</th>
+  </tr>
+</table>
+
+<p style="font-size:6.6pt; margin:2pt 0 3pt 0;">
+  <strong>History of previous donation?</strong> &nbsp;&nbsp;&nbsp; ( &nbsp; ) YES &nbsp;&nbsp;&nbsp; ( &nbsp; ) NO
+</p>
+
+<table class="grid-box">
+  <tr>
+    <th style="width:26%;">&nbsp;</th>
+    <th style="width:37%;">Red Cross</th>
+    <th style="width:37%;">Hospital</th>
+  </tr>
+  <tr>
+    <td style="text-align:left; font-weight:bold;">No. of times</td><td>&nbsp;</td><td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td style="text-align:left; font-weight:bold;">Date of last donation</td><td>&nbsp;</td><td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td style="text-align:left; font-weight:bold;">Place of last donation</td><td>&nbsp;</td><td>&nbsp;</td>
+  </tr>
+</table>
+
+<table class="sign" style="margin-bottom:5pt;">
+  <tr>
+    <td style="width:40%;">
+      <div class="sig-rule">{{ doc.back_page.interviewer_signature }}</div>
+      <div class="sig-cap">INTERVIEWER (print name &amp; sign)</div>
+    </td>
+    <td style="width:35%;">
+      <div class="sig-rule">&nbsp;</div>
+      <div class="sig-cap">Blood Bank / Office</div>
+    </td>
+    <td style="width:25%; padding-right:0;">
+      <div class="sig-rule">{{ doc.back_page.interviewer_signed_on }}</div>
+      <div class="sig-cap">Date</div>
+    </td>
+  </tr>
+</table>
+
+<p class="sec-title">V. PHYSICAL EXAMINATION <span class="sec-sub">(To be accomplished by the Blood Bank Physician)</span></p>
+<table class="grid-box">
+  <tr>
+    <td class="grid-val" style="width:14%;">&nbsp;</td>
+    <td class="grid-val" style="width:13%;">&nbsp;</td>
+    <td class="grid-val" style="width:13%;">&nbsp;</td>
+    <td class="grid-val" style="width:16%;">&nbsp;</td>
+    <td class="grid-val" style="width:12%;">&nbsp;</td>
+    <td class="grid-val" style="width:14%;">&nbsp;</td>
+    <td class="grid-val" style="width:18%;">&nbsp;</td>
+  </tr>
+  <tr>
+    <th>Blood Pressure</th><th>Pulse Rate</th><th>Body Temp.</th><th>Gen. Appearance</th><th>Skin</th><th>HEENT</th><th>Heart and Lungs</th>
+  </tr>
+</table>
+
+<table style="margin-bottom:4pt;">
+  <tr>
+    <td class="plain" style="width:34%;">
+      <strong>REMARKS:</strong><br>
+      ( &nbsp; ) Accepted<br>
+      ( &nbsp; ) Temporarily Deferred<br>
+      ( &nbsp; ) Permanently Deferred<br>
+      ( &nbsp; ) Refused
+    </td>
+    <td class="plain" style="width:66%; vertical-align:bottom;">
+      Reason: _______________________________________________________<br>
+      Reason: _______________________________________________________<br>
+      Reason: _______________________________________________________
+    </td>
+  </tr>
+</table>
+
+<p style="font-size:6.5pt; margin:2pt 0 4pt 0;">
+  <strong>Blood bag to be used:</strong> (mark appropriate box):
+  <span class="mini-box"></span> Single
+  <span class="mini-box"></span> Double
+  <span class="mini-box"></span> Triple
+  <span class="mini-box"></span> Quadruple
+  <span class="mini-box"></span> Top &amp; Bottom
+  <span class="mini-box"></span> Apheresis
+</p>
+
+<table style="margin-bottom:5pt;">
+  <tr>
+    <td style="width:62%;"></td>
+    <td style="width:38%;">
+      <div class="sig-rule">&nbsp;</div>
+      <div class="sig-cap">BSF PHYSICIAN (print name &amp; sign)</div>
+    </td>
+  </tr>
+</table>
+
+<p class="sec-title">VI. BLOOD COLLECTION <span class="sec-sub">(To be accomplished by the phlebotomist)</span></p>
+<p style="font-size:6.4pt; margin:0 0 2pt 0;">Blood Bag Used:</p>
+<table class="grid-box">
+  <tr>
+    <th colspan="4">KARMI</th>
+    <th colspan="2">SPECIAL BAG</th>
+    <th colspan="3">APHERESIS</th>
+  </tr>
+  <tr>
+    <td style="width:10%;">Single</td>
+    <td style="width:10%;">Double</td>
+    <td style="width:10%;">Triple</td>
+    <td style="width:11%;">Quadruple</td>
+    <td style="width:10%;">FK T&amp;B</td>
+    <td style="width:11%;">TRM T&amp;B</td>
+    <td style="width:12%;">Amicore</td>
+    <td style="width:15%;">Haemonetics</td>
+    <td style="width:11%;">Trima</td>
+  </tr>
+</table>
+
+<table style="margin-bottom:5pt;">
+  <tr>
+    <td class="plain" style="width:52%;">
+      Amount of Blood Taken: ____________ ml.<br>
+      Donor Reaction: __________________________________<br>
+      Management Done: _________________________________
+    </td>
+    <td class="plain" style="width:48%;">
+      Successful: &nbsp;&nbsp; YES ________ &nbsp;&nbsp; NO ________<br>
+      Start Time: ____________ &nbsp;&nbsp; End Time: ____________
+    </td>
+  </tr>
+</table>
+
+<table style="margin-top:4pt;">
+  <tr>
+    <td style="width:44%; vertical-align:top;">
+      <table class="bbis-box">
+        <tr><td style="height:26pt; vertical-align:top;">
+          <div style="font-size:7.2pt; font-weight:bold;">BBIS DONATION ID</div>
+          <div style="font-size:7.2pt; margin-top:4pt;">{{ doc.back_page.donation_id }}</div>
+        </td></tr>
+      </table>
+    </td>
+    <td style="width:14%;"></td>
+    <td style="width:42%; vertical-align:bottom;">
+      <div class="sig-rule">&nbsp;</div>
+      <div class="sig-cap"><strong>PHLEBOTOMIST</strong> (print name &amp; sign)</div>
+      <div style="font-size:5.6pt; color:#374151; text-align:right; margin-top:4pt;">{{ doc.back_page.form_code }}</div>
+    </td>
+  </tr>
+</table>
+{% endif %}
+
 {% for note in doc.notes %}<p class="note">{{ note }}</p>{% endfor %}
 {% if doc.footer_note %}<p class="footnote">{{ doc.footer_note }}</p>{% endif %}
 
 </div>
 {% if chrome %}
 <script>
-// The "Print" action on the preview re-prints the same document, so the
-// operator never has to go back through the app UI to reach the print dialog.
 document.querySelectorAll('[data-bb-print-now]').forEach(function (el) {
   el.addEventListener('click', function (evt) {
     evt.preventDefault();

@@ -63,43 +63,46 @@ def _identity_section(sheet) -> FormSection:
     blood_type = donor.blood_type.code if donor.blood_type_id else "Not on file"
     return FormSection(
         kind="fields",
-        title="Donor information",
+        title="I. PERSONAL DATA",
+        subtitle="(to be filled up by the donor):",
         rows=(
-            FormRow("Name", cells=(
+            FormRow("NAME:", cells=(
                 FormField("Surname, first name and middle name",
                           uppercase(donor.full_name)),)),
-            FormRow("Birth date", cells=(
+            FormRow("", cells=(
                 FormField("Date of birth", _date(donor.date_of_birth), width=26),
                 FormField("Age", _age(donor), width=8),
-                FormField("Sex", uppercase(donor.get_sex_display()), width=16),
                 FormField("Civil status", uppercase(sheet.get_civil_status_display()),
-                          width=18),
-                FormField("Blood type", uppercase(blood_type), width=15),
+                          width=22),
+                FormField("Sex", uppercase(donor.get_sex_display()), width=20),
+                FormField("Blood type", uppercase(blood_type), width=24),
             )),
-            FormRow("Address", cells=(
-                FormField("House / lot no.", uppercase(sheet.address_no), width=16),
-                FormField("Street", uppercase(sheet.address_street), width=34),
-                FormField("Barangay", uppercase(sheet.address_barangay)),
-                FormField("Zip code", uppercase(sheet.address_zip), width=12),
+            FormRow("PERMANENT ADDRESS:", cells=(
+                FormField("No.", uppercase(sheet.address_no), width=10),
+                FormField("Street", uppercase(sheet.address_street), width=26),
+                FormField("Barangay", uppercase(sheet.address_barangay), width=14),
+                FormField("Town/Municipality", uppercase(donor.municipality), width=14),
+                FormField("Province/City", uppercase(donor.province), width=11),
+                FormField("Zip code", uppercase(sheet.address_zip), width=8),
             )),
-            FormRow("Contact", cells=(
-                FormField("Telephone no.", uppercase(sheet.telephone_number), width=28),
-                FormField("Mobile no.", uppercase(donor.contact_number)),
-                FormField("Email address", uppercase(donor.email)),
-            )),
-            FormRow("Other", cells=(
-                FormField("Nationality", uppercase(sheet.nationality)),
-                FormField("Religion", uppercase(sheet.religion)),
-                FormField("Education", uppercase(sheet.education)),
-                FormField("Occupation", uppercase(sheet.occupation)),
-            )),
-            FormRow("Office", cells=(
+            FormRow("OFFICE ADDRESS", cells=(
                 FormField("Office address", uppercase(sheet.office_address)),)),
-            FormRow("IDs", cells=(
-                FormField("School ID", uppercase(sheet.id_school)),
-                FormField("Company ID", uppercase(sheet.id_company)),
-                FormField("PRC ID", uppercase(sheet.id_prc)),
-                FormField("Driver's licence", uppercase(sheet.id_drivers)),
+            FormRow("", cells=(
+                FormField("Nationality", uppercase(sheet.nationality), width=25),
+                FormField("Religion", uppercase(sheet.religion), width=25),
+                FormField("Education", uppercase(sheet.education), width=25),
+                FormField("Occupation", uppercase(sheet.occupation), width=25),
+            )),
+            FormRow("CONTACT No.:", cells=(
+                FormField("Telephone no.", uppercase(sheet.telephone_number), width=27),
+                FormField("Mobile no.", uppercase(donor.contact_number), width=28),
+                FormField("Email address", uppercase(donor.email), width=28),
+            )),
+            FormRow("IDENTIFICATION No.:", cells=(
+                FormField("School", uppercase(sheet.id_school)),
+                FormField("Company", uppercase(sheet.id_company)),
+                FormField("PRC", uppercase(sheet.id_prc)),
+                FormField("Driver's", uppercase(sheet.id_drivers)),
                 FormField("SSS / GSIS / BIR", uppercase(sheet.id_sss)),
                 FormField("Others", uppercase(sheet.id_others)),
             )),
@@ -137,8 +140,9 @@ def _questionnaire_section(sheet, answers=None) -> FormSection:
             items.append((heading if index == 0 else "", cells))
     return FormSection(
         kind="table",
-        title="Medical history questionnaire",
-        note=SECTIONS[0].note,
+        title="II. MEDICAL HISTORY",
+        subtitle="(Please read carefully and answer all relevant questions. Tick the appropriate answer.)",
+        note="",
         columns=_columns(),
         items=tuple(items),
     )
@@ -147,23 +151,38 @@ def _questionnaire_section(sheet, answers=None) -> FormSection:
 def _cue_panel(sheet) -> dict:
     """The Confidential Unit Exclusion block, with the declaration ticked."""
     return {
-        "title": "Confidential Unit Exclusion (CUE)",
+        "title": "CONFIDENTIAL UNIT EXCLUSION (CUE)",
         "body": [
-            "Read the statement below and mark the one that applies to this donation.",
-            "Your answer is confidential: it stays with the donation record and is "
-            "not shown to the recipient.",
+            "Please MARK one of the boxes below. If at one point DURING or AFTER donating blood "
+            "you are unsure of your initial answer, please inform our Blood Service Staff immediately. "
+            "If you have already left the blood donation venue, contact the blood bank office nearest you.",
+            "MARK ONE BOX ONLY. YOUR RESPONSE WILL BE STRICTLY CONFIDENTIAL.",
         ],
-        "question": "I believe that my blood is:",
+        "question": "I BELIEVE THAT MY BLOOD IS:",
         "options": [
             ("SAFE for transfusion", sheet.cue_choice == "SAFE"),
             ("NOT SAFE for transfusion", sheet.cue_choice == "NOT_SAFE"),
         ],
         "fields": [
-            ("Unit serial no.", uppercase(sheet.cue_unit_serial)),
-            ("Date of donation", _date(sheet.cue_date_of_donation)),
-            ("Place of donation", uppercase(sheet.cue_place_of_donation)),
+            ("BBIS DONATION ID", uppercase(sheet.cue_unit_serial)),
+            ("DATE OF DONATION", _date(sheet.cue_date_of_donation)),
+            ("PLACE OF DONATION", uppercase(sheet.cue_place_of_donation)),
         ],
-        "footnote": "",
+        "footnote": "*THANK YOU FOR DONATING YOUR BLOOD AND FOR HELPING MAINTAIN A SAFE BLOOD SUPPLY*",
+    }
+
+
+def _back_page(sheet) -> dict:
+    """Data pre-filled onto Page 2 (Sections III-VI) of the official form."""
+    donor = sheet.donor
+    return {
+        "donor_signature": uppercase(sheet.donor_signature),
+        "donor_signed_on": _date(sheet.donor_signed_on),
+        "interviewer_signature": uppercase(sheet.interviewer_signature),
+        "interviewer_signed_on": _date(sheet.interviewer_signed_on),
+        "blood_type": uppercase(donor.blood_type.code) if donor.blood_type_id else "",
+        "donation_id": uppercase(sheet.cue_unit_serial),
+        "form_code": "PRC-NBS DONOR FORM 321-E Revised Sep2025",
     }
 
 
@@ -195,24 +214,19 @@ def build_interview_sheet_spec(sheet, *, answers=None, preview=False,
                  "the blood bank staff after the interview and the configured screening "
                  "checks, not by this form.")
     return FormDocumentSpec(
-        title="Blood Donor Interview Sheet",
+        title="BLOOD DONOR INTERVIEW SHEET",
         subtitle=("Preview - not yet a donor record"
-                  if preview else "Medical history and confidentiality declaration"),
+                  if preview else ""),
         reference=uppercase(donor.donor_code),
         header=(
             FormField("Blood donor no.", uppercase(sheet.prc_donor_number), width=50),
-            FormField("DOH NBBets barcode", uppercase(sheet.doh_barcode), width=50),
+            FormField("DOH NBBNets BARCODE", uppercase(sheet.doh_barcode), width=50),
         ),
         sections=tuple(sections),
         cue=_cue_panel(sheet),
-        # A blank line until the donor actually signs: the spec must never
-        # print a name on the signature rule as if the sheet were signed.
-        signatures=(
-            ("Donor", uppercase(sheet.donor_signature), "Date",
-             _date(sheet.donor_signed_on)),
-            ("Interviewer", uppercase(sheet.interviewer_signature), "Date",
-             _date(sheet.interviewer_signed_on)),
-        ),
+        back_page=_back_page(sheet),
+        # Signatures live on Page 2 (Sections III & IV) when back_page is set.
+        signatures=(),
         notes=notes,
         footer_note=("Confidential - contains personal health information. "
                      "Keep with the donor's record."),

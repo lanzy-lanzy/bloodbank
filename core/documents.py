@@ -261,6 +261,7 @@ class FormDocumentSpec:
     header: tuple = ()      # tuple[FormField] - top strip of reference boxes
     sections: tuple = ()
     cue: dict = None
+    back_page: dict = None  # optional Page 2 data (Declaration, Initial Screening, PE, Collection)
     signatures: tuple = ()  # tuple[(role, printed_name, date_label, date_value)]
     notes: list = field(default_factory=list)
     footer_note: str = ""
