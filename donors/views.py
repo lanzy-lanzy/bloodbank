@@ -3,6 +3,7 @@ import csv
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render, reverse
@@ -325,7 +326,9 @@ class MyDonorProfileView(View):
             "tier": RewardService.current_tier(donor),
             "next_tier": RewardService.next_tier(donor),
             "donations": donor.donations.order_by("-donation_date")[:10],
-            "screenings": donor.screenings.order_by("-performed_at")[:5],
+            "screening_page": Paginator(
+                donor.screenings.order_by("-performed_at", "-pk"), 5,
+            ).get_page(request.GET.get("page")),
             "appointments": donor.appointments.order_by("-date")[:5],
             "point_transactions": donor.point_transactions.order_by("-created_at")[:10],
         })

@@ -104,28 +104,26 @@
     </ul>
   </div>
 
-  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
+  <section class="bg-white rounded-2xl border border-ink-200 shadow-sm" aria-labelledby="screening-history">
     <div class="px-5 py-4 border-b border-ink-100">
-      <h2 class="font-bold text-ink-900 text-sm">Recent screenings</h2>
-      <p class="text-[11px] text-ink-400 mt-0.5">Screening results are recorded by qualified staff.</p>
+      <h2 id="screening-history" class="font-bold text-ink-900 text-sm">Screening history</h2>
     </div>
     <ul class="divide-y divide-ink-100">
-      {% for s in screenings %}
-        <li class="px-5 py-3 flex items-center justify-between gap-3">
-          <div>
-            <span class="text-sm font-medium text-ink-800">{{ s.performed_at|date:"F j, Y" }}</span>
-            <span class="block text-xs text-ink-400">{{ s.notes|truncatechars:60|default:"—" }}</span>
+      {% for s in screening_page %}
+        <li class="px-5 py-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <time class="text-sm font-medium text-ink-800" datetime="{{ s.performed_at|date:'c' }}">{{ s.performed_at|date:"F j, Y, g:i a" }}</time>
+            {% include "components/status_badge.html" with status=s.result %}
           </div>
-          <span class="text-[11px] font-semibold px-2 py-1 rounded-full
-            {% if s.result == "CLEARED" %}bg-emerald-50 text-emerald-700
-            {% elif s.result == "DEFERRED" %}bg-amber-50 text-amber-700
-            {% else %}bg-ink-100 text-ink-600{% endif %}">{{ s.get_result_display }}</span>
+          {% if s.deferral_days %}<p class="mt-1 text-xs text-ink-600">Deferral period: {{ s.deferral_days }} day{{ s.deferral_days|pluralize }}.</p>{% endif %}
+          {% if s.notes %}<p class="mt-1 text-xs text-ink-600">{{ s.notes|truncatechars:60 }}</p>{% endif %}
         </li>
       {% empty %}
         <li class="px-5 py-6 text-sm text-ink-400">No screenings on record.</li>
       {% endfor %}
     </ul>
-  </div>
+    {% include "components/pagination.html" with page_obj=screening_page %}
+  </section>
 
   <div class="bg-white rounded-2xl border border-ink-200 shadow-sm">
     <div class="px-5 py-4 border-b border-ink-100">

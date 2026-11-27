@@ -9,7 +9,7 @@ from core.testing import (make_blood_type, make_component, make_donor, make_dona
                           make_bag, make_user, set_rules)
 from donors.forms import DonorInterviewSheetForm, DonorSelfProfileForm, ScreeningForm
 from donors.interview import ALL_ITEMS, SECTION_BY_KEY
-from donors.models import Donor, DonorInterviewSheet
+from donors.models import Donor, DonorInterviewSheet, DonorScreening
 from donors.services import DonorEligibilityService, InterviewSheetService
 
 
@@ -632,3 +632,28 @@ class DonorDirectoryExportTests(TestCase):
             for name in ("donors:directory_document", "donors:directory_pdf", "donors:directory_csv"):
                 resp = self.client.get(reverse(name))
                 self.assertEqual(resp.status_code, 403, f"{user.role} should be denied {name}")
+
+
+class DonorScreeningHistoryTests(TestCase):
+    def test_profile_pages_through_own_screenings_only(self):
+        user = make_user("history-donor", role="DONOR")
+        donor = make_donor(user=user)
+        other = make_donor()
+        now = timezone.now()
+        for index in range(6):
+            DonorScreening.objects.create(
+                donor=donor, performed_at=now - timedelta(days=index),
+                result="DEFERRED", deferral_days=3, notes=f"History entry {index}",
+            )
+        DonorScreening.objects.create(donor=other, performed_at=now, notes="Other donor's history")
+        self.client.force_login(user)
+        url = reverse("donors:my_profile")
+        page = self.client.get(url, {"donor": other.pk})
+        self.assertContains(page, "Screening history")
+        self.assertContains(page, "History entry 0")
+        self.assertNotContains(page, "History entry 5")
+        self.assertNotContains(page, "Other donor")
+        older = self.client.get(url, {"page": 2, "donor": other.pk})
+        self.assertContains(older, "History entry 5")
+        self.assertNotContains(older, "History entry 0")
+        self.assertNotContains(older, "Other donor")
