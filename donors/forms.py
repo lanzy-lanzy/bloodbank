@@ -81,12 +81,21 @@ class ScreeningForm(StyledModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        examples = {
+            "weight_kg": "62.0",
+            "temperature_c": "36.8",
+            "hemoglobin_gdl": "14.2",
+            "bp_systolic": "118",
+            "bp_diastolic": "76",
+            "pulse_bpm": "72",
+        }
         for name, label, _, increment in SCREENING_MEASUREMENTS:
             field = self.fields[name]
             field.label = label
             field.widget.attrs.update({
                 "min": increment,
                 "step": increment,
+                "placeholder": f"e.g. {examples[name]}",
                 "inputmode": "decimal" if increment == "0.1" else "numeric",
             })
 
