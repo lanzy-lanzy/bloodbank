@@ -2,7 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
 
-from donors.interview import SIGNUP_FIELDS
+from donors.interview import ALL_ITEMS, ITEM_BY_KEY, SIGNUP_DATE_FIELDS, SIGNUP_FIELDS
 
 
 class User(AbstractUser):
@@ -198,9 +198,8 @@ class RegistrationInterview(models.Model):
     # One nullable YES/NO field per YES/NO item of the PRC sheet, named after
     # the item key (Q07 -> q07). Labels are the sheet's own questions, so the
     # tick on the sheet and the answer on the form are the same question - no
-    # mapping judgement is made anywhere. The two DATE items (Q34 last
-    # childbirth, Q37 last menstrual period) have no tick box and are not asked
-    # at sign-up; the female block is asked only when the applicant is female.
+    # mapping judgement is made anywhere. Q34 and Q37 are nullable dates
+    # without tick boxes. The female block applies only to female applicants.
     q01 = models.BooleanField(null=True, verbose_name="1. Do you feel well and healthy today?")
     q02 = models.BooleanField(null=True, verbose_name=(
         "2. Have you ever been refused as a blood donor or told not to donate blood "
@@ -283,11 +282,14 @@ class RegistrationInterview(models.Model):
     q33 = models.BooleanField(null=True, verbose_name=(
         "33. FOR FEMALE DONORS: are you currently pregnant or have you ever been "
         "pregnant?"))
+    q34 = models.DateField(null=True, blank=True, verbose_name=f"34. {ITEM_BY_KEY['Q34'].text}")
     q35 = models.BooleanField(null=True, verbose_name=(
         "35. FOR FEMALE DONORS: in the past 1 YEAR did you have a miscarriage or "
         "abortion?"))
     q36 = models.BooleanField(null=True, verbose_name=(
         "36. FOR FEMALE DONORS: are you currently breastfeeding?"))
+
+    q37 = models.DateField(null=True, blank=True, verbose_name=f"37. {ITEM_BY_KEY['Q37'].text}")
 
     # applicant certification (required) + optional free-text context
     declaration = models.BooleanField(default=False, verbose_name=(
@@ -302,6 +304,7 @@ class RegistrationInterview(models.Model):
     # YES/NO item of the printed sheet, in sheet order (derived from
     # donors.interview, never typed twice).
     QUESTION_FIELDS = list(SIGNUP_FIELDS)
+    DATE_FIELDS = SIGNUP_DATE_FIELDS
 
     class Meta:
         verbose_name = "Registration donor interview"
@@ -311,10 +314,14 @@ class RegistrationInterview(models.Model):
         return f"Donor interview — {self.registration.username}"
 
     def answered_questions(self):
-        """[(label, 'Yes'|'No'|'—')] in questionnaire order, for the review page."""
+        """Question labels and recorded answers in sheet order."""
         rows = []
-        for name in self.QUESTION_FIELDS:
+        for item in ALL_ITEMS:
+            name = item.key.lower()
             value = getattr(self, name)
-            answer = "Yes" if value is True else "No" if value is False else "—"
+            if item.kind == "DATE":
+                answer = value.strftime("%d %b %Y") if value else "—"
+            else:
+                answer = "Yes" if value is True else "No" if value is False else "—"
             rows.append((self._meta.get_field(name).verbose_name, answer))
         return rows

@@ -136,6 +136,13 @@
   function syncRequirements() {
     var role = selectedRole();
     var sex = selectedSex();
+    var femaleQuestions = form.querySelector("[data-female-questions]");
+    if (femaleQuestions) {
+      femaleQuestions.hidden = role !== "DONOR" || sex !== "FEMALE";
+      toArray(femaleQuestions.querySelectorAll("input")).forEach(function (input) {
+        input.disabled = femaleQuestions.hidden;
+      });
+    }
     toArray(form.querySelectorAll("input, select, textarea")).forEach(function (el) {
       if (!el.name) return;
       var sexScope = el.getAttribute("data-required-for-sex");

@@ -289,7 +289,7 @@ class DonorInterviewTests(TestCase):
         self.assertFalse(RegistrationRequest.objects.exists())
 
     def test_male_applicant_never_answers_the_female_block(self):
-        data = donor_form_data(sex="MALE")
+        data = donor_form_data(sex="MALE", q34="2024-04-19", q37="2025-02-22")
         for key in ("q33", "q35", "q36"):
             data.pop(key)
         resp = self.client.post(reverse("public_registration:register"), data)
@@ -297,6 +297,8 @@ class DonorInterviewTests(TestCase):
         reg = RegistrationRequest.objects.get(username="tina.test")
         self.assertEqual(reg.sex, "MALE")
         self.assertIsNone(reg.interview.q33)
+        self.assertIsNone(reg.interview.q34)
+        self.assertIsNone(reg.interview.q37)
 
     def test_female_applicant_answers_the_female_block(self):
         data = donor_form_data(sex="FEMALE")
@@ -392,6 +394,8 @@ class RegistrationStepperTests(TestCase):
         self.assertIn('>Select…</option>', content)
         self.assertIn('<option value="FEMALE">Female</option>', content)
         self.assertIn('<option value="MALE">Male</option>', content)
+        for name in ("q34", "q37"):
+            self.assertRegex(content, rf'<input[^>]*type="date"[^>]*name="{name}"')
         self.assertIn(f'<option value="{blood_type.pk}">O+</option>', content)
 
 
@@ -432,6 +436,12 @@ class RegisterSheetPreviewTests(TestCase):
                       "TEST BARANGAY", "FILIPINO", "TEACHER"):
             self.assertIn(value, content)
         self.assertNotIn("Tina M Test", content)
+
+    def test_preview_places_registration_dates_in_their_own_rows(self):
+        resp = self._preview(q34="2024-04-19", q37="2025-02-22")
+        self.assertContains(resp, "19 Apr 2024")
+        self.assertContains(resp, "22 Feb 2025")
+        self.assertEqual(resp.content.count(b'<span class="cbox">X</span>'), 35)
 
     def test_prefilled_declaration_is_ticked(self):
         content = self._preview().content.decode()

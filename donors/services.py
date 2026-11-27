@@ -200,25 +200,22 @@ class InterviewSheetService:
         return values
 
     @staticmethod
-    def _declaration_answers(interview, *, female):
-        """{item key: "YES"|"NO"} the sign-up questionnaire answers, in memory.
+    def _registration_answers(interview, *, female):
+        """Build the same answer and date rows for preview and approval."""
+        from donors.models import InterviewAnswer
 
-        The sign-up form asks the printed sheet's own YES/NO items, one field
-        per item (``Q07`` -> ``q07``), so an answer is copied to the item it
-        answers and a blank stays blank. The female-donor block is skipped
-        unless the donor is female - copying a "No" there would record an
-        answer nobody was asked for. Shared by the generation path and the
-        pending-registration preview so both show the same pre-fill.
-        """
         answers = {}
         for item in ALL_ITEMS:
-            if item.kind != "YESNO":
-                continue
             if not female and SECTION_BY_KEY.get(item.key) == FEMALE_SECTION:
                 continue
             value = getattr(interview, item.key.lower(), None)
-            if value is not None:
-                answers[item.key] = "YES" if value else "NO"
+            if value is None:
+                continue
+            if item.kind == "DATE":
+                row = InterviewAnswer(item_key=item.key, remarks=value.strftime("%d %b %Y"))
+            else:
+                row = InterviewAnswer(item_key=item.key, answer="YES" if value else "NO")
+            answers[item.key] = row
         return answers
 
     @staticmethod
@@ -230,14 +227,15 @@ class InterviewSheetService:
         # The female-donor block is not asked of anybody else: copying a
         # "No" there would record an answer the donor was never asked for.
         female = sheet.donor.sex == "FEMALE"
-        values = InterviewSheetService._declaration_answers(interview, female=female)
+        values = InterviewSheetService._registration_answers(interview, female=female)
         changed = []
-        for key, answer in values.items():
-            row = rows.get(key) or InterviewAnswer(sheet=sheet, item_key=key)
-            row.answer = answer
+        for key, source in values.items():
+            row = rows[key]
+            row.answer = source.answer
+            row.remarks = source.remarks
             changed.append(row)
         if changed:
-            InterviewAnswer.objects.bulk_update(changed, ["answer"])
+            InterviewAnswer.objects.bulk_update(changed, ["answer", "remarks"])
         return len(changed)
 
     @staticmethod
@@ -294,7 +292,7 @@ class InterviewSheetService:
     @staticmethod
     def _preview_for(registration, *, interview, reference):
         """Shared in-memory donor + sheet + pre-filled answers for a preview."""
-        from donors.models import Donor, DonorInterviewSheet, InterviewAnswer
+        from donors.models import Donor, DonorInterviewSheet
 
         donor = Donor(
             donor_code=reference,
@@ -322,10 +320,8 @@ class InterviewSheetService:
         # The female-donor block follows the donor's sex, exactly as it will
         # when approval generates the real sheet.
         female = donor.sex == Donor.Sex.FEMALE
-        values = (InterviewSheetService._declaration_answers(interview, female=female)
-                  if interview is not None else {})
-        answers = {key: InterviewAnswer(item_key=key, answer=value)
-                   for key, value in values.items()}
+        answers = (InterviewSheetService._registration_answers(interview, female=female)
+                   if interview is not None else {})
         return sheet, answers
 
     @staticmethod

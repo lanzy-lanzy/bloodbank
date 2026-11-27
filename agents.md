@@ -94,9 +94,10 @@ commands in [README.md](README.md) and [TESTING.md](TESTING.md).
     same key, which is why every answered box prints ticked. Rules:
     - a blank stays blank — never copy a "No" nobody was asked for, and never
       infer one item from another;
-    - the two DATE items (Q34, Q37) have no tick column and are not asked at
-      sign-up;
-    - the female block (Q33/Q35/Q36) is asked, required and copied only when
+    - the two DATE items (Q34, Q37) are optional date fields at sign-up when
+      `RegistrationRequest.sex == FEMALE`. Copy supplied dates into the remarks
+      of the matching item. Date items have no tick box;
+    - the female YES/NO items (Q33/Q35/Q36) are asked, required and copied only when
       `RegistrationRequest.sex == FEMALE` (the browser mirrors that through
       `data-required-for-sex`, `RegistrationForm.clean()` is the authority) —
       for anyone else it stays NULL, and `Donor.sex` is seeded from the same

@@ -365,11 +365,10 @@ plus the registration questionnaire. The sign-up form asks the printed
 sheet's own YES/NO items, one field per item (`Q07` -> `q07`;
 `RegistrationInterview.QUESTION_FIELDS` is derived from
 `donors.interview.SIGNUP_FIELDS`), so each answer is copied onto the item it
-answers (`InterviewSheetService._declaration_answers`) and every answered box
-prints ticked. The two DATE items (Q34, Q37) have no sign-up field, and the
-female-donor block (Q33/Q35/Q36) is asked, required and copied only when the
-applicant declared `sex=FEMALE` — for anyone else those items stay blank for
-the interviewer. Nothing is inferred: blank stays blank, because the form
+answers (`InterviewSheetService._registration_answers`) and every answered box
+prints ticked. For applicants who declare `sex=FEMALE`, Q33/Q35/Q36 are required
+and Q34/Q37 accept optional dates. Entered dates are copied to the remarks
+cell of the matching item. The female block stays blank for other applicants. Nothing is inferred: blank stays blank, because the form
 never prints "No" for a question nobody answered. Saving is a record of
 the interview, not a clinical decision — donor status and eligibility are
 untouched (agents.md rule 1).
@@ -402,8 +401,8 @@ never a document with blanks filled in for the applicant.
 
 Because the form asks the sheet's own questionnaire, the preview prints the
 official grid with every answered item already ticked — a female applicant's
-submission fills all 35 YES/NO boxes, and a non-female application leaves only
-Q33/Q35/Q36 (plus the two DATE items) blank for the clinic. There is no second
+submission fills all 35 YES/NO answers and shows the dates supplied for Q34/Q37.
+For other applicants, Q33–Q37 stay blank. There is no second
 sign-up listing to print, so the same document is what the applicant verifies
 and what staff later receives (D-023).
 

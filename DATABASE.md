@@ -61,10 +61,11 @@ the printed questionnaire: one nullable boolean per YES/NO item — `q01` …
 with the sheet's own question text. The field list is derived from
 `donors/interview.SIGNUP_FIELDS` and exposed as `QUESTION_FIELDS`, so the form
 and the sheet can never disagree about which item an answer belongs to. The
-two DATE items (Q34 last childbirth, Q37 last menstrual period) have no tick
-box and are not asked at sign-up; the female-donor block (`q33`, `q35`,
-`q36`) is asked only when the applicant declared FEMALE — everyone else stores
-NULL there, because blank is **not** a No. Plus `declaration` (applicant
+two DATE items (`q34` last childbirth, `q37` last menstrual period) are nullable
+date fields added by `accounts.0007`. Entered dates print in the corresponding
+remarks cells. The female-donor block (`q33`–`q37`) is asked of applicants who
+declare FEMALE. Other applicants store NULL for all five items. Plus
+`declaration` (applicant
 certification, required at submit) and free-text `notes`. The eleven boolean
 columns of the previous form (`felt_well_today`, `on_medication`, …,
 `previously_deferred`) are kept for history but never asked, rendered or

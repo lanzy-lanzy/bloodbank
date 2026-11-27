@@ -148,9 +148,9 @@ ITEM_BY_KEY = {item.key: item for item in ALL_ITEMS}
 SECTION_BY_KEY = {item.key: section.key for section in SECTIONS for item in section.items}
 FEMALE_SECTION = "female"
 
-# One sign-up answer field per YES/NO item, named after the item key. The two
-# DATE items (Q34, Q37) have no YES/NO column and are not asked at sign-up.
+# One sign-up field per item, named after the item key.
 SIGNUP_FIELDS = tuple(item.key.lower() for item in ALL_ITEMS if item.kind == "YESNO")
+SIGNUP_DATE_FIELDS = tuple(item.key.lower() for item in ALL_ITEMS if item.kind == "DATE")
 FEMALE_KEYS = frozenset(item.key for section in SECTIONS if section.key == FEMALE_SECTION
                         for item in section.items)
 

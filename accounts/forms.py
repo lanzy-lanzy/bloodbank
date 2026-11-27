@@ -203,6 +203,16 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
             # The YES/NO pills are styled by the .bb-q-opts wrapper in the
             # template, so the widget itself carries no extra class.
             self.fields[name].widget.attrs["class"] = ""
+        for name in RegistrationInterview.DATE_FIELDS:
+            self.fields[name] = forms.DateField(
+                label=RegistrationInterview._meta.get_field(name).verbose_name,
+                required=False,
+                help_text="Leave blank if unknown or not applicable.",
+                widget=forms.DateInput(format="%Y-%m-%d", attrs={
+                    "type": "date",
+                    "class": INPUT_CLASSES,
+                }),
+            )
         self.fields["declaration"].widget.attrs["class"] = (
             "rounded border-ink-300 text-brand-600 focus:ring-brand-500/40 h-4 w-4")
         self.fields["interview_notes"].widget.attrs["class"] = INPUT_CLASSES
@@ -295,8 +305,10 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
                     cleaned[key] = (raw == "yes")
                 else:
                     cleaned[key] = None
-                    if female or key.upper() not in FEMALE_KEYS:
-                        self.add_error(key, "Please answer this question.")
+                    self.add_error(key, "Please answer this question.")
+            if not female:
+                for key in RegistrationInterview.DATE_FIELDS:
+                    cleaned[key] = None
             if not cleaned.get("declaration"):
                 self.add_error("declaration",
                                "You must certify the interview before submitting.")
@@ -323,9 +335,7 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
     def interview_question_groups(self):
         """The questionnaire grouped exactly as the printed sheet groups it.
 
-        Returns ``[{"title", "note", "female", "fields"}]``; the two DATE items
-        have no sign-up field and are skipped. Grouping is presentation only:
-        every answer is still one field of this one form.
+        Grouping is presentation only. Every response is a field of this form.
         """
         from donors.interview import SECTIONS
 
@@ -398,6 +408,7 @@ class RegistrationForm(StyledFormMixin, forms.ModelForm):
             return None
         answers = {key: self.cleaned_data.get(key)
                    for key in RegistrationInterview.QUESTION_FIELDS}
+        answers.update({key: self.cleaned_data.get(key) for key in RegistrationInterview.DATE_FIELDS})
         answers["personal_data"] = {name: self.cleaned_data[name]
                                     for name in SIGNUP_PERSONAL_FIELDS}
         answers["declaration"] = bool(self.cleaned_data.get("declaration"))

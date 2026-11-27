@@ -442,7 +442,7 @@ def run_workflows():
     application.update(civil_status="SINGLE", address_barangay="Test Barangay",
                        address_zip="7000", nationality="Filipino",
                        education="College", occupation="Teacher")
-    application["q01"] = "yes"
+    application.update(q01="yes", q34="2024-04-19", q37="2025-02-22")
     # Before anything is submitted, the applicant can preview the exact
     # interview sheet the application will create: a public POST that validates
     # the bound form, builds the document in memory and writes nothing.
@@ -457,6 +457,8 @@ def run_workflows():
     expect("PREVIEW - built from your registration form" in body
            and "Download PDF" not in body,
            "I0c preview is labelled and offers print only")
+    expect("19 Apr 2024" in body and "22 Feb 2025" in body,
+           "I0h applicant preview shows both questionnaire dates")
     expect(body.count('<span class="cbox">X</span>') == 35,
            "I0d all 35 questionnaire items are pre-filled on the preview")
     expect("In the past 4 WEEKS have you taken any medications" in body
@@ -534,6 +536,10 @@ def run_workflows():
                        and new_sheet.answer_for("Q13") == "NO"
                        and new_sheet.answer_for("Q33") == "NO",
                        "I4g the 4-week, 12-month and female items carry their answers")
+                rows = new_sheet.answer_map()
+                expect(rows["Q34"].remarks == "19 Apr 2024" and rows["Q37"].remarks == "22 Feb 2025"
+                       and not rows["Q34"].answer and not rows["Q37"].answer,
+                       "I4k both dates transfer to their matching rows without a tick")
                 expect(new_donor.sex == "FEMALE",
                        "I4h the declared sex is stored on the donor record")
             resp = staff.get(reverse("donors:interview_sheet_document",

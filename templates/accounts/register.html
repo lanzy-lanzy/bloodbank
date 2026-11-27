@@ -218,16 +218,21 @@
       <div class="bb-panel-head">
         <h3 class="bb-panel-title" id="bb-h-interview" data-step-heading tabindex="-1">Health interview</h3>
         <p class="bb-panel-lead mt-1">The same medical history questionnaire as the printed Blood Donor
-          Interview Sheet — every YES/NO item, asked once here. Answer every question truthfully; your
+          Interview Sheet, including dates where applicable. Answer every question truthfully; your
           answers are <strong class="bb-strong">reviewed by blood bank staff</strong> before approval and confirmed
           again at face-to-face screening. The system does not decide your eligibility from this form.</p>
       </div>
       {% for group in form.interview_question_groups %}
-      <div class="mt-5">
+      <div class="mt-5"{% if group.female %} data-female-questions{% endif %}>
         {% if group.title %}<h4 class="text-xs font-semibold uppercase tracking-wide text-white/50">{{ group.title }}</h4>{% endif %}
         {% if group.note %}<p class="mt-1 text-xs text-white/40">{{ group.note }}</p>{% endif %}
         <div class="bb-q-list mt-2">
           {% for q in group.fields %}
+          {% if q.field.widget.input_type == "date" %}
+          <div class="bb-q">
+            {% include "components/field.html" with field=q %}
+          </div>
+          {% else %}
           <div class="bb-q">
             <div class="flex-1 min-w-0">
               <span class="bb-q-text">{{ q.label }}</span>
@@ -235,6 +240,7 @@
             </div>
             <div class="bb-q-opts">{{ q }}</div>
           </div>
+          {% endif %}
           {% endfor %}
         </div>
       </div>
