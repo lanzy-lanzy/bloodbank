@@ -30,7 +30,7 @@ class BloodRequestForm(StyledModelForm):
         from inventory.models import BloodComponent, BloodType
         self.staff = staff
         self.fields["blood_type"].queryset = BloodType.objects.filter(is_active=True)
-        self.fields["component"].queryset = BloodComponent.objects.filter(is_active=True)
+        self.fields["component"].queryset = BloodComponent.blood_only_active()
         self.fields["supporting_document"].help_text = "PDF or image, max size per system policy."
         if not staff:
             for name in ("channel", "walk_in_contact", "walk_in_phone"):
@@ -68,7 +68,7 @@ class RequestItemAddForm(StyledModelForm):
         super().__init__(*args, **kwargs)
         from inventory.models import BloodComponent, BloodType
         self.fields["blood_type"].queryset = BloodType.objects.filter(is_active=True)
-        self.fields["component"].queryset = BloodComponent.objects.filter(is_active=True)
+        self.fields["component"].queryset = BloodComponent.blood_only_active()
 
 
 class OrganizationForm(StyledModelForm):
