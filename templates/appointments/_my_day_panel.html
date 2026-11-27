@@ -1,0 +1,56 @@
+{# Selected day schedule panel for donors, swapped via HTMX when clicking a calendar date. #}
+<div id="my-day-schedule-panel" class="space-y-4">
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-ink-200 bg-ink-50/70">
+      <div class="flex items-center gap-2">
+        <span class="h-3.5 w-1 rounded-full bg-brand-600" aria-hidden="true"></span>
+        <h3 class="text-sm font-bold text-ink-900">{{ day|date:"l, M j, Y" }}</h3>
+        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums
+          {% if selected_appointments %}bg-emerald-600 text-white{% else %}bg-ink-200 text-ink-600{% endif %}">
+          {{ selected_appointments|length }}
+        </span>
+      </div>
+      <p class="text-xs text-ink-500 mt-0.5">
+        {% if selected_appointments %}
+          {{ selected_appointments|length }} admin-set schedule{{ selected_appointments|length|pluralize }} on this date
+        {% else %}
+          No admin-set schedule on this date
+        {% endif %}
+      </p>
+    </div>
+
+    <div class="divide-y divide-ink-100">
+      {% for a in selected_appointments %}
+        <div class="p-4">
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <span class="inline-flex items-center rounded-md bg-ink-100 border border-ink-200 px-2.5 py-0.5 text-xs font-bold text-ink-800 tabular-nums">
+              {{ a.time|time:"g:i A" }}
+            </span>
+            {% include "components/status_badge.html" with status=a.status %}
+          </div>
+          <p class="mt-2.5 text-sm font-semibold text-ink-900">
+            {{ a.location|default:"Location to be confirmed" }}
+          </p>
+          {% if a.notes %}
+            <p class="mt-1 text-xs text-ink-500 leading-relaxed">{{ a.notes }}</p>
+          {% endif %}
+        </div>
+      {% empty %}
+        <div class="px-5 py-10 text-center">
+          <p class="text-sm font-medium text-ink-700">No schedule on {{ day|date:"M j, Y" }}</p>
+          <p class="text-xs text-ink-500 mt-1">Select any highlighted date on the calendar to view schedule details.</p>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-5 space-y-2.5">
+    <h3 class="font-bold text-ink-900 text-sm">Preparation guidance</h3>
+    <ul class="space-y-1.5 text-xs text-ink-500 leading-relaxed">
+      <li>Get adequate rest and stay well hydrated before your scheduled visit.</li>
+      <li>Eat a light, iron-rich meal prior to donation and avoid alcohol as instructed.</li>
+      <li>Bring a valid government-issued ID for verification.</li>
+      <li>Final eligibility is always determined by staff screening on the day.</li>
+    </ul>
+  </div>
+</div>

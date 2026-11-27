@@ -1,50 +1,127 @@
 {% extends "base.html" %}
 {% block title %}My Appointments — {{ ORG_NAME }}{% endblock %}
 {% block content %}
-<div class="mb-6">
-  <h1 class="text-xl font-bold text-ink-900">My appointments</h1>
-  <p class="text-sm text-ink-500 mt-0.5">Donation schedules are set by the blood bank administrator. You will be notified whenever a new session is scheduled.</p>
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl sm:text-2xl font-bold text-ink-900 tracking-tight">My Appointments</h1>
+    <p class="text-sm text-ink-500 mt-0.5">Calendar of available donation schedules set by the blood bank administrator.</p>
+  </div>
+  {% if upcoming_total %}
+    <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-800">
+      <span class="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-600 px-1 text-[10px] font-bold text-white tabular-nums">{{ upcoming_total }}</span>
+      Upcoming schedule{{ upcoming_total|pluralize }}
+    </span>
+  {% endif %}
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-  <div class="lg:col-span-2 bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
-    <div class="px-5 py-4 border-b border-ink-100">
-      <h2 class="font-bold text-ink-900 text-sm">Your scheduled appointments</h2>
+{# ---- Upcoming admin-set schedules quick-jump bar ---- #}
+{% if upcoming_schedules %}
+<div class="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3.5 shadow-2xs">
+  <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+    <div class="flex items-center gap-2">
+      <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-[11px] font-bold text-white tabular-nums">{{ upcoming_total }}</span>
+      <h2 class="text-xs font-bold uppercase tracking-wider text-emerald-900">Upcoming Schedules Set by Admin</h2>
     </div>
-    <ul class="divide-y divide-ink-100">
-      {% for a in appointments %}
-        <li class="px-5 py-4 flex items-center justify-between gap-3">
-          <div>
-            <p class="text-sm font-semibold text-ink-800">{{ a.date|date:"l, F j, Y" }} · {{ a.time|time:"g:i A" }}</p>
-            <p class="text-xs text-ink-400 mt-0.5">{{ a.location|default:"Location to be confirmed" }}
-              {% if a.notes %} · {{ a.notes|truncatechars:70 }}{% endif %}</p>
-          </div>
-          <div class="shrink-0">
-            {% include "components/status_badge.html" with status=a.status %}
-          </div>
-        </li>
-      {% empty %}
-        <li class="px-5 py-8 text-sm text-ink-400 text-center">No scheduled appointments yet. You will be notified when the blood bank sets the next donation schedule.</li>
-      {% endfor %}
-    </ul>
+    <span class="text-[11px] text-emerald-800">Click any date to view details</span>
   </div>
+  <div class="flex flex-wrap gap-2">
+    {% for item in upcoming_schedules %}
+      <a href="?date={{ item.date|date:'Y-m-d' }}"
+         class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition
+         {% if item.date == day %}border-brand-600 bg-brand-600 text-white shadow-xs{% else %}border-emerald-300 bg-white text-ink-800 hover:border-brand-400 hover:bg-brand-50{% endif %}">
+        <span>{{ item.date|date:"D, M j, Y" }} · {{ item.time|time:"g:i A" }}</span>
+        {% if item.location %}<span class="font-normal opacity-80">({{ item.location|truncatechars:24 }})</span>{% endif %}
+      </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 
-  <div>
-    <div class="bg-white rounded-2xl border border-ink-200 shadow-sm p-5 space-y-3">
-      <h2 class="font-bold text-ink-900 text-sm">Schedule &amp; preparation guidance</h2>
-      <p class="text-xs text-ink-600 leading-relaxed">
-        You do not need to request or book an appointment yourself. The blood bank administrator sets required donation schedules and sends notifications to all registered donors.
-      </p>
-      <div class="border-t border-ink-100 pt-3">
-        <p class="text-xs font-semibold text-ink-800 mb-1.5">Before your scheduled visit</p>
-        <ul class="space-y-1.5 text-xs text-ink-500 leading-relaxed">
-          <li>Get adequate rest and stay well hydrated before arriving.</li>
-          <li>Eat a light, iron-rich meal prior to donation and avoid alcohol as instructed.</li>
-          <li>Bring a valid government-issued ID for verification.</li>
-          <li>Final eligibility is always determined by staff screening on the day.</li>
-        </ul>
+{# ---- Calendar-only view + selected day panel ---- #}
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+  <div class="xl:col-span-8 bg-white rounded-2xl border border-ink-200 shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-ink-200 bg-ink-50/70 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <span class="h-4 w-1 rounded-full bg-brand-600" aria-hidden="true"></span>
+        <h2 class="font-bold text-ink-900 text-base tracking-tight">{{ day|date:"F Y" }}</h2>
+      </div>
+      <div class="flex flex-wrap items-center gap-1.5">
+        <a href="?date={{ prev_month|date:'Y-m-d' }}"
+           class="inline-flex items-center gap-1 rounded-lg border border-ink-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50 transition">
+          <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/></svg>
+          Prev
+        </a>
+        <a href="?date={{ today|date:'Y-m-d' }}"
+           class="inline-flex items-center rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50 transition">
+          Today
+        </a>
+        <a href="?date={{ next_month|date:'Y-m-d' }}"
+           class="inline-flex items-center gap-1 rounded-lg border border-ink-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50 transition">
+          Next
+          <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+        </a>
       </div>
     </div>
+
+    <div class="p-4 overflow-x-auto">
+      <div class="min-w-[520px]">
+        <div class="grid grid-cols-7 gap-1.5 text-center text-[11px] font-bold uppercase tracking-wider text-ink-500 mb-2">
+          <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+        </div>
+        <div class="grid grid-cols-7 gap-1.5">
+          {% for week in month_grid %}
+            {% for cell in week %}
+              {% if cell %}
+                <a href="?date={{ cell.date|date:'Y-m-d' }}"
+                   hx-get="?date={{ cell.date|date:'Y-m-d' }}&amp;panel=day"
+                   hx-target="#my-day-schedule-panel"
+                   hx-swap="outerHTML"
+                   hx-push-url="?date={{ cell.date|date:'Y-m-d' }}"
+                   class="group relative flex flex-col min-h-[84px] rounded-xl border p-2 text-left transition
+                   {% if cell.is_selected %}border-brand-600 bg-brand-50/70 ring-2 ring-brand-600/20
+                   {% elif cell.counts %}border-emerald-300 bg-emerald-50/40 hover:border-brand-400 shadow-2xs
+                   {% elif cell.is_today %}border-brand-300 bg-brand-50/30 hover:border-brand-400
+                   {% else %}border-ink-200/70 bg-ink-50/40 hover:border-ink-300 hover:bg-white{% endif %}">
+                  <div class="flex items-center justify-between gap-1">
+                    <span class="inline-flex h-6 w-6 items-center justify-center rounded-md text-xs font-bold tabular-nums
+                      {% if cell.is_today %}bg-brand-600 text-white{% elif cell.is_selected %}text-brand-800{% else %}text-ink-700{% endif %}">
+                      {{ cell.date|date:"j" }}
+                    </span>
+                    {% if cell.counts %}
+                      <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-[10px] font-bold text-white tabular-nums shadow-2xs">
+                        {{ cell.counts.total }}
+                      </span>
+                    {% endif %}
+                  </div>
+                  {% if cell.counts %}
+                    <div class="mt-1.5 space-y-1">
+                      {% for item in cell.counts.previews %}
+                        <div class="truncate rounded px-1.5 py-0.5 text-[10px] font-medium leading-tight
+                          {% if item.status == 'CHECKED_IN' %}bg-sky-50 text-sky-800{% else %}bg-emerald-100/90 text-emerald-900{% endif %}">
+                          <span class="tabular-nums font-semibold">{{ item.time|time:"g:i A" }}</span> {{ item.location }}
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                </a>
+              {% else %}
+                <div class="min-h-[84px] rounded-xl bg-ink-50/20"></div>
+              {% endif %}
+            {% endfor %}
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="px-5 py-3 border-t border-ink-100 bg-ink-50/50 flex flex-wrap items-center gap-4 text-[11px] text-ink-500">
+      <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-emerald-600"></span> Scheduled by Admin</span>
+      <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-sky-600"></span> Checked-in</span>
+      <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-brand-600"></span> Today</span>
+    </div>
+  </div>
+
+  <div class="xl:col-span-4">
+    {% include "appointments/_my_day_panel.html" %}
   </div>
 </div>
 {% endblock %}

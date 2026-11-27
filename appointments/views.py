@@ -318,7 +318,69 @@ class AppointmentBroadcastCreateView(AdminRequiredMixin, View):
         )
 
 
-# --- Donor self-service (read-only view of admin-assigned schedules) -------------
+# --- Donor self-service (calendar-only view of admin-assigned schedules) ---------
+def _donor_admin_schedules_queryset(donor):
+    """Available schedules set by an ADMIN for a specific donor."""
+    if donor is None:
+        return Appointment.objects.none()
+    return Appointment.objects.select_related("created_by").filter(
+        donor=donor,
+        created_by__role="ADMIN",
+        status__in=AVAILABLE_ADMIN_STATUSES,
+    )
+
+
+def _donor_month_grid(donor, day):
+    """Sunday-first calendar month grid of admin-set schedules for one donor."""
+    first_weekday, num_days = pycalendar.monthrange(day.year, day.month)
+    start_offset = (first_weekday + 1) % 7
+    qs = _donor_admin_schedules_queryset(donor).filter(
+        date__year=day.year, date__month=day.month
+    )
+    by_day = {}
+    for appt in qs.order_by("time"):
+        bucket = by_day.setdefault(appt.date, {"total": 0, "previews": []})
+        bucket["total"] += 1
+        if len(bucket["previews"]) < 2:
+            bucket["previews"].append({
+                "time": appt.time,
+                "location": appt.location or "Blood Bank",
+                "status": appt.status,
+            })
+
+    today = timezone.localdate()
+    weeks = []
+    week = [None] * start_offset
+    for d in range(1, num_days + 1):
+        current = date(day.year, day.month, d)
+        week.append({
+            "date": current,
+            "counts": by_day.get(current),
+            "is_today": current == today,
+            "is_selected": current == day,
+        })
+        if len(week) == 7:
+            weeks.append(week)
+            week = []
+    if week:
+        week += [None] * (7 - len(week))
+        weeks.append(week)
+    return weeks
+
+
+class MyAppointmentsBadgeView(View):
+    """Donor sidebar counter badge: upcoming schedules set by the administrator."""
+
+    def get(self, request):
+        if request.user.role != "DONOR":
+            raise PermissionDenied("Only donors can view this badge.")
+        donor = getattr(request.user, "donor_profile", None)
+        count = _donor_admin_schedules_queryset(donor).filter(
+            date__gte=timezone.localdate()
+        ).count()
+        return render(request, "components/nav_badge.html", {"count": count})
+
+
 class MyAppointmentsView(View):
     def dispatch(self, request, *args, **kwargs):
         donor = getattr(request.user, "donor_profile", None)
@@ -328,10 +390,24 @@ class MyAppointmentsView(View):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request):
-        qs = Appointment.objects.none()
-        if self.donor:
-            qs = Appointment.objects.filter(donor=self.donor).order_by("-date", "-time")
-        return render(request, "appointments/my.html", {
-            "appointments": qs[:30],
+        today = timezone.localdate()
+        day = _parse_date(request.GET.get("date"), today)
+        base_qs = _donor_admin_schedules_queryset(self.donor)
+        selected_appointments = list(base_qs.filter(date=day).order_by("time"))
+        upcoming_schedules = list(
+            base_qs.filter(date__gte=today).order_by("date", "time")[:12]
+        )
+        ctx = {
             "donor": self.donor,
-        })
+            "day": day,
+            "today": today,
+            "prev_month": _shift_month(day, -1),
+            "next_month": _shift_month(day, 1),
+            "month_grid": _donor_month_grid(self.donor, day),
+            "selected_appointments": selected_appointments,
+            "upcoming_schedules": upcoming_schedules,
+            "upcoming_total": base_qs.filter(date__gte=today).count(),
+        }
+        if is_htmx(request) and request.GET.get("panel") == "day":
+            return render(request, "appointments/_my_day_panel.html", ctx)
+        return render(request, "appointments/my.html", ctx)

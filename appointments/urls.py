@@ -12,4 +12,5 @@ urlpatterns = [
     path("<int:pk>/edit/", views.AppointmentUpdateView.as_view(), name="edit"),
     path("<int:pk>/status/", views.AppointmentStatusView.as_view(), name="status"),
     path("my/", views.MyAppointmentsView.as_view(), name="my_appointments"),
+    path("my/badge/", views.MyAppointmentsBadgeView.as_view(), name="my_badge"),
 ]

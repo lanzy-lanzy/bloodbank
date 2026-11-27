@@ -44,23 +44,69 @@ class ConflictTests(TestCase):
 class DonorAppointmentsReadOnlyTests(TestCase):
     def setUp(self):
         from django.test import Client
+        self.admin = make_user("donor-cal-admin", role="ADMIN")
+        self.staff = make_user("donor-cal-staff", role="STAFF")
         user = make_user("appt-donor", role="DONOR")
         self.donor = make_donor(user=user)
         self.client = Client()
         self.client.login(username="appt-donor", password="Test12345!")
 
-    def test_donor_can_view_own_appointments_without_booking_form(self):
+    def test_donor_can_view_own_admin_schedules_in_calendar_without_booking_form(self):
         future = timezone.localdate() + timedelta(days=3)
         Appointment.objects.create(
             donor=self.donor, date=future, time=dtime(9, 0),
             location="Dumingag Blood Center", status="CONFIRMED",
+            created_by=self.admin,
         )
-        resp = self.client.get(reverse("appointments:my_appointments"))
+        # Non-admin schedule should not appear in donor calendar
+        Appointment.objects.create(
+            donor=self.donor, date=future, time=dtime(14, 0),
+            location="Staff Only Clinic", status="CONFIRMED",
+            created_by=self.staff,
+        )
+        resp = self.client.get(reverse("appointments:my_appointments"), {"date": future.isoformat()})
         self.assertEqual(resp.status_code, 200)
         body = resp.content.decode()
+        self.assertIn("Upcoming Schedules Set by Admin", body)
         self.assertIn("Dumingag Blood Center", body)
+        self.assertNotIn("Staff Only Clinic", body)
         self.assertNotIn("Request an appointment", body)
         self.assertNotIn("Send request", body)
+
+        # Clicking a date via HTMX returns only the donor day schedule panel
+        panel = self.client.get(
+            reverse("appointments:my_appointments"),
+            {"date": future.isoformat(), "panel": "day"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(panel.status_code, 200)
+        self.assertIn('id="my-day-schedule-panel"', panel.content.decode())
+        self.assertIn("Dumingag Blood Center", panel.content.decode())
+
+    def test_donor_appointments_badge_counts_upcoming_admin_schedules_and_denies_non_donor(self):
+        future = timezone.localdate() + timedelta(days=2)
+        past = timezone.localdate() - timedelta(days=2)
+        Appointment.objects.create(
+            donor=self.donor, date=future, time=dtime(9, 0),
+            location="Dumingag Hall", status="CONFIRMED", created_by=self.admin,
+        )
+        # Past or staff-created should not be counted
+        Appointment.objects.create(
+            donor=self.donor, date=past, time=dtime(9, 0),
+            location="Old Hall", status="COMPLETED", created_by=self.admin,
+        )
+        Appointment.objects.create(
+            donor=self.donor, date=future, time=dtime(13, 0),
+            location="Staff Hall", status="CONFIRMED", created_by=self.staff,
+        )
+
+        badge = self.client.get(reverse("appointments:my_badge"))
+        self.assertEqual(badge.status_code, 200)
+        self.assertIn("bb-nav-badge", badge.content.decode())
+        self.assertIn(">1<", badge.content.decode())
+
+        self.client.force_login(self.staff)
+        self.assertEqual(self.client.get(reverse("appointments:my_badge")).status_code, 403)
 
     def test_donor_cannot_post_self_booking(self):
         future = (timezone.localdate() + timedelta(days=3)).isoformat()

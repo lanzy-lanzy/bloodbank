@@ -24,6 +24,10 @@
   </div>
 
   <form method="post" action="{% url 'appointments:broadcast_schedule' %}"
+        x-data="{ submitting: false }"
+        @submit="submitting = true"
+        @htmx:after-request.window="submitting = false"
+        @htmx:response-error.window="submitting = false"
         {% if layout %}hx-post="{% url 'appointments:broadcast_schedule' %}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %}
         class="bg-white rounded-2xl border border-ink-200 shadow-sm p-6 space-y-4">
     {% csrf_token %}
@@ -43,14 +47,33 @@
       </span>
     </label>
 
+    <div x-show="submitting" x-cloak role="status" aria-live="polite"
+         class="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 flex items-center gap-3 text-sm text-brand-900">
+      <svg class="h-5 w-5 shrink-0 animate-spin text-brand-600" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+      </svg>
+      <div>
+        <p class="font-semibold">Scheduling all active donors &amp; sending notifications…</p>
+        <p class="text-xs text-brand-800/90 mt-0.5">Please wait while appointments and donor notifications are being processed.</p>
+      </div>
+    </div>
+
     <div class="flex justify-end gap-2 pt-2">
       {% if layout %}
-      <button type="button" @click="bbCloseModal()" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Cancel</button>
+      <button type="button" @click="bbCloseModal()" :disabled="submitting"
+              class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600 disabled:opacity-50 disabled:cursor-not-allowed">Cancel</button>
       {% else %}
       <a href="{% url 'appointments:list' %}" class="rounded-xl border border-ink-200 hover:bg-ink-50 px-4 py-2 text-sm font-medium text-ink-600">Cancel</a>
       {% endif %}
-      <button type="submit" class="rounded-xl bg-brand-600 text-white text-sm font-semibold px-4 py-2 hover:bg-brand-700 shadow-sm">
-        Set Schedule &amp; Notify All
+      <button type="submit" :disabled="submitting"
+              class="inline-flex items-center gap-2 rounded-xl bg-brand-600 text-white text-sm font-semibold px-4 py-2 hover:bg-brand-700 shadow-sm disabled:opacity-70 disabled:cursor-wait">
+        <svg x-show="submitting" x-cloak class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+        </svg>
+        <span x-show="!submitting">Set Schedule &amp; Notify All</span>
+        <span x-show="submitting" x-cloak>Processing &amp; Notifying…</span>
       </button>
     </div>
   </form>
