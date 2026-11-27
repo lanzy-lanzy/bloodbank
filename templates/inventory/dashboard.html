@@ -169,7 +169,7 @@
     <div class="flex items-center justify-between gap-2 border-b border-ink-100 bg-ink-50/50 px-5 py-3.5">
       <div class="min-w-0">
         <h2 class="text-sm font-bold text-ink-900">Expiring within {{ window_days }} days</h2>
-        <p class="mt-0.5 text-xs text-ink-500">Usable stock, earliest expiry first.</p>
+        <p class="mt-0.5 text-xs text-ink-500">Usable stock, earliest deferred first.</p>
       </div>
       <a href="{% url 'inventory:bag_list' %}?expiry=soon" class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-brand-600 transition hover:text-brand-700">Review all &rarr;</a>
     </div>

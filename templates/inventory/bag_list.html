@@ -66,10 +66,10 @@
     <div>
       <label for="bag-exp" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-500">Expiration</label>
       <select id="bag-exp" name="expiry" class="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none">
-        <option value="">Any expiry</option>
+        <option value="">Any deferred</option>
         <option value="active" {% if expiry_filter == "active" %}selected{% endif %}>Still in date</option>
         <option value="soon" {% if expiry_filter == "soon" %}selected{% endif %}>Expiring within {{ window_days }} days</option>
-        <option value="expired" {% if expiry_filter == "expired" %}selected{% endif %}>Past expiry</option>
+        <option value="expired" {% if expiry_filter == "expired" %}selected{% endif %}>Past deferred</option>
       </select>
     </div>
     <div>

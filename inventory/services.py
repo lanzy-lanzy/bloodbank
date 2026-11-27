@@ -187,7 +187,7 @@ def build_inventory_statement(request):
     return build_document(
         title="Inventory Statement",
         doc_type="INVENTORY STATEMENT",
-        subtitle="Blood stock position, expiry outlook and bag-level listing",
+        subtitle="Blood stock position, deferred outlook and bag-level listing",
         reference=f"INV-{generated:%Y%m%d-%H%M}",
         columns=_STATEMENT_COLUMNS,
         rows=bag_rows,
@@ -195,7 +195,7 @@ def build_inventory_statement(request):
             ("Generated on", generated.strftime("%d %b %Y, %H:%M")),
             ("Prepared by", user_label),
             ("Bags listed", f"{len(bag_rows):,}"),
-            ("Expiry window", f"{days} day(s)"),
+            ("Deferred window", f"{days} day(s)"),
         ],
         summary=[
             ("Total bags", f"{bags_qs.count():,}"),

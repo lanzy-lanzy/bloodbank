@@ -107,7 +107,7 @@ REPORTS = {
     },
     "inventory": {
         "title": "Current Inventory",
-        "description": "Point-in-time stock listing: every bag with collection, expiry, volume and storage location.",
+        "description": "Point-in-time stock listing: every bag with collection, deferred, volume and storage location.",
         "group": "Inventory Reports",
         "roles": ["ADMIN", "STAFF"],
         "columns": ["Bag ID", "Blood Type", "Component", "Status", "Collected", "Expires", "Volume (mL)", "Location"],
@@ -121,7 +121,7 @@ REPORTS = {
     },
     "expiring": {
         "title": "Expiring Blood (next 7 days)",
-        "description": "Usable stock inside the configured expiry alert window, earliest expiry first.",
+        "description": "Usable stock inside the configured deferred alert window, earliest deferred first.",
         "group": "Inventory Reports",
         "roles": ["ADMIN", "STAFF"],
         "columns": ["Bag ID", "Blood Type", "Component", "Expires", "Days Left", "Status"],
@@ -134,7 +134,7 @@ REPORTS = {
     },
     "expired_discarded": {
         "title": "Expired & Discarded Blood",
-        "description": "Units that left usable stock by expiry or discard, with the reason on the last ledger entry.",
+        "description": "Units that left usable stock by deferred or discard, with the reason on the last ledger entry.",
         "group": "Inventory Reports",
         "roles": ["ADMIN", "STAFF"],
         "columns": ["Bag ID", "Blood Type", "Status", "Collected", "Expired/Updated", "Reason (last txn)"],
