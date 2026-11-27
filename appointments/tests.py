@@ -41,7 +41,7 @@ class ConflictTests(TestCase):
             a.full_clean()
 
 
-class SelfBookingTests(TestCase):
+class DonorAppointmentsReadOnlyTests(TestCase):
     def setUp(self):
         from django.test import Client
         user = make_user("appt-donor", role="DONOR")
@@ -49,25 +49,106 @@ class SelfBookingTests(TestCase):
         self.client = Client()
         self.client.login(username="appt-donor", password="Test12345!")
 
-    def _post(self, date):
-        return self.client.post(reverse("appointments:my_appointments"),
-                                {"date": date, "time": "09:30",
-                                 "location": "Drive", "notes": ""})
+    def test_donor_can_view_own_appointments_without_booking_form(self):
+        future = timezone.localdate() + timedelta(days=3)
+        Appointment.objects.create(
+            donor=self.donor, date=future, time=dtime(9, 0),
+            location="Dumingag Blood Center", status="CONFIRMED",
+        )
+        resp = self.client.get(reverse("appointments:my_appointments"))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        self.assertIn("Dumingag Blood Center", body)
+        self.assertNotIn("Request an appointment", body)
+        self.assertNotIn("Send request", body)
 
-    def test_future_booking_forced_to_requested(self):
+    def test_donor_cannot_post_self_booking(self):
         future = (timezone.localdate() + timedelta(days=3)).isoformat()
-        self._post(future)
-        appt = Appointment.objects.get(donor=self.donor)
-        self.assertEqual(appt.status, "REQUESTED")  # never auto-confirmed
-
-    def test_past_booking_rejected(self):
-        past = (timezone.localdate() - timedelta(days=1)).isoformat()
-        self._post(past)
+        resp = self.client.post(
+            reverse("appointments:my_appointments"),
+            {"date": future, "time": "09:30", "location": "Drive", "notes": ""},
+        )
+        self.assertEqual(resp.status_code, 405)
         self.assertFalse(Appointment.objects.filter(donor=self.donor).exists())
 
     def test_donor_cannot_open_staff_list(self):
         resp = self.client.get(reverse("appointments:list"))
         self.assertIn(resp.status_code, (403, 302))
+
+
+class AdminBroadcastScheduleTests(TestCase):
+    def setUp(self):
+        from audit.models import AuditLog  # noqa: F401
+        self.admin = make_user("sched-admin", role="ADMIN")
+        self.staff = make_user("sched-staff", role="STAFF")
+        self.donor_user = make_user("sched-donor", role="DONOR")
+        self.requester = make_user("sched-req", role="REQUESTER")
+        self.d1 = make_donor(user=self.donor_user, first_name="Ana", last_name="Cruz")
+        self.d2 = make_donor(first_name="Ben", last_name="Reyes")
+        self.inactive = make_donor(first_name="Old", last_name="Donor")
+        self.inactive.status = "INACTIVE"
+        self.inactive.save(update_fields=["status"])
+
+    def test_only_admin_can_access_broadcast_schedule(self):
+        url = reverse("appointments:broadcast_schedule")
+        future = (timezone.localdate() + timedelta(days=5)).isoformat()
+        payload = {"date": future, "time": "08:30", "location": "Dumingag Gymnasium", "notes": "Quarterly drive"}
+        for user in (self.staff, self.donor_user, self.requester):
+            self.client.force_login(user)
+            self.assertEqual(self.client.get(url).status_code, 403)
+            self.assertEqual(self.client.post(url, payload).status_code, 403)
+        self.assertEqual(Appointment.objects.count(), 0)
+
+    def test_admin_broadcast_schedules_all_active_donors_and_notifies(self):
+        from audit.models import AuditLog
+
+        self.client.force_login(self.admin)
+        url = reverse("appointments:broadcast_schedule")
+        target_date = timezone.localdate() + timedelta(days=4)
+
+        # Pre-existing conflict for d1 on the same slot should be skipped cleanly.
+        Appointment.objects.create(
+            donor=self.d1, date=target_date, time=dtime(8, 30),
+            location="Existing", status="CONFIRMED",
+        )
+
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("2 active registered donors", resp.content.decode())
+
+        post_resp = self.client.post(url, {
+            "date": target_date.isoformat(),
+            "time": "08:30",
+            "location": "Dumingag RHU Hall",
+            "notes": "Bring valid ID",
+            "send_sms": "",
+        })
+        self.assertEqual(post_resp.status_code, 302)
+
+        # d2 gets a new CONFIRMED appointment; d1 kept its existing one; inactive skipped.
+        self.assertTrue(Appointment.objects.filter(
+            donor=self.d2, date=target_date, time=dtime(8, 30),
+            location="Dumingag RHU Hall", status="CONFIRMED",
+        ).exists())
+        self.assertFalse(Appointment.objects.filter(donor=self.inactive).exists())
+
+        # In-app notification created for newly scheduled active donor (d2).
+        notif = Notification.objects.get(donor=self.d2, channel="in_app")
+        self.assertIn("Dumingag RHU Hall", notif.body)
+        self.assertIn("Scheduled Blood Donation", notif.subject)
+
+        # Audit log recorded.
+        self.assertTrue(AuditLog.objects.filter(action="APPOINTMENT_BROADCAST_SCHEDULED").exists())
+
+    def test_admin_sees_broadcast_button_staff_does_not(self):
+        list_url = reverse("appointments:list")
+        self.client.force_login(self.admin)
+        admin_body = self.client.get(list_url).content.decode()
+        self.assertIn("Set Schedule & Notify All", admin_body)
+
+        self.client.force_login(self.staff)
+        staff_body = self.client.get(list_url).content.decode()
+        self.assertNotIn("Set Schedule & Notify All", staff_body)
 
 
 @override_settings(SMS_PROVIDER="semaphore", SMS_API_KEY="test-key")

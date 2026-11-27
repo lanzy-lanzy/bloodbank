@@ -11,11 +11,11 @@ from django.utils import timezone
 from django.views import View
 from django.views.generic import ListView
 
-from appointments.forms import AppointmentForm, AppointmentSelfBookForm
+from appointments.forms import AppointmentForm, BroadcastScheduleForm
 from appointments.models import Appointment
-from appointments.services import notify_confirmation
+from appointments.services import notify_confirmation, schedule_all_donors_and_notify
 from audit import services as audit
-from core.mixins import StaffRequiredMixin, is_htmx
+from core.mixins import AdminRequiredMixin, StaffRequiredMixin, is_htmx
 from core.modals import modal_success, render_any
 
 VALID_STATUS_MOVES = {
@@ -240,7 +240,64 @@ class AppointmentStatusView(StaffRequiredMixin, View):
         return modal_success(request, fallback_redirect=fallback)
 
 
-# --- Donor self-service ---------------------------------------------------------
+class AppointmentBroadcastCreateView(AdminRequiredMixin, View):
+    """Admin-only: set a required donation schedule for all registered donors and notify them."""
+
+    template_name = "appointments/broadcast_form.html"
+
+    def get(self, request):
+        from donors.models import Donor
+        form = BroadcastScheduleForm(initial={
+            "date": (timezone.localdate() + timedelta(days=1)).isoformat(),
+            "time": "09:00",
+        })
+        return render_any(
+            request,
+            self.template_name,
+            {
+                "form": form,
+                "active_donor_count": Donor.objects.filter(status=Donor.Status.ACTIVE).count(),
+            },
+            modal_title="Set Schedule & Notify All Donors",
+        )
+
+    def post(self, request):
+        from donors.models import Donor
+        form = BroadcastScheduleForm(request.POST)
+        if form.is_valid():
+            cd = form.cleaned_data
+            result = schedule_all_donors_and_notify(
+                date=cd["date"],
+                time=cd["time"],
+                location=cd["location"],
+                notes=cd.get("notes", ""),
+                actor=request.user,
+                request=request,
+                send_sms=cd.get("send_sms", False),
+            )
+            msg = (
+                f"Schedule set for {cd['date']:%b %d, %Y} at {cd['time']:%I:%M %p}: "
+                f"{result.scheduled_count} registered donor(s) scheduled and notified."
+            )
+            if result.skipped_count:
+                msg += f" ({result.skipped_count} skipped due to existing slot.)"
+            messages.success(request, msg)
+            return modal_success(
+                request,
+                fallback_redirect=f"{reverse('appointments:list')}?date={cd['date']:%Y-%m-%d}&scope=month",
+            )
+        return render_any(
+            request,
+            self.template_name,
+            {
+                "form": form,
+                "active_donor_count": Donor.objects.filter(status=Donor.Status.ACTIVE).count(),
+            },
+            modal_title="Set Schedule & Notify All Donors",
+        )
+
+
+# --- Donor self-service (read-only view of admin-assigned schedules) -------------
 class MyAppointmentsView(View):
     def dispatch(self, request, *args, **kwargs):
         donor = getattr(request.user, "donor_profile", None)
@@ -255,22 +312,5 @@ class MyAppointmentsView(View):
             qs = Appointment.objects.filter(donor=self.donor).order_by("-date", "-time")
         return render(request, "appointments/my.html", {
             "appointments": qs[:30],
-            "form": AppointmentSelfBookForm(donor=self.donor,
-                                            initial={"date": (timezone.localdate() + timedelta(days=1)).isoformat()}),
             "donor": self.donor,
-        })
-
-    def post(self, request):
-        form = AppointmentSelfBookForm(request.POST, donor=self.donor)
-        if form.is_valid():
-            appointment = form.save(commit=False)
-            appointment.created_by = request.user
-            appointment.save()
-            audit.log(request, action="APPOINTMENT_REQUESTED", module="appointments", obj=appointment,
-                      description=f"Donor {self.donor.donor_code} requested an appointment on {appointment.date}")
-            messages.success(request, "Appointment requested — staff will confirm it.")
-            return redirect("appointments:my_appointments")
-        return render(request, "appointments/my.html", {
-            "appointments": Appointment.objects.filter(donor=self.donor).order_by("-date", "-time")[:30],
-            "form": form, "donor": self.donor,
         })

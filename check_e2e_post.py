@@ -300,16 +300,24 @@ def run_workflows():
     expect(failed.delivery_status == "SENT" and failed.retry_count == 1,
            f"C6b retried through mock provider (status {failed.delivery_status}, tries {failed.retry_count})")
 
-    # ---------------- D. appointments self-book ----------------
+    # ---------------- D. appointments (admin broadcast & donor read-only) ----------------
     future = (timezone.localdate() + timezone.timedelta(days=3)).isoformat()
-    before = Appointment.objects.filter(status="REQUESTED").count()
-    post_ok(donor_user, reverse("appointments:my_appointments"),
-            {"date": future, "time": "10:00", "location": "E2E drive", "notes": "smoke"},
-            "D1 self-book POST")
-    expect(Appointment.objects.filter(status="REQUESTED").count() == before + 1, "D1b REQUESTED appointment created")
-    # past date rejected
-    post_ok(donor_user, reverse("appointments:my_appointments"),
-            {"date": today, "time": "23:59", "location": "", "notes": "past"}, "D2 past-date POST")
+    # Donor can no longer self-book
+    resp = donor_user.post(reverse("appointments:my_appointments"),
+                           {"date": future, "time": "10:00", "location": "E2E drive", "notes": "smoke"})
+    checks += 1
+    expect(resp.status_code == 405, f"D1 donor self-book POST blocked (got {resp.status_code})")
+    # Only ADMIN may broadcast a required schedule to all active donors
+    broadcast_url = reverse("appointments:broadcast_schedule")
+    resp = staff.post(broadcast_url, {"date": future, "time": "10:00", "location": "E2E Hall", "notes": ""})
+    checks += 1
+    expect(resp.status_code == 403, f"D2 staff broadcast schedule blocked (got {resp.status_code})")
+    before_appts = Appointment.objects.filter(date=future, location="E2E Hall").count()
+    post_ok(admin, broadcast_url,
+            {"date": future, "time": "10:00", "location": "E2E Hall", "notes": "Mandatory drive"},
+            "D2b admin broadcast schedule POST")
+    expect(Appointment.objects.filter(date=future, location="E2E Hall", status="CONFIRMED").count() > before_appts,
+           "D2c CONFIRMED appointments created for active donors")
     # donor must not reach staff list
     resp = donor_user.get(reverse("appointments:list"))
     checks += 1

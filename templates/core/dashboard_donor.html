@@ -8,7 +8,7 @@
     <p class="text-sm text-ink-500">Donor {{ donor.donor_code }}{% if donor.blood_type %} · Blood type <span class="font-semibold text-brand-600">{{ donor.blood_type.code }}</span>{% endif %}</p>
   </div>
   <div class="flex flex-wrap items-center gap-2">
-    <a href="{% url 'appointments:my_appointments' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm">Book Appointment</a>
+    <a href="{% url 'appointments:my_appointments' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm">View Appointments</a>
     <a href="{% url 'donors:my_profile_edit' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-ink-200 bg-white text-sm font-semibold text-ink-700 hover:bg-ink-50 shadow-sm">Edit Profile</a>
   </div>
 </div>
@@ -76,7 +76,7 @@
       <div class="shrink-0">{% include "components/status_badge.html" with status=upcoming_appointment.status %}</div>
     </div>
     {% else %}
-    {% include "components/empty_state.html" with empty_title="No upcoming appointment" empty_text="Book an appointment to reserve your next donation slot." %}
+    {% include "components/empty_state.html" with empty_title="No upcoming appointment" empty_text="Scheduled donation sessions set by the blood bank will appear here." %}
     {% endif %}
   </div>
 

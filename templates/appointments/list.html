@@ -7,8 +7,17 @@
     <h1 class="text-xl sm:text-2xl font-bold text-ink-900 tracking-tight">Appointments</h1>
     <p class="text-sm text-ink-500 mt-0.5">Donation schedule calendar, requested dates, and check-in workflow.</p>
   </div>
-  {% url 'appointments:create' as appt_add_url %}
-  {% include "components/modal_action.html" with ma_url=appt_add_url ma_label="Schedule Appointment" ma_icon="M12 5v14M5 12h14" %}
+  <div class="flex flex-wrap items-center gap-2">
+    {% if request.user|has_role:'ADMIN' %}
+      {% url 'appointments:broadcast_schedule' as broadcast_url %}
+      {% include "components/modal_action.html" with ma_url=broadcast_url ma_label="Set Schedule & Notify All" ma_style="primary" ma_icon="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" %}
+      {% url 'appointments:create' as appt_add_url %}
+      {% include "components/modal_action.html" with ma_url=appt_add_url ma_label="Schedule Individual" ma_style="secondary" ma_icon="M12 5v14M5 12h14" %}
+    {% else %}
+      {% url 'appointments:create' as appt_add_url %}
+      {% include "components/modal_action.html" with ma_url=appt_add_url ma_label="Schedule Appointment" ma_icon="M12 5v14M5 12h14" %}
+    {% endif %}
+  </div>
 </div>
 
 {# ---- Requested appointment dates quick-jump bar ---- #}

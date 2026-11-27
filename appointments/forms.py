@@ -1,7 +1,36 @@
 from django import forms
+from django.utils import timezone
 
 from appointments.models import Appointment
-from core.forms import StyledModelForm
+from core.forms import StyledForm, StyledModelForm
+
+
+class BroadcastScheduleForm(StyledForm):
+    """Admin-only schedule broadcast: sets a required donation schedule for all
+    registered active donors and notifies them."""
+
+    date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    time = forms.TimeField(widget=forms.TimeInput(attrs={"type": "time"}))
+    location = forms.CharField(
+        max_length=120,
+        required=True,
+        help_text="Venue or blood bank collection site shown in the donor notification.",
+    )
+    notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3, "placeholder": "Optional instructions or drive details..."}),
+    )
+    send_sms = forms.BooleanField(
+        required=False,
+        initial=True,
+        label="Also send SMS notification (in-app notification is always sent)",
+    )
+
+    def clean_date(self):
+        chosen = self.cleaned_data["date"]
+        if chosen < timezone.localdate():
+            raise forms.ValidationError("Schedule date cannot be in the past.")
+        return chosen
 
 
 class AppointmentForm(StyledModelForm):
