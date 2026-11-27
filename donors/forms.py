@@ -5,6 +5,7 @@ from core.forms import INPUT_CLASSES, StyledFormMixin, StyledModelForm
 from core.validators import validate_ph_mobile
 from donors.interview import ALL_ITEMS, FEMALE_SECTION, SECTION_BY_KEY
 from donors.models import Donor, DonorInterviewSheet, DonorScreening, ScreeningQuestion
+from donors.services import SCREENING_MEASUREMENTS, ScreeningMeasurementService
 from inventory.models import BloodType
 
 
@@ -78,13 +79,37 @@ class ScreeningForm(StyledModelForm):
                   "bp_systolic", "bp_diastolic", "pulse_bpm", "hemoglobin_gdl",
                   "result", "deferral_days", "notes"]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, label, _, increment in SCREENING_MEASUREMENTS:
+            field = self.fields[name]
+            field.label = label
+            field.widget.attrs.update({
+                "min": increment,
+                "step": increment,
+                "inputmode": "decimal" if increment == "0.1" else "numeric",
+            })
+
+    def measurement_fields(self):
+        return [(self[name], unit) for name, _, unit, _ in SCREENING_MEASUREMENTS]
+
+    def minimum_weight(self):
+        return ScreeningMeasurementService.minimum_weight()
+
     def clean(self):
         cleaned = super().clean()
-        if cleaned.get("result") == "CLEARED" and not (cleaned.get("identity_verified") and cleaned.get("consent_given")):
+        result = cleaned.get("result")
+        errors = ScreeningMeasurementService.errors(
+            cleaned, clearing=result == DonorScreening.Result.CLEARED,
+        )
+        for name, error in errors.items():
+            if not self.has_error(name):
+                self.add_error(name, error)
+        if result == DonorScreening.Result.CLEARED and not (cleaned.get("identity_verified") and cleaned.get("consent_given")):
             raise forms.ValidationError(
                 "Identity verification and consent are required before a donor can be CLEARED."
             )
-        if cleaned.get("result") == "DEFERRED" and not cleaned.get("deferral_days"):
+        if result == DonorScreening.Result.DEFERRED and not cleaned.get("deferral_days"):
             self.add_error("deferral_days", "Specify the staff-decided deferral length in days.")
         return cleaned
 

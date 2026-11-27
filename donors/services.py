@@ -43,6 +43,54 @@ class EligibilityResult:
         return self.status == "ELIGIBLE"
 
 
+SCREENING_MEASUREMENTS = (
+    ("weight_kg", "Weight", "kg", "0.1"),
+    ("temperature_c", "Temperature", "°C", "0.1"),
+    ("hemoglobin_gdl", "Hemoglobin", "g/dL", "0.1"),
+    ("bp_systolic", "Systolic pressure", "mmHg", "1"),
+    ("bp_diastolic", "Diastolic pressure", "mmHg", "1"),
+    ("pulse_bpm", "Pulse", "bpm", "1"),
+)
+
+
+class ScreeningMeasurementService:
+    @staticmethod
+    def minimum_weight():
+        from settings_app.services import get_int_setting
+
+        minimum = get_int_setting("min_weight_kg")
+        return minimum if minimum and minimum > 0 else None
+
+    @classmethod
+    def errors(cls, measurements, *, clearing):
+        errors = {}
+        for name, _, unit, _ in SCREENING_MEASUREMENTS:
+            value = measurements.get(name)
+            if value is not None and value <= 0:
+                errors[name] = f"Enter a measurement greater than zero in {unit}."
+
+        systolic = measurements.get("bp_systolic")
+        diastolic = measurements.get("bp_diastolic")
+        if systolic is not None and diastolic is not None:
+            if not errors.keys() & {"bp_systolic", "bp_diastolic"} and systolic <= diastolic:
+                errors["bp_systolic"] = "Systolic pressure must be higher than diastolic pressure."
+        elif systolic is not None:
+            errors["bp_diastolic"] = "Enter the diastolic pressure to complete the reading."
+        elif diastolic is not None:
+            errors["bp_systolic"] = "Enter the systolic pressure to complete the reading."
+
+        if clearing:
+            minimum = cls.minimum_weight()
+            weight = measurements.get("weight_kg")
+            if minimum is None:
+                errors["result"] = "Requires configuration: set the minimum donor weight before clearing."
+            elif weight is None:
+                errors["weight_kg"] = "Enter the donor's weight in kg before clearing."
+            elif "weight_kg" not in errors and weight < minimum:
+                errors["weight_kg"] = f"Clearing requires at least the configured minimum of {minimum} kg."
+        return errors
+
+
 class DonorEligibilityService:
     @staticmethod
     def _rule(key):

@@ -78,6 +78,7 @@ def post_msgs(resp):
 def run_workflows():
     global checks
     from appointments.models import Appointment
+    from donors.forms import question_forms
     from donors.models import Donor, DonorScreening
     from donations.models import Donation
     from inventory.models import BloodBag, BloodComponent, BloodType, TestResult, TestType
@@ -86,6 +87,7 @@ def run_workflows():
     from requests.services import BloodRequestService
     from rewards.models import Reward
     from rewards.services import RewardService
+    from settings_app.services import set_setting
 
     now = timezone.now()
     today = now.date().isoformat()
@@ -114,12 +116,29 @@ def run_workflows():
     donation.refresh_from_db()
     expect(donation.status == "SCREENING", f"A2b status SCREENING (got {donation.status})")
 
-    DonorScreening.objects.create(
-        donor=donor, donation=donation, performed_by=None, result="CLEARED",
-        identity_verified=True, consent_given=True, weight_kg=65,
-    )
-    post_ok(staff, reverse("donations:transition", kwargs={"pk": donation.pk}),
-            {"status": "APPROVED", "reason": ""}, "A3 transition APPROVED")
+    set_setting("min_weight_kg", 52, value_type="int", category="eligibility")
+    screening_url = reverse("donors:screening_create", kwargs={"pk": donor.pk})
+    screening_data = {
+        "donation": donation.pk, "result": "CLEARED", "identity_verified": "on",
+        "consent_given": "on", "temperature_c": "36.8", "bp_systolic": "118",
+        "bp_diastolic": "76", "pulse_bpm": "72", "hemoglobin_gdl": "14.2",
+    }
+    for entry in question_forms():
+        question = entry["question"]
+        bound_field = entry["form"][f"field_{question.pk}"]
+        response = {"YESNO": "NO", "NUMBER": "1", "CHOICE": next(iter(question.choices), ""),
+                    "TEXT": "E2E screening"}[question.answer_type]
+        screening_data[bound_field.html_name] = response
+    invalid = staff.post(screening_url, {**screening_data, "weight_kg": "51.9"},
+                         HTTP_HX_REQUEST="true")
+    expect(invalid.status_code == 200 and b"configured minimum of 52 kg" in invalid.content,
+           "A3a below-minimum clearance returns inline weight error")
+    expect(not DonorScreening.objects.filter(donation=donation).exists(),
+           "A3b invalid screening writes no row")
+    post_ok(staff, screening_url, {**screening_data, "weight_kg": "52"},
+            "A3c staff records valid screening")
+    expect(DonorScreening.objects.filter(donation=donation, result="CLEARED").exists(),
+           "A3d valid screening recorded")
     donation.refresh_from_db()
     expect(donation.status == "APPROVED", f"A3b status APPROVED (got {donation.status})")
 

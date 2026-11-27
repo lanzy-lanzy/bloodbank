@@ -7,10 +7,40 @@ from django.utils import timezone
 
 from core.testing import (make_blood_type, make_component, make_donor, make_donation,
                           make_bag, make_user, set_rules)
-from donors.forms import DonorInterviewSheetForm, DonorSelfProfileForm
+from donors.forms import DonorInterviewSheetForm, DonorSelfProfileForm, ScreeningForm
 from donors.interview import ALL_ITEMS, SECTION_BY_KEY
 from donors.models import Donor, DonorInterviewSheet
 from donors.services import DonorEligibilityService, InterviewSheetService
+
+
+class ScreeningMeasurementTests(TestCase):
+    def test_rejects_invalid_values_and_partial_blood_pressure(self):
+        form = ScreeningForm(data={
+            "result": "REQUIRES_REVIEW", "weight_kg": "-1", "temperature_c": "36.82",
+            "pulse_bpm": "0", "bp_systolic": "120", "hemoglobin_gdl": "14 mg/dL",
+        })
+        self.assertFalse(form.is_valid())
+        self.assertEqual(set(form.errors), {
+            "weight_kg", "temperature_c", "pulse_bpm", "bp_diastolic", "hemoglobin_gdl",
+        })
+
+    def test_rejects_reversed_pressure_reading(self):
+        form = ScreeningForm(data={
+            "result": "REQUIRES_REVIEW", "bp_systolic": "70", "bp_diastolic": "110",
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("bp_systolic", form.errors)
+
+    def test_clearing_uses_configured_weight_and_review_can_record_lower_weight(self):
+        clearance = {"result": "CLEARED", "identity_verified": "on", "consent_given": "on"}
+        self.assertIn("result", ScreeningForm(data={**clearance, "weight_kg": "52"}).errors)
+        set_rules(min_weight_kg=52)
+        self.assertIn("weight_kg", ScreeningForm(data=clearance).errors)
+        self.assertIn("weight_kg", ScreeningForm(data={**clearance, "weight_kg": "51.9"}).errors)
+        self.assertTrue(ScreeningForm(data={**clearance, "weight_kg": "52"}).is_valid())
+        self.assertTrue(ScreeningForm(data={
+            "result": "REQUIRES_REVIEW", "weight_kg": "51.9",
+        }).is_valid())
 
 
 class DonorContactValidationTests(TestCase):
