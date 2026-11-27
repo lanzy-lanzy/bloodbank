@@ -63,6 +63,17 @@ class BloodComponent(models.Model):
     def __str__(self):
         return self.name
 
+    @classmethod
+    def blood_only_active(cls):
+        """Active components focused on blood only (e.g. Whole Blood, Packed Red Blood Cells)."""
+        qs = cls.objects.filter(is_active=True)
+        blood_qs = qs.filter(
+            models.Q(code__iexact="wb")
+            | models.Q(code__iexact="prbc")
+            | models.Q(name__icontains="blood")
+        )
+        return blood_qs if blood_qs.exists() else qs
+
 
 class TestType(models.Model):
     """Configurable safety-screening test definitions (e.g. grouping, infectious disease)."""

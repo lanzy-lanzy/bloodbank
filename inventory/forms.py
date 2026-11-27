@@ -26,7 +26,7 @@ class BagRegisterForm(StyledFormMixin, forms.Form):
         from inventory.models import BloodComponent, BloodType
         from django.utils import timezone
         self.fields["blood_type"].queryset = BloodType.objects.filter(is_active=True)
-        self.fields["component"].queryset = BloodComponent.objects.filter(is_active=True)
+        self.fields["component"].queryset = BloodComponent.blood_only_active()
         self.fields["donor"].queryset = Donor.objects.all()
         if not self.is_bound:
             self.fields["collected_at"].initial = timezone.localtime().strftime("%Y-%m-%dT%H:%M")

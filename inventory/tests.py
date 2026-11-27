@@ -531,3 +531,47 @@ class InventoryStatementTests(TestCase):
                     self.client.get(self.reverse("inventory:statement")).status_code, 403)
                 self.assertEqual(
                     self.client.get(self.reverse("inventory:statement_pdf")).status_code, 403)
+
+
+class BloodOnlyComponentFilterTests(TestCase):
+    def setUp(self):
+        from inventory.models import BloodComponent
+
+        self.staff = make_user("comp-staff", role="STAFF")
+        self.wb = BloodComponent.objects.create(
+            name="Whole Blood", code="wb", default_shelf_life_days=35,
+        )
+        self.prbc = BloodComponent.objects.create(
+            name="Packed Red Blood Cells", code="prbc", default_shelf_life_days=42,
+        )
+        self.plt = BloodComponent.objects.create(
+            name="Platelets", code="plt", default_shelf_life_days=5,
+        )
+        self.ffp = BloodComponent.objects.create(
+            name="Fresh Frozen Plasma", code="ffp", default_shelf_life_days=365,
+        )
+        self.cryo = BloodComponent.objects.create(
+            name="Cryoprecipitate", code="cryo", default_shelf_life_days=365,
+        )
+
+    def test_blood_bag_list_and_register_dropdowns_show_blood_components_only(self):
+        from django.urls import reverse
+
+        self.client.force_login(self.staff)
+        list_resp = self.client.get(reverse("inventory:bag_list"))
+        self.assertEqual(list_resp.status_code, 200)
+        list_body = list_resp.content.decode()
+        self.assertIn("Whole Blood", list_body)
+        self.assertIn("Packed Red Blood Cells", list_body)
+        self.assertNotIn("Platelets", list_body)
+        self.assertNotIn("Fresh Frozen Plasma", list_body)
+        self.assertNotIn("Cryoprecipitate", list_body)
+
+        reg_resp = self.client.get(reverse("inventory:bag_register"))
+        self.assertEqual(reg_resp.status_code, 200)
+        reg_body = reg_resp.content.decode()
+        self.assertIn("Whole Blood", reg_body)
+        self.assertIn("Packed Red Blood Cells", reg_body)
+        self.assertNotIn("Platelets", reg_body)
+        self.assertNotIn("Fresh Frozen Plasma", reg_body)
+        self.assertNotIn("Cryoprecipitate", reg_body)

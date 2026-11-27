@@ -134,7 +134,7 @@ class BagListView(StaffRequiredMixin, ListView):
         ctx.update({
             "statuses": BloodBag.Status.choices,
             "blood_types": BloodType.objects.filter(is_active=True),
-            "components": BloodComponent.objects.filter(is_active=True),
+            "components": BloodComponent.blood_only_active(),
             "status_filter": status_filter,
             # A comma list can't match one <option>, so show what is applied.
             "status_filter_labels": ", ".join(
@@ -381,7 +381,7 @@ class CompatCheckView(StaffRequiredMixin, View):
     def get(self, request):
         return render(request, self.template_name, {
             "blood_types": BloodType.objects.filter(is_active=True),
-            "components": BloodComponent.objects.filter(is_active=True),
+            "components": BloodComponent.blood_only_active(),
         })
 
     def post(self, request):
@@ -396,7 +396,7 @@ class CompatCheckView(StaffRequiredMixin, View):
             "donor_type", "approved_by")
         return render(request, self.template_name, {
             "blood_types": BloodType.objects.filter(is_active=True),
-            "components": BloodComponent.objects.filter(is_active=True),
+            "components": BloodComponent.blood_only_active(),
             "selected_type": blood_type, "selected_component": component, "quantity": quantity,
             "bags": bags, "shortage": shortage, "rules": rules,
         })
