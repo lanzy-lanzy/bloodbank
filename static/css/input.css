@@ -2094,13 +2094,157 @@ body:has(.bb-dialog[open]) { overflow: hidden; }
 
 /* Frosted Translucent Inputs in Light Mode */
 :root:not([data-theme="dark"]) :is(main, .modal-body) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]), select, textarea) {
-  background-color: rgba(255, 255, 255, 0.78);
-  border-color: rgba(51, 80, 128, 0.22);
+  background-color: rgba(255, 255, 255, 0.88);
+  border-color: rgba(51, 80, 128, 0.26);
+  color: #0d1821;
+}
+:root:not([data-theme="dark"]) :is(main, .modal-body) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]), select, textarea)::placeholder {
+  color: #4a5f78;
 }
 :root:not([data-theme="dark"]) :is(main, .modal-body) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]), select, textarea):focus {
-  background-color: rgba(255, 255, 255, 0.96);
+  background-color: #ffffff;
   border-color: #e80065;
   box-shadow: 0 0 0 3px rgba(232, 0, 101, 0.16);
+}
+
+/* ==========================================================================
+   Universal Light & Dark Mode Text Contrast Guarantee (ALL Templates)
+   ========================================================================== */
+
+/* Light Mode: slightly higher glass opacity + crisp dark ink on every element */
+:root:not([data-theme="dark"]) :is(main, .modal-body) :is(.bg-white).rounded-2xl,
+:root:not([data-theme="dark"]) :is(main, .modal-body) .bb-stat,
+:root:not([data-theme="dark"]) :is(main, .modal-body) .bb-kpi {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0.76) 100%);
+  border-color: rgba(51, 80, 128, 0.16);
+  color: #0d1821;
+}
+:root:not([data-theme="dark"]) .bb-dialog-toolbar {
+  background: rgba(255, 255, 255, 0.92);
+  color: #0a141d;
+}
+:root:not([data-theme="dark"]) .bb-dialog-actions {
+  background: rgba(244, 246, 251, 0.92);
+}
+:root:not([data-theme="dark"]) :is(main, .modal-body, .bb-dialog, .bb-topbar, .bb-sidebar, .bb-dropdown) .text-ink-900,
+:root:not([data-theme="dark"]) :is(main, .modal-body, .bb-dialog, .bb-topbar, .bb-sidebar, .bb-dropdown) .text-ink-800 {
+  color: #0a141d;
+}
+:root:not([data-theme="dark"]) :is(main, .modal-body, .bb-dialog, .bb-topbar, .bb-sidebar, .bb-dropdown) .text-ink-700 {
+  color: #142433;
+}
+:root:not([data-theme="dark"]) :is(main, .modal-body, .bb-dialog, .bb-topbar, .bb-sidebar, .bb-dropdown) .text-ink-600 {
+  color: #1d2f42;
+}
+:root:not([data-theme="dark"]) :is(main, .modal-body, .bb-dialog, .bb-topbar, .bb-sidebar, .bb-dropdown) .text-ink-500 {
+  color: #2a3e54;
+}
+:root:not([data-theme="dark"]) :is(main, .modal-body, .bb-dialog, .bb-topbar, .bb-sidebar, .bb-dropdown) .text-ink-400 {
+  color: #3a4f69;
+}
+:root:not([data-theme="dark"]) :is(main, .modal-body, .bb-dialog) :is(.text-brand-600, .text-brand-700) {
+  color: #9e1b7c;
+}
+:root:not([data-theme="dark"]) .bb-glass-form :is(.text-white\/40, .text-white\/50, .text-white\/60, .text-white\/70, .text-white\/80) {
+  color: #2a3e54;
+}
+:root:not([data-theme="dark"]) :is(main, .modal-body, .bb-dialog, .bb-topbar, .bb-sidebar) :is(.bg-brand-600, .bg-brand-700, .bg-ink-900, .bg-ink-800, .bg-emerald-600, .bg-sky-600, .bg-red-600, .bg-amber-600, .bg-blue-600, .bb-nav-badge) {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) :is(main, .modal-body, .bb-dialog, .bb-topbar, .bb-sidebar) :is(.bg-brand-600, .bg-brand-700, .bg-ink-900, .bg-ink-800, .bg-emerald-600, .bg-sky-600, .bg-red-600, .bg-amber-600, .bg-blue-600) * {
+  color: inherit;
+}
+
+/* Dark Mode: high-luminance text, frosted dark cards/pills, and crisp sidebar */
+[data-theme="dark"] .bb-sidebar {
+  color: #f1f5f9;
+}
+[data-theme="dark"] .bb-nav-section {
+  color: #cbd5e1;
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+[data-theme="dark"] .bb-nav-item {
+  color: #f1f5f9;
+}
+[data-theme="dark"] .bb-nav-item:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.10);
+}
+[data-theme="dark"] .bb-nav-icon {
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+[data-theme="dark"] .bb-nav-item.is-active .bb-nav-icon {
+  color: #ff80ab;
+  background: rgba(232, 0, 101, 0.28);
+  border-color: rgba(255, 128, 171, 0.42);
+}
+[data-theme="dark"] .bb-sidebar-sub,
+[data-theme="dark"] .bb-sidebar-role,
+[data-theme="dark"] .bb-sidebar-foot,
+[data-theme="dark"] .bb-sidebar-close {
+  color: #cbd5e1;
+}
+[data-theme="dark"] .bb-sidebar-org,
+[data-theme="dark"] .bb-sidebar-foot b {
+  color: #ffffff;
+}
+[data-theme="dark"] .bb-dialog-toolbar {
+  background: rgba(22, 36, 50, 0.94);
+  color: #ffffff;
+}
+[data-theme="dark"] .bb-dialog-actions {
+  background: rgba(16, 27, 38, 0.94);
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(.bg-white, .bg-white\/80, .bg-white\/90) {
+  background-color: rgba(28, 44, 60, 0.78);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #f1f5f9;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.bg-emerald-50, .bg-emerald-50\/70, .bg-emerald-50\/40, .bg-emerald-100, .bg-emerald-100\/90) {
+  background-color: rgba(16, 185, 129, 0.18);
+  border-color: rgba(52, 211, 153, 0.34);
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.bg-sky-50, .bg-sky-50\/70, .bg-blue-50) {
+  background-color: rgba(14, 165, 233, 0.18);
+  border-color: rgba(56, 189, 248, 0.34);
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(.bg-brand-50, .bg-brand-50\/70, .bg-brand-50\/60, .bg-brand-50\/40, .bg-brand-50\/30, .bg-brand-100) {
+  background-color: rgba(232, 0, 101, 0.20);
+  border-color: rgba(255, 128, 171, 0.34);
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(.text-ink-900, .text-ink-800, .text-black, .text-slate-900, .text-gray-900) {
+  color: #ffffff;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(.text-ink-700, .text-slate-700, .text-gray-700) {
+  color: #f1f5f9;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(.text-ink-600, .text-slate-600, .text-gray-600) {
+  color: #e2e8f0;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(.text-ink-500, .text-slate-500, .text-gray-500) {
+  color: #cbd5e1;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(.text-ink-400, .text-slate-400, .text-gray-400) {
+  color: #b8c7da;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-auth-card:not(.bb-glass-card)) :is(.text-brand-600, .text-brand-700, .text-brand-800, .text-brand-900) {
+  color: #ff8ab4;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]), select, textarea) {
+  background-color: rgba(14, 24, 33, 0.84);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog) :is(input, select, textarea)::placeholder {
+  color: #9fb1c7;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-topbar, .bb-sidebar) :is(.bg-brand-600, .bg-brand-700, .bg-ink-900, .bg-emerald-600, .bg-sky-600, .bg-red-600, .bg-amber-600, .bg-blue-600) {
+  color: #ffffff;
+}
+[data-theme="dark"] :is(main, .modal-body, .bb-dialog, .bb-topbar, .bb-sidebar) :is(.bg-brand-600, .bg-brand-700, .bg-ink-900, .bg-emerald-600, .bg-sky-600, .bg-red-600, .bg-amber-600, .bg-blue-600) * {
+  color: inherit;
 }
 
 /* Print: always print on clean white paper regardless of glass/theme */
