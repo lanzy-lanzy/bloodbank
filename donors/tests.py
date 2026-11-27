@@ -111,13 +111,15 @@ class EligibilityRuleTests(TestCase):
         result = DonorEligibilityService.evaluate(self.donor)
         self.assertEqual(result.status, "REQUIRES_STAFF_REVIEW")
 
-    def test_recent_donation_defers_until_interval(self):
+    def test_recent_donation_shows_next_date_until_interval_is_met(self):
         set_rules(min_age_years=18, max_age_years=65, min_donation_interval_days=60)
         last = timezone.localdate() - timedelta(days=10)
         make_donation(self.donor, status="RELEASED", donation_date=last)
         result = DonorEligibilityService.evaluate(self.donor)
-        self.assertEqual(result.status, "DEFERRED")
+        self.assertEqual(result.status, "NEXT_DONATION")
         self.assertEqual(result.next_eligible_date, last + timedelta(days=60))
+        self.assertFalse(result.is_eligible)
+        self.assertTrue(DonorEligibilityService.evaluate(self.donor, when=result.next_eligible_date).is_eligible)
 
     def test_perm_deferred_never_eligible(self):
         donor = make_donor(blood_type=self.bt, status=Donor.Status.PERM_DEFERRED,

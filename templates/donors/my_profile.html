@@ -20,6 +20,9 @@
     <h2 class="text-xs font-bold uppercase tracking-wide text-ink-400 mb-2">Eligibility</h2>
     {% if eligibility.status == "ELIGIBLE" %}
       <span class="inline-block text-sm font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Eligible to donate</span>
+    {% elif eligibility.status == "NEXT_DONATION" %}
+      {% include "components/status_badge.html" with status=eligibility.status %}
+      <p class="text-xs text-ink-500 mt-2">Next eligible donation date: {{ eligibility.next_eligible_date|date:"F j, Y" }}.</p>
     {% elif eligibility.status == "DEFERRED" %}
       <span class="inline-block text-sm font-bold px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Deferred</span>
       {% if eligibility.next_eligible_date %}<p class="text-xs text-ink-500 mt-2">Potentially eligible again on {{ eligibility.next_eligible_date|date:"F j, Y" }}.</p>{% endif %}

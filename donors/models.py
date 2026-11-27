@@ -121,7 +121,7 @@ class Donor(models.Model):
 
     @property
     def last_donation(self):
-        return self.donations.filter(status__in=["COLLECTED", "RELEASED"]).order_by("-donation_date").first()
+        return self.donations.filter(status__in=["COLLECTED", "TESTING", "RELEASED"]).order_by("-donation_date").first()
 
     @property
     def contactable(self):

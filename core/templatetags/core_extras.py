@@ -38,7 +38,7 @@ _STATUS_COLORS = {
     "AVAILABLE": "green", "TRANSFUSED": "green", "COMPLETED": "green", "CLEARED": "green",
     "FULFILLED": "green", "APPROVED": "green", "NON_REACTIVE": "green", "ACCEPTABLE": "green",
     "SENT": "green", "DELIVERED": "green", "SUCCESS": "green", "CONFIRMED": "green",
-    "ACTIVE": "green", "ELIGIBLE": "green", "CHECKED_IN": "sky", "COLLECTED": "sky",
+    "ACTIVE": "green", "ELIGIBLE": "green", "NEXT_DONATION": "sky", "CHECKED_IN": "sky", "COLLECTED": "sky",
     "RESERVED": "sky", "UNDER_REVIEW": "sky", "SCREENING": "sky", "TESTING": "violet",
     "IN_PROGRESS": "violet", "PROCESSING": "violet", "PARTIALLY_FULFILLED": "amber",
     "QUARANTINED": "amber", "PENDING": "amber", "REQUESTED": "amber", "SUBMITTED": "amber",

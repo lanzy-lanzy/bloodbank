@@ -323,11 +323,12 @@ class InventoryService:
                 )
             if new_status in ("AVAILABLE", "RESERVED", "ISSUED") and bag.is_expired_by_date:
                 raise InventoryError("Bag is past its deferred date and cannot re-enter usable stock.")
-            if new_status == "AVAILABLE" and previous in ("TESTING", "QUARANTINED", "RETURNED"):
+            is_release = new_status == "AVAILABLE" and previous in ("TESTING", "QUARANTINED", "RETURNED")
+            if is_release:
                 InventoryService._guard_release(bag)
 
             bag.status = new_status
-            if new_status == "AVAILABLE" and previous in ("TESTING", "QUARANTINED", "RETURNED"):
+            if is_release:
                 bag.released_by = actor
                 bag.released_at = timezone.now()
                 bag.screening_status = BloodBag.ScreeningStatus.COMPLETE
@@ -357,6 +358,12 @@ class InventoryService:
                 description=(f"Bag {bag.bag_code}: {previous} → {new_status}"
                              + (f" (OVERRIDE: {reason})" if override else (f" — {reason}" if reason else ""))),
             )
+            if is_release and bag.donation_id:
+                from donations.services import DonationService
+
+                DonationService.release_from_inventory(
+                    bag.donation_id, actor=actor, request=request, reason=f"Released unit {bag.bag_code}",
+                )
             logger.info("BAG %s %s -> %s by %s", bag.bag_code, previous, new_status, actor)
             return bag
 

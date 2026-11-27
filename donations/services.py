@@ -57,33 +57,52 @@ class DonationService:
     def transition(donation, new_status, *, actor=None, request=None, reason="", extra_audit=""):
         from audit import services as audit
 
-        if not donation.can_transition_to(new_status):
-            raise DonationError(
-                f"Illegal donation transition {donation.status} → {new_status}. "
-                f"Allowed: {', '.join(donation.TRANSITIONS.get(donation.status, [])) or 'none'}."
-            )
-        previous = donation.status
         with transaction.atomic():
+            donation.refresh_from_db(from_queryset=Donation.objects.select_for_update())
+            previous = donation.status
+            if not donation.can_transition_to(new_status):
+                raise DonationError(
+                    f"Illegal donation transition {previous} → {new_status}. "
+                    f"Allowed: {', '.join(donation.TRANSITIONS.get(previous, [])) or 'none'}."
+                )
+            if new_status == Donation.Status.RELEASED and not donation.blood_bags.filter(
+                released_at__isnull=False,
+            ).exists():
+                raise DonationError("Release a linked blood unit from inventory first.")
             donation.status = new_status
             if reason:
                 donation.notes = (donation.notes + f"\n[{timezone.now():%Y-%m-%d %H:%M}] {reason}").strip()
-            donation.save()
+            donation.save(update_fields=["status", "notes", "updated_at"])
             audit.log(request, user=actor,
                       action=DonationService._AUDIT_ACTIONS.get(new_status, "DONATION_STATUS_CHANGED"),
                       module="donations", obj=donation,
                       before={"status": previous}, after={"status": new_status},
                       description=f"Donation {donation.donation_code}: {previous} → {new_status}"
                                   + (f" — {reason}" if reason else "") + (f" {extra_audit}" if extra_audit else ""))
+            if new_status == Donation.Status.RELEASED:
+                from rewards.services import RewardService
+
+                RewardService.award_for_event(
+                    donation.donor, "DONATION_COMPLETED",
+                    reference=f"donation:{donation.donation_code}", actor=actor, request=request,
+                )
         return donation
+
+    @staticmethod
+    def release_from_inventory(donation_id, *, actor=None, request=None, reason=""):
+        """Close a collected donation once a linked unit has passed inventory release."""
+        with transaction.atomic():
+            donation = Donation.objects.select_for_update().get(pk=donation_id)
+            if donation.can_transition_to(Donation.Status.RELEASED):
+                DonationService.transition(
+                    donation, Donation.Status.RELEASED, actor=actor, request=request, reason=reason,
+                )
 
     @staticmethod
     def record_collection(donation, *, component, volume_ml, collected_at=None, location="",
                           storage_position="", actor=None, request=None):
-        """APPROVED → COLLECTED and register the blood bag (starts QUARANTINED).
-        Awards configured donation points (if a rule exists). Atomic."""
-        from audit import services as audit
+        """Record collection and create a quarantined blood bag atomically."""
         from inventory.services import InventoryService
-        from rewards.services import RewardService
 
         if donation.status != "APPROVED":
             raise DonationError(
@@ -109,8 +128,4 @@ class DonationService:
                 appt.status = "COMPLETED"
                 appt.save(update_fields=["status"])
 
-            # Reward points (configured rule; no-op when not configured).
-            RewardService.award_for_event(donation.donor, "DONATION_COMPLETED",
-                                          reference=f"donation:{donation.donation_code}",
-                                          actor=actor, request=request)
         return donation, bag

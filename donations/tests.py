@@ -3,7 +3,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from core.testing import make_component, make_donor, make_donation, make_user
+from core.testing import make_bag, make_component, make_donor, make_donation, make_test_type, make_user
 from donations.models import Donation
 from donations.services import DonationError, DonationService
 
@@ -54,6 +54,40 @@ class CollectionTests(TestCase):
         self.assertEqual(bag.status, "QUARANTINED")  # never auto-available
         self.assertEqual(bag.donor, self.donor)
         self.assertEqual(donation.volume_ml, 450)
+
+    def test_points_follow_inventory_release_and_legacy_awards_are_not_repeated(self):
+        from inventory.models import TestResult
+        from inventory.services import InventoryService
+        from rewards.models import RewardRule
+        from rewards.services import RewardService
+
+        rule = RewardRule.objects.create(code="DONATION_COMPLETED", event="DONATION_COMPLETED", points=25)
+        test_type = make_test_type()
+        for legacy in (False, True):
+            with self.subTest(legacy=legacy):
+                donation = make_donation(self.donor, status="APPROVED")
+                donation, bag = DonationService.record_collection(
+                    donation, component=self.comp, volume_ml=450, actor=self.staff,
+                )
+                reference = f"donation:{donation.donation_code}"
+                entries = self.donor.point_transactions.filter(reference=reference)
+                self.assertFalse(entries.exists())
+                with self.assertRaisesMessage(DonationError, "Release a linked blood unit from inventory first."):
+                    DonationService.transition(donation, "RELEASED", actor=self.staff)
+                if legacy:
+                    RewardService.award_for_event(self.donor, rule.code, reference=reference)
+
+                second_bag = make_bag(donor=self.donor, component=self.comp, donation=donation)
+                for unit in (bag, second_bag):
+                    InventoryService.transition(unit.pk, "TESTING", actor=self.staff)
+                    TestResult.objects.create(
+                        bag=unit, test_type=test_type, result="Non-reactive",
+                        result_status="NON_REACTIVE", verified_by=self.staff,
+                    )
+                    InventoryService.transition(unit.pk, "AVAILABLE", actor=self.staff)
+                donation.refresh_from_db()
+                self.assertEqual(donation.status, "RELEASED")
+                self.assertEqual(entries.get().amount, rule.points)
 
     def test_collection_closes_linked_appointment(self):
         from appointments.models import Appointment

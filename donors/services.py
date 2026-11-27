@@ -8,7 +8,7 @@ than inventing a threshold. Final eligibility is always a staff decision —
 the engine only summarises configured rules.
 """
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.db import transaction
 from django.utils import timezone
@@ -34,7 +34,7 @@ ELIGIBILITY_KEYS = {
 
 @dataclass
 class EligibilityResult:
-    status: str  # ELIGIBLE | NOT_ELIGIBLE | DEFERRED | REQUIRES_STAFF_REVIEW
+    status: str  # ELIGIBLE | NOT_ELIGIBLE | DEFERRED | NEXT_DONATION | REQUIRES_STAFF_REVIEW
     reasons: list = field(default_factory=list)
     next_eligible_date: object = None
 
@@ -99,8 +99,9 @@ class DonorEligibilityService:
 
     @staticmethod
     def evaluate(donor, when=None) -> EligibilityResult:
-        when = when or timezone.now()
-        today = when.date() if hasattr(when, "date") else when
+        today = when or timezone.localdate()
+        if isinstance(today, datetime):
+            today = timezone.localdate(today) if timezone.is_aware(today) else today.date()
         reasons = []
         review_reasons = []
 
@@ -158,19 +159,13 @@ class DonorEligibilityService:
                 )
             else:
                 next_eligible = last.donation_date + timedelta(days=int(interval))
-                if next_eligible > today:
-                    return EligibilityResult(
-                        "DEFERRED",
-                        [f"Last donation {last.donation_date:%b %d, Y}; configured interval is {interval} days."],
-                        next_eligible_date=next_eligible,
-                    )
 
         # 5. Rolling-year donation cap (configured, optional)
         cap = DonorEligibilityService._rule("max_donations_per_year")
         if cap is not None:
             since = today - timedelta(days=365)
             count = donor.donations.filter(
-                status__in=["COLLECTED", "RELEASED"], donation_date__gte=since
+                status__in=["COLLECTED", "TESTING", "RELEASED"], donation_date__gte=since
             ).count()
             if count >= int(cap):
                 return EligibilityResult(
@@ -180,6 +175,12 @@ class DonorEligibilityService:
 
         if review_reasons:
             return EligibilityResult("REQUIRES_STAFF_REVIEW", review_reasons + reasons, next_eligible_date=next_eligible)
+        if next_eligible and next_eligible > today:
+            return EligibilityResult(
+                "NEXT_DONATION",
+                [f"Last donation {last.donation_date:%b %d, Y}. Configured interval is {interval} days."],
+                next_eligible_date=next_eligible,
+            )
         return EligibilityResult("ELIGIBLE", reasons or ["All configured eligibility rules satisfied."],
                                  next_eligible_date=next_eligible)
 

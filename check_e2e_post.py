@@ -85,7 +85,7 @@ def run_workflows():
     from notifications.models import Notification
     from requests.models import Allocation, BloodRequest
     from requests.services import BloodRequestService
-    from rewards.models import Reward
+    from rewards.models import Reward, RewardRule
     from rewards.services import RewardService
     from settings_app.services import set_setting
 
@@ -151,6 +151,8 @@ def run_workflows():
     expect(bag is not None and bag.status == "QUARANTINED",
            f"A4b bag QUARANTINED created (donation {donation.status})")
 
+    points = donor.point_transactions.filter(reference=f"donation:{donation.donation_code}")
+    expect(not points.exists(), "A4c collection does not award release points")
     # negative: release without confirmation token
     resp = post_ok(staff, reverse("inventory:bag_release", kwargs={"pk": bag.pk}),
                    {"reason": "no confirm"}, "A5 release WITHOUT confirm")
@@ -173,6 +175,12 @@ def run_workflows():
                        {"confirm": "RELEASE", "reason": "E2E release"}, "A8 release POST")
         bag.refresh_from_db()
         expect(bag.status == "AVAILABLE", f"A8b bag released to AVAILABLE (got {bag.status})")
+        donation.refresh_from_db()
+        expect(donation.status == "RELEASED", "A8c inventory release completes the donation")
+        rule = RewardRule.objects.filter(code="DONATION_COMPLETED", is_active=True).first()
+        if rule and rule.points:
+            expect(list(points.values_list("amount", flat=True)) == [rule.points],
+                   "A8d release awards the configured donation points once")
 
     # ---------------- B. request lifecycle ----------------
     bt = donor.blood_type or BloodType.objects.filter(is_active=True).first()

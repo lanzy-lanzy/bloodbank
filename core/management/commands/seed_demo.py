@@ -524,10 +524,9 @@ class Command(BaseCommand):
                     )
             InventoryService.transition(bag.pk, "TESTING", actor=staff,
                                         reason="Demo: moved to testing")
+            DonationService.transition(donation, "TESTING", actor=staff)
             InventoryService.transition(bag.pk, "AVAILABLE", actor=admin,
                                         reason="Demo: authorized release after verified non-reactive tests")
-            DonationService.transition(donation, "TESTING", actor=staff)
-            DonationService.transition(donation, "RELEASED", actor=admin)
             released_bags.append(bag)
         self.stdout.write(f"Blood bags present: {BloodBag.objects.count()}")
 

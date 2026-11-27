@@ -66,6 +66,13 @@ NotificationService`). Views never duplicate them; templates never decide
 anything. Confirmation tokens checked in views (`RELEASE`, `YES`, `ISSUE`)
 are UX — the service re-checks the actual invariant on every call.
 
+The first verified release of a linked inventory unit completes its donation
+and awards points from the configured `DONATION_COMPLETED` rule. The donation
+reference is shared with older collection awards, so releasing an older unit
+cannot issue a second award. A routine donation interval displays as **Next
+donation** with its eligibility date. Clinical deferrals retain their own
+status.
+
 ## State machines
 
 Blood bag (`inventory.models.BloodBag.TRANSITIONS`, enforced by

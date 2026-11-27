@@ -41,6 +41,7 @@
     <select name="eligibility" class="rounded-xl border border-ink-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
       <option value="">Any eligibility</option>
       <option value="ELIGIBLE" {% if eligibility_filter == "ELIGIBLE" %}selected{% endif %}>Eligible</option>
+      <option value="NEXT_DONATION" {% if eligibility_filter == "NEXT_DONATION" %}selected{% endif %}>Next donation</option>
       <option value="DEFERRED" {% if eligibility_filter == "DEFERRED" %}selected{% endif %}>Deferred</option>
       <option value="NOT_ELIGIBLE" {% if eligibility_filter == "NOT_ELIGIBLE" %}selected{% endif %}>Not eligible</option>
       <option value="REQUIRES_STAFF_REVIEW" {% if eligibility_filter == "REQUIRES_STAFF_REVIEW" %}selected{% endif %}>Requires staff review</option>
