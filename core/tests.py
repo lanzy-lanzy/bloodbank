@@ -89,6 +89,27 @@ class AppShellTests(TestCase):
         self.assertIn("Donations by Municipality", content)
         self.assertIn("Donor &amp; Donation Analysis by Sex", content)
 
+    def test_admin_dashboard_handles_notifications_without_template(self):
+        from core.testing import make_donor
+        from notifications.models import Notification
+
+        donor = make_donor()
+        Notification.objects.create(
+            donor=donor, channel="in_app", template=None,
+            subject="Scheduled Blood Donation", body="Test body",
+            delivery_status="SENT",
+        )
+        Notification.objects.create(
+            donor=donor, channel="in_app", template=None,
+            subject="", body="Subjectless body",
+            delivery_status="SENT",
+        )
+        resp = self.client.get(reverse("core:dashboard"))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        self.assertIn("Scheduled Blood Donation", body)
+        self.assertIn("Subjectless body", body)
+
     def test_municipality_and_sex_chart_endpoints_return_real_counts(self):
         from core.testing import make_blood_type, make_donor
         from donations.models import Donation

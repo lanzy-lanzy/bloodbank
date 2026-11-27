@@ -128,7 +128,7 @@ def _admin_dashboard(request):
         "recent_donations": Donation.objects.select_related("donor", "blood_type").order_by("-created_at")[:5],
         "recent_requests": requests_qs.order_by("-created_at")[:5],
         "recent_audit": AuditLog.objects.select_related("user").order_by("-created_at")[:8],
-        "recent_notifications": Notification.objects.order_by("-created_at")[:5],
+        "recent_notifications": Notification.objects.select_related("template").order_by("-created_at")[:5],
         "low_stock": _low_stock_types(bags),
         "inventory_matrix": _inventory_matrix(bags),
     }
